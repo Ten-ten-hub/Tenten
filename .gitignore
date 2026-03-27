@@ -1,0 +1,29 @@
+# OS
+.DS_Store
+src/.DS_Store
+
+# IntelliJ / IDE
+.idea/
+*.iml
+*.iws
+out/
+
+# Build / Java
+build/
+.gradle/
+bin/
+*.jar
+*.war
+
+# Infrastructure (Docker, Redis, Kafka)
+.env
+.env.*
+docker-data/
+/data/
+*.log
+dump.rdb
+appendonly.aof
+
+# Secrets
+**/secrets.json
+*-secret.yml
