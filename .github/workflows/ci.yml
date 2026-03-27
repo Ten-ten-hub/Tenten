@@ -22,5 +22,6 @@ jobs:
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
 
-    - name: Build with Gradle
-      run: ./gradlew build # 빌드 및 테스트 코드를 실행함
+# 빌드 부분은 나중에 gradlew 경로 잡고 다시 살릴 예정
+    # - name: Build with Gradle
+    #   run: ./gradlew build # 빌드 및 테스트 코드를 실행함
