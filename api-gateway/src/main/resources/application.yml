@@ -8,8 +8,8 @@ spring:
   cloud:
     gateway:
       routes:
-        - id: main-service
-          uri: lb://main-service
+        - id: sample-service
+          uri: lb://sample-service
           predicates:
             - Path=/main/**
 
