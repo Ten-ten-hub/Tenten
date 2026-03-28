@@ -13,6 +13,16 @@ spring:
           predicates:
             - Path=/main/**
 
+        - id: company-service
+          uri: lb://company-service
+          predicates:
+            - Path=/companies/**
+
+        - id: delivery-service
+          uri: lb://delivery-service
+          predicates:
+            - Path=/deliveries/**
+
 eureka:
   client:
     service-url:
