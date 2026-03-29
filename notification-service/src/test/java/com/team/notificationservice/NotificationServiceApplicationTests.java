@@ -1,5 +1,8 @@
 package com.team.notificationservice;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.times;
@@ -7,14 +10,24 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.team.notificationservice.application.NotificationRequest;
+import com.team.notificationservice.application.NotificationSearchCondition;
 import com.team.notificationservice.application.NotificationService;
 import com.team.notificationservice.domain.MsgType;
+import com.team.notificationservice.domain.Notification;
+import com.team.notificationservice.domain.NotificationRepository;
+import com.team.notificationservice.domain.SendStatus;
 import com.team.notificationservice.infrastructure.SlackClient;
+import com.team.notificationservice.presentation.NotificationResponse;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @SpringBootTest
@@ -22,6 +35,8 @@ class NotificationServiceApplicationTests {
 
     @Autowired
     private NotificationService notificationService;
+    @MockitoBean
+    private NotificationRepository notificationRepository;
 
     @MockitoBean// 실제 슬랙 API 서버를 호출하지 않도록 가짜 객체(Mock) 등록
     private SlackClient slackClient;
@@ -66,5 +81,36 @@ class NotificationServiceApplicationTests {
         // then: 1. 이메일 조회가 발생했는지 확인, 2. 조회된 ID로 발송되었는지 확인
         verify(slackClient, times(1)).findSlackIdByEmail("test@example.com");
         verify(slackClient, times(1)).sendDirectMessage(eq("U_SEARCHED_ID"), anyString());
+    }
+
+    @Test
+    @DisplayName("슬랙 ID와 키워드로 검색 시 검색 결과가 반환되는지 확인")
+    void searchNotificationsMockTest() {
+        // given
+        String slackId = "U12345678";
+        String keyword = "배송";
+
+        // 1. 가짜 결과 데이터 생성
+        Notification mockNotification = Notification.builder()
+                .msgContent("배송이 시작되었습니다.")
+                .receiverSlackId(slackId)
+                .sendStatus(SendStatus.SUCCESS)
+                .build();
+        Page<Notification> mockPage = new PageImpl<>(List.of(mockNotification));
+
+        // 2. 레포지토리가 이 데이터를 주도록 Mock 설정
+        when(notificationRepository.findByReceiverSlackIdAndMsgContentContainingAndDeletedAtIsNull(
+                anyString(), anyString(), any(Pageable.class)))
+                .thenReturn(mockPage);
+
+        // when
+        NotificationSearchCondition condition = new NotificationSearchCondition();
+        condition.setSlackId(slackId);
+        condition.setKeyword(keyword);
+        Page<NotificationResponse> result = notificationService.searchNotifications(condition, PageRequest.of(0, 10));
+
+        // then
+        assertEquals(1, result.getContent().size());
+        assertTrue(result.getContent().get(0).getMessage().contains(keyword));
     }
 }
