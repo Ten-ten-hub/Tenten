@@ -46,4 +46,9 @@ public class Notification extends BaseEntity {
     public void markAsFailed() {
         this.sendStatus = SendStatus.FAIL;
     }
+
+    public void delete(String adminId) {
+        super.delete(adminId);
+//        this.sendStatus = SendStatus.CANCEL;
+    }
 }

@@ -75,4 +75,14 @@ public class NotificationService {
                 .map(NotificationResponse::from)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않거나 삭제된 알림입니다."));
     }
+
+    @Transactional
+    public void deleteNotification(UUID id, String deletedBy) {
+        // 삭제되지 않은 알림을 찾아서
+        Notification notification = notificationRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않거나 이미 삭제된 알림입니다."));
+
+        // 엔티티에 삭제 처리를 위임
+        notification.delete(deletedBy);
+    }
 }

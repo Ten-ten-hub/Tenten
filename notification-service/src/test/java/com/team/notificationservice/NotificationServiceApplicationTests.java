@@ -139,4 +139,26 @@ class NotificationServiceApplicationTests {
         assertEquals("단건 조회 테스트 메시지", response.getMessage());
         assertEquals(SendStatus.SUCCESS, response.getStatus());
     }
+
+    @Test
+    @DisplayName("알림 ID로 삭제 시 Soft Delete 메서드가 호출되는지 확인")
+    void deleteNotificationTest() {
+        // given
+        UUID notificationId = UUID.randomUUID();
+        Notification mockNotification = Notification.builder()
+                .msgContent("삭제될 알림")
+                .build();
+
+        when(notificationRepository.findByIdAndDeletedAtIsNull(notificationId))
+                .thenReturn(Optional.of(mockNotification));
+
+        // when
+        notificationService.deleteNotification(notificationId, "user-123");
+
+        // then
+        // Getter를 통해 부모 필드가 정상적으로 세팅되었는지 확인
+        assertNotNull(mockNotification.getDeletedAt());
+        assertEquals("user-123", mockNotification.getDeletedBy());
+//        assertEquals(SendStatus.CANCEL, mockNotification.getSendStatus());
+    }
 }
