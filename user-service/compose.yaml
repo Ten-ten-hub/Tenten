@@ -3,11 +3,11 @@ services:
     image: postgres:latest
     container_name: tenten-postgres
     environment:
-      POSTGRES_DB: sample_db
+      POSTGRES_DB: user_db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: 1234
     ports:
-      - "5433:5432"
+      - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql
 
