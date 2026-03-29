@@ -23,7 +23,20 @@ spring:
           predicates:
             - Path=/deliveries/**
 
+        - id: notification-service
+          uri: lb://notification-service
+          predicates:
+            - Path=/notifications/**
+          filters:
+            - RewritePath=/notifications/(?<path>.*), /api/v1/notifications/${path}
+
 eureka:
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka
+    registry-fetch-interval-seconds: 5
+
+logging:
+  level:
+    org.springframework.cloud.gateway.server.mvc: TRACE
+    org.springframework.web.servlet.handler: DEBUG
