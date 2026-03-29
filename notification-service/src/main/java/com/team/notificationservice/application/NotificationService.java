@@ -5,6 +5,7 @@ import com.team.notificationservice.domain.NotificationRepository;
 import com.team.notificationservice.domain.SendStatus;
 import com.team.notificationservice.infrastructure.SlackClient;
 import com.team.notificationservice.presentation.NotificationResponse;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -66,5 +67,12 @@ public class NotificationService {
         return notificationRepository.findByReceiverSlackIdAndDeletedAtIsNull(
                         condition.getSlackId(), pageable)
                 .map(NotificationResponse::from);
+    }
+
+    @Transactional(readOnly = true)
+    public NotificationResponse getNotification(UUID id) {
+        return notificationRepository.findByIdAndDeletedAtIsNull(id)
+                .map(NotificationResponse::from)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않거나 삭제된 알림입니다."));
     }
 }

@@ -1,6 +1,7 @@
 package com.team.notificationservice;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -19,6 +20,7 @@ import com.team.notificationservice.domain.SendStatus;
 import com.team.notificationservice.infrastructure.SlackClient;
 import com.team.notificationservice.presentation.NotificationResponse;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -112,5 +114,29 @@ class NotificationServiceApplicationTests {
         // then
         assertEquals(1, result.getContent().size());
         assertTrue(result.getContent().get(0).getMessage().contains(keyword));
+    }
+
+    @Test
+    @DisplayName("알림 ID로 단건 조회를 수행한다")
+    void getNotificationTest() {
+        // given
+        UUID notificationId = UUID.randomUUID();
+        Notification mockNotification = Notification.builder()
+                .msgContent("단건 조회 테스트 메시지")
+                .receiverSlackId("U12345678")
+                .sendStatus(SendStatus.SUCCESS)
+                .build();
+
+        // 레포지토리 Mock 설정
+        when(notificationRepository.findByIdAndDeletedAtIsNull(notificationId))
+                .thenReturn(Optional.of(mockNotification));
+
+        // when
+        NotificationResponse response = notificationService.getNotification(notificationId);
+
+        // then
+        assertNotNull(response);
+        assertEquals("단건 조회 테스트 메시지", response.getMessage());
+        assertEquals(SendStatus.SUCCESS, response.getStatus());
     }
 }
