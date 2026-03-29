@@ -4,8 +4,11 @@ import com.team.notificationservice.domain.Notification;
 import com.team.notificationservice.domain.NotificationRepository;
 import com.team.notificationservice.domain.SendStatus;
 import com.team.notificationservice.infrastructure.SlackClient;
+import com.team.notificationservice.presentation.NotificationResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,5 +52,19 @@ public class NotificationService {
         } else {
             notification.markAsFailed();
         }
+    }
+
+    @Transactional(readOnly = true)
+    public Page<NotificationResponse> searchNotifications(NotificationSearchCondition condition, Pageable pageable) {
+        // 키워드가 있으면 포함 검색, 없으면 기존대로 전체 조회
+        if (condition.getKeyword() != null && !condition.getKeyword().isBlank()) {
+            return notificationRepository.findByReceiverSlackIdAndMsgContentContainingAndDeletedAtIsNull(
+                            condition.getSlackId(), condition.getKeyword(), pageable)
+                    .map(NotificationResponse::from);
+        }
+
+        return notificationRepository.findByReceiverSlackIdAndDeletedAtIsNull(
+                        condition.getSlackId(), pageable)
+                .map(NotificationResponse::from);
     }
 }
