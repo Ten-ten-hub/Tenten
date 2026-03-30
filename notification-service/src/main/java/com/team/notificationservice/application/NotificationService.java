@@ -1,0 +1,88 @@
+package com.team.notificationservice.application;
+
+import com.team.notificationservice.domain.Notification;
+import com.team.notificationservice.domain.NotificationRepository;
+import com.team.notificationservice.domain.SendStatus;
+import com.team.notificationservice.infrastructure.SlackClient;
+import com.team.notificationservice.presentation.NotificationResponse;
+import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class NotificationService {
+
+    private final NotificationRepository notificationRepository;
+    private final SlackClient slackClient;
+
+    @Transactional
+    public void createAndSend(NotificationRequest dto) {
+        String targetSlackId = dto.getReceiverSlackId();
+
+        // ID가 없고 이메일이 있다면 이메일로 ID 조회
+        if ((targetSlackId == null || targetSlackId.isEmpty()) && dto.getEmail() != null) {
+            targetSlackId = slackClient.findSlackIdByEmail(dto.getEmail());
+        }
+
+        if (targetSlackId == null) {
+            log.error("대상자를 특정할 수 없습니다.");
+            return;
+        }
+
+        Notification notification = Notification.builder()
+                .receiverSlackId(targetSlackId) // 조회된 혹은 입력된 ID 저장
+                .orderId(dto.getOrderId())
+                .msgContent(dto.getMessage())
+                .msgType(dto.getMsgType())
+                .sendStatus(SendStatus.PENDING)
+                .build();
+
+        notificationRepository.save(notification);
+
+        // 실제 발송
+        boolean success = slackClient.sendDirectMessage(targetSlackId, notification.getMsgContent());
+
+        if (success) {
+            notification.markAsSuccess();
+        } else {
+            notification.markAsFailed();
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public Page<NotificationResponse> searchNotifications(NotificationSearchCondition condition, Pageable pageable) {
+        // 키워드가 있으면 포함 검색, 없으면 기존대로 전체 조회
+        if (condition.getKeyword() != null && !condition.getKeyword().isBlank()) {
+            return notificationRepository.findByReceiverSlackIdAndMsgContentContainingAndDeletedAtIsNull(
+                            condition.getSlackId(), condition.getKeyword(), pageable)
+                    .map(NotificationResponse::from);
+        }
+
+        return notificationRepository.findByReceiverSlackIdAndDeletedAtIsNull(
+                        condition.getSlackId(), pageable)
+                .map(NotificationResponse::from);
+    }
+
+    @Transactional(readOnly = true)
+    public NotificationResponse getNotification(UUID id) {
+        return notificationRepository.findByIdAndDeletedAtIsNull(id)
+                .map(NotificationResponse::from)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않거나 삭제된 알림입니다."));
+    }
+
+    @Transactional
+    public void deleteNotification(UUID id, String deletedBy) {
+        // 삭제되지 않은 알림을 찾아서
+        Notification notification = notificationRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않거나 이미 삭제된 알림입니다."));
+
+        // 엔티티에 삭제 처리를 위임
+        notification.delete(deletedBy);
+    }
+}
