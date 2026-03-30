@@ -5,7 +5,7 @@ import com.team.userservice.user.users.application.dto.LoginServiceDto;
 import java.util.UUID;
 
 public record LoginResDto(
-        UUID uuid,
+        UUID userId,
         Role role
 ) {
     public static LoginResDto from(LoginServiceDto serviceDto) {

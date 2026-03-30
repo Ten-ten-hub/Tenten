@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class UserInternalController {
     private final UserService userService;
 
-    @PostMapping("/users/login-id/{loginId}")
+    @PostMapping("/users/verify")
     public CommonResponse<LoginResDto> login(@RequestBody LoginReqDto loginRequest) {
         return CommonResponse.onSuccess(
                 LoginResDto.from(userService.loginService(loginRequest.loginId(), loginRequest.password())));
