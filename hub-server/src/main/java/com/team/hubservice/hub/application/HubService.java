@@ -73,6 +73,10 @@ public class HubService {
     }
 
     private void checkActiveRoutesAndCompanies(UUID hubId) {
-        // 연관 데이터 검증 로직 구현 예정 구역
+        // TODO: 연관 데이터 검증 로직 구현 예정 구역
+    }
+
+    public boolean checkHubExists(UUID hubId) {
+        return hubRepository.existsById(hubId);
     }
 }
