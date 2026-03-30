@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.5.13'
     id 'io.spring.dependency-management' version '1.1.7'
+    id "org.asciidoctor.jvm.convert" version "3.3.2"
 }
 
 group = 'com.team'
@@ -17,6 +18,7 @@ configurations {
     compileOnly {
         extendsFrom annotationProcessor
     }
+    asciidoctorExt
 }
 
 repositories {
@@ -25,6 +27,7 @@ repositories {
 
 ext {
     set('springCloudVersion', "2025.0.1")
+    snippetsDir = file('build/generated-snippets')
 }
 
 dependencies {
@@ -42,6 +45,9 @@ dependencies {
     implementation 'com.slack.api:slack-api-client:1.38.0' //슬랙
     implementation 'org.flywaydb:flyway-core'
     implementation 'org.flywaydb:flyway-database-postgresql'
+
+    asciidoctorExt 'org.springframework.restdocs:spring-restdocs-asciidoctor'
+    testImplementation 'org.springframework.restdocs:spring-restdocs-mockmvc'
 }
 
 dependencyManagement {
@@ -50,6 +56,21 @@ dependencyManagement {
     }
 }
 
-tasks.named('test') {
+test {
+    outputs.dir snippetsDir
     useJUnitPlatform()
+}
+
+asciidoctor {
+    inputs.dir snippetsDir
+    configurations 'asciidoctorExt' // 위에서 선언한 asciidoctorExt 사용
+    dependsOn test
+}
+
+// 빌드 시 문서를 포함시키는 설정 (Packaging)
+bootJar {
+    dependsOn asciidoctor
+    from("${asciidoctor.outputDir}") {
+        into 'static/docs'
+    }
 }
