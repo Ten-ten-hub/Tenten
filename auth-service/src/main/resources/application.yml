@@ -1,0 +1,41 @@
+server:
+    port: 10102
+
+spring:
+    application:
+        name: auth-service
+
+    docker:
+        compose:
+            enabled: false
+
+    data:
+        redis:
+            host: localhost
+            port: 6379
+            password: 1234
+            lettuce:
+                pool:
+                    max-active: 8
+                    max-idle: 8
+                    min-idle: 2
+
+eureka:
+    client:
+        service-url:
+            defaultZone: http://localhost:8761/eureka
+        register-with-eureka: true
+        fetch-registry: true
+    instance:
+        hostname: auth-service
+        prefer-ip-address: true
+        lease-renewal-interval-in-seconds: 30
+        lease-expiration-duration-in-seconds: 90
+
+jwt:
+    secret: YS1zdHJpbmctc2VjcmV0LWF0LWxlYXN0LTI1Ni1iaXRzLWxvbmc=
+    access-token-validity: 1h
+    refresh-token-validity: 7d
+
+main:
+    allow-bean-definition-overriding: true
