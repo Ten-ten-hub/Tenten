@@ -4,6 +4,7 @@ import com.team.userservice.global.domain.error.UserErrorCode;
 import com.team.userservice.global.exception.UserException;
 import com.team.userservice.user.core.User;
 import com.team.userservice.user.core.enums.Role;
+import com.team.userservice.user.users.application.dto.LoginServiceDto;
 import com.team.userservice.user.users.application.dto.SignUpResultDto;
 import com.team.userservice.user.users.application.dto.SignUpServiceDto;
 import com.team.userservice.user.users.domain.UserRepository;
@@ -45,5 +46,10 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public void register(UUID userId, Role giveRole) {
         userRepository.register(userId, giveRole);
+    }
+
+    @Override
+    public LoginServiceDto findByLoginId(String loginId) {
+        return LoginServiceDto.from(userRepository.findByLoginId(loginId));
     }
 }

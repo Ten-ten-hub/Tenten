@@ -35,4 +35,10 @@ public class UserRepositoryImpl implements UserRepository {
     public boolean existsByEmail(String email) {
         return userJpaRepository.existsByEmail(email);
     }
+
+    @Override
+    public User findByLoginId(String loginId) {
+        return userJpaRepository.findByLoginId(loginId)
+                .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
+    }
 }
