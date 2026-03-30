@@ -145,7 +145,8 @@ public class Delivery extends BaseEntity {
             this.startedAt = LocalDateTime.now();
         }
 
-        if (deliveryStatus == DeliveryStatus.DELIVERED) {
+        // 최초 완료 시각만 기록하도록 수정
+        if (this.completedAt == null && deliveryStatus == DeliveryStatus.DELIVERED) {
             this.completedAt = LocalDateTime.now();
         }
     }

@@ -26,6 +26,9 @@ public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolve
         @Nullable WebDataBinderFactory binderFactory
     ) {
         HttpServletRequest request = webRequest.getNativeRequest(HttpServletRequest.class);
+        if (request == null) {
+            throw new ServiceException(ErrorCode.COMMON_INTERNAL_ERROR);
+        }
 
         return new CurrentUser(
             parseUuid(request.getHeader("X-User-Id")),
@@ -39,6 +42,10 @@ public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolve
         if (value == null || value.isBlank()) {
             return null;
         }
-        return UUID.fromString(value);
+        try {
+            return UUID.fromString(value);
+        } catch (IllegalArgumentException e) {
+            throw new ServiceException(ErrorCode.COMMON_INVALID_INPUT);
+        }
     }
 }

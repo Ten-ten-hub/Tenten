@@ -8,11 +8,13 @@ import com.team.deliveryservice.domain.delivery.DeliveryRouteLogRepository;
 import com.team.deliveryservice.presentation.common.CurrentUser;
 import com.team.deliveryservice.presentation.common.ErrorCode;
 import com.team.deliveryservice.presentation.common.ServiceException;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,9 +46,12 @@ public class DeliveryServiceImpl implements DeliveryService {
             request.finalDispatchDeadlineAt()
         );
 
-        Delivery savedDelivery = deliveryRepository.save(delivery);
-
-        return DeliveryResponse.from(savedDelivery, List.of());
+        try {
+            Delivery savedDelivery = deliveryRepository.save(delivery);
+            return DeliveryResponse.from(savedDelivery, List.of());
+        } catch (DataIntegrityViolationException e) {
+            throw new ServiceException(ErrorCode.DELIVERY_ALREADY_EXISTS);
+        }
     }
 
     @Override
@@ -69,15 +74,28 @@ public class DeliveryServiceImpl implements DeliveryService {
 
         var pageResult = deliveryRepository.search(condition, normalizedSize);
 
-        var responsePage = pageResult.map(delivery -> {
-            var routeLogs = deliveryRouteLogRepository
-                .findAllByDeliveryIdAndDeletedAtIsNullOrderBySequenceNoAsc(delivery.getId())
-                .stream()
-                .map(DeliveryRouteLogResponse::from)
-                .toList();
+        var deliveryIds = pageResult.getContent().stream()
+            .map(Delivery::getId)
+            .toList();
 
-            return DeliveryResponse.from(delivery, routeLogs);
-        });
+        final Map<UUID, List<DeliveryRouteLogResponse>> routeLogsByDeliveryId =
+            deliveryIds.isEmpty()
+                ? Map.of()
+                : deliveryRouteLogRepository
+                .findAllByDeliveryIdInAndDeletedAtIsNullOrderBySequenceNoAsc(deliveryIds)
+                .stream()
+                .collect(Collectors.groupingBy(
+                    DeliveryRouteLog::getDeliveryId,
+                    LinkedHashMap::new,
+                    Collectors.mapping(DeliveryRouteLogResponse::from, Collectors.toList())
+                ));
+
+        var responsePage = pageResult.map(delivery ->
+            DeliveryResponse.from(
+                delivery,
+                routeLogsByDeliveryId.getOrDefault(delivery.getId(), List.of())
+            )
+        );
 
         return DeliveryPageResponse.from(responsePage);
     }
@@ -100,7 +118,7 @@ public class DeliveryServiceImpl implements DeliveryService {
             .findAllByDeliveryIdAndDeletedAtIsNullOrderBySequenceNoAsc(deliveryId)
             .stream()
             .map(DeliveryRouteLogResponse::from)
-            .collect(Collectors.toList());
+            .toList();
 
         return DeliveryResponse.from(delivery, routeLogs);
     }
