@@ -6,7 +6,6 @@ plugins {
 
 group = 'com.team'
 version = '0.0.1-SNAPSHOT'
-description = 'sample-service'
 
 java {
     toolchain {
@@ -25,25 +24,24 @@ repositories {
 }
 
 ext {
-    set('springCloudVersion', "2025.1.1")
+    set('springCloudVersion', "2025.0.1")
 }
 
 dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'io.micrometer:micrometer-tracing-bridge-brave'
     implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
-
-//    implementation 'org.springframework.kafka:spring-kafka'
-//    implementation 'org.springframework.boot:spring-boot-starter-amqp'
-
-    runtimeOnly 'org.postgresql:postgresql'
-
+    implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
     compileOnly 'org.projectlombok:lombok'
+    runtimeOnly 'org.postgresql:postgresql'
     annotationProcessor 'org.projectlombok:lombok'
-
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    implementation 'com.slack.api:slack-api-client:1.38.0' //슬랙
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-database-postgresql'
 }
 
 dependencyManagement {
