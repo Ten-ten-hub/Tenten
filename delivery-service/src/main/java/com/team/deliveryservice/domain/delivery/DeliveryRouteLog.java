@@ -1,13 +1,14 @@
 package com.team.deliveryservice.domain.delivery;
 
 import com.team.common.BaseEntity;
+import com.team.deliveryservice.presentation.common.ErrorCode;
+import com.team.deliveryservice.presentation.common.ServiceException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -18,15 +19,7 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @Entity
-@Table(
-    name = "p_delivery_route_log",
-    uniqueConstraints = {
-        @UniqueConstraint(
-            name = "uk_p_delivery_route_log_delivery_id_sequence_no",
-            columnNames = {"delivery_id", "sequence_no"}
-        )
-    }
-)
+@Table(name = "p_delivery_route_log")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class DeliveryRouteLog extends BaseEntity {
 
@@ -100,6 +93,8 @@ public class DeliveryRouteLog extends BaseEntity {
         Integer expectedDurationMinutes,
         UUID deliveryManagerId
     ) {
+        validate(deliveryId, sequenceNo, departureHubId, arrivalHubId, expectedDistanceKm, expectedDurationMinutes);
+
         return DeliveryRouteLog.builder()
             .id(UUID.randomUUID())
             .deliveryId(deliveryId)
@@ -111,5 +106,38 @@ public class DeliveryRouteLog extends BaseEntity {
             .routeStatus(DeliveryRouteStatus.WAITING_AT_HUB)
             .deliveryManagerId(deliveryManagerId)
             .build();
+    }
+
+    private static void validate(
+        UUID deliveryId,
+        Integer sequenceNo,
+        UUID departureHubId,
+        UUID arrivalHubId,
+        BigDecimal expectedDistanceKm,
+        Integer expectedDurationMinutes
+    ) {
+        if (deliveryId == null) {
+            throw new ServiceException(ErrorCode.COMMON_INVALID_INPUT);
+        }
+
+        if (sequenceNo == null || sequenceNo <= 0) {
+            throw new ServiceException(ErrorCode.COMMON_INVALID_INPUT);
+        }
+
+        if (departureHubId == null || arrivalHubId == null) {
+            throw new ServiceException(ErrorCode.COMMON_INVALID_INPUT);
+        }
+
+        if (departureHubId.equals(arrivalHubId)) {
+            throw new ServiceException(ErrorCode.COMMON_INVALID_INPUT);
+        }
+
+        if (expectedDistanceKm == null || expectedDistanceKm.compareTo(BigDecimal.ZERO) < 0) {
+            throw new ServiceException(ErrorCode.COMMON_INVALID_INPUT);
+        }
+
+        if (expectedDurationMinutes == null || expectedDurationMinutes < 0) {
+            throw new ServiceException(ErrorCode.COMMON_INVALID_INPUT);
+        }
     }
 }

@@ -1,17 +1,20 @@
 package com.team.deliveryservice.presentation.common;
 
 import jakarta.validation.ConstraintViolationException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(ServiceException.class)
     public ResponseEntity<ApiResponse<Void>> handleServiceException(ServiceException e) {
         ErrorCode errorCode = e.getErrorCode();
+        log.error("Unexpected error occurred", e);
         return ResponseEntity.status(errorCode.status())
             .body(ApiResponse.fail(errorCode.code(), errorCode.message()));
     }

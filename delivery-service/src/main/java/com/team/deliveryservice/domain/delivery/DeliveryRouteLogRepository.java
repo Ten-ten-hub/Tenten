@@ -7,4 +7,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface DeliveryRouteLogRepository extends JpaRepository<DeliveryRouteLog, UUID> {
 
     List<DeliveryRouteLog> findAllByDeliveryIdAndDeletedAtIsNullOrderBySequenceNoAsc(UUID deliveryId);
+    List<DeliveryRouteLog> findAllByDeliveryIdInAndDeletedAtIsNullOrderBySequenceNoAsc(List<UUID> deliveryIds);
 }
