@@ -1,5 +1,6 @@
 package com.team.hubservice.hub.domain;
 
+import com.team.common.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
@@ -20,13 +21,13 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @Table(name = "p_hub")
 @EntityListeners(AuditingEntityListener.class)
 @SQLRestriction("deleted_at IS NULL")
-public class Hub extends BaseEntity{
+public class Hub extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(nullable = false, length = 50)
+    @Column(nullable = false, length = 50, unique = true)
     private String name;
 
     @Column(nullable = false, length = 200)

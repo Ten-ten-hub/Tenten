@@ -93,7 +93,7 @@ public class HubController {
 
         UUID userId = UUID.fromString(userDetails.getUsername());
 
-        hubService.deleteHub(hubId, userDetails.getUsername());
+        hubService.deleteHub(hubId, userId);
         return buildResponse(HttpStatus.OK.value(), "허브가 성공적으로 삭제 처리되었습니다.", null);
     }
 
