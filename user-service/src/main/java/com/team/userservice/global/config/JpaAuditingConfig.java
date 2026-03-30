@@ -15,11 +15,14 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 public class JpaAuditingConfig {
     @Bean
     public AuditorAware<String> auditorProvider() {
-        return () -> Optional.ofNullable(
-                        ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes())
+        return () -> {
+            String userId = Optional.ofNullable(
+                    (ServletRequestAttributes) RequestContextHolder.getRequestAttributes()
                 )
                 .map(attr -> attr.getRequest().getHeader("X-User-Id"))
-                .or(() -> Optional.of("anonymous"));
+                .orElse("anonymous");
+            return Optional.of(userId);
+        };
     }
 
 }
