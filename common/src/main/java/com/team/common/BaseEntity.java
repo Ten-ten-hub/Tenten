@@ -6,7 +6,9 @@ import jakarta.persistence.MappedSuperclass;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import lombok.Getter;
+import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
@@ -19,6 +21,7 @@ public abstract class BaseEntity {
     @Column(updatable = false, nullable = false)
     private LocalDateTime createdAt;
 
+    @CreatedBy
     @Column(updatable = false, nullable = false)
     private UUID createdBy;
 
@@ -26,6 +29,7 @@ public abstract class BaseEntity {
     @Column
     private LocalDateTime updatedAt;
 
+    @LastModifiedBy
     @Column
     private UUID updatedBy;
 
