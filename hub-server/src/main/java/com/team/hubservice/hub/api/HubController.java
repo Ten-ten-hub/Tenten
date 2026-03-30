@@ -91,6 +91,8 @@ public class HubController {
             @PathVariable UUID hubId,
             @AuthenticationPrincipal UserDetails userDetails) {
 
+        UUID userId = UUID.fromString(userDetails.getUsername());
+
         hubService.deleteHub(hubId, userDetails.getUsername());
         return buildResponse(HttpStatus.OK.value(), "허브가 성공적으로 삭제 처리되었습니다.", null);
     }

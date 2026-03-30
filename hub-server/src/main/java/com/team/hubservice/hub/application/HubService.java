@@ -61,10 +61,10 @@ public class HubService {
 
     @Transactional
     @CacheEvict(value = "hubs", key = "#hubId")
-    public void deleteHub(UUID hubId, String deletedBy) {
+    public void deleteHub(UUID hubId, UUID deletedBy) {
         Hub hub = findHubById(hubId);
         checkActiveRoutesAndCompanies(hubId);
-        hub.markAsDeleted(deletedBy);
+        hub.softDelete(deletedBy);
     }
 
     private Hub findHubById(UUID hubId) {
