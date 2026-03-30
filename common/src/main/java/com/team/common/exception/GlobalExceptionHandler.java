@@ -20,10 +20,9 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException e) {
-        List<Map<String, String>> details = e.getBindingResult().getFieldErrors().stream().map(
-            error -> Map.of("field", error.getField(), "value",
-                error.getRejectedValue() != null ? String.valueOf(error.getRejectedValue()) : "", "reason",
-                String.valueOf(error.getDefaultMessage()))).toList();
+        List<Map<String, String>> details = e.getBindingResult().getFieldErrors().stream()
+            .map(error -> Map.of("field", error.getField(), "reason", String.valueOf(error.getDefaultMessage())))
+            .toList();
 
         return ResponseEntity.status(CommonErrorCode.INVALID_INPUT.getStatus())
             .body(ErrorResponse.of(CommonErrorCode.INVALID_INPUT, details));
