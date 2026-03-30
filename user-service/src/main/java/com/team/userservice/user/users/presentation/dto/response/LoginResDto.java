@@ -2,17 +2,16 @@ package com.team.userservice.user.users.presentation.dto.response;
 
 import com.team.userservice.user.core.enums.Role;
 import com.team.userservice.user.users.application.dto.LoginServiceDto;
+import java.util.UUID;
 
 public record LoginResDto(
-        String loginId,
-        String password,
+        UUID uuid,
         Role role
 ) {
-    public static LoginResDto from(LoginServiceDto dto) {
+    public static LoginResDto from(LoginServiceDto serviceDto) {
         return new LoginResDto(
-                dto.loginId(),
-                dto.password(),
-                dto.role()
+                serviceDto.uuid(),
+                serviceDto.role()
         );
     }
 }

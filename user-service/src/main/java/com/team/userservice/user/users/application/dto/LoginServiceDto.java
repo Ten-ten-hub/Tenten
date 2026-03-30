@@ -1,18 +1,13 @@
 package com.team.userservice.user.users.application.dto;
 
-import com.team.userservice.user.core.User;
 import com.team.userservice.user.core.enums.Role;
+import java.util.UUID;
 
 public record LoginServiceDto(
-        String loginId,
-        String password,
+        UUID uuid,
         Role role
 ) {
-    public static LoginServiceDto from(User userfromLoginId) {
-        return new LoginServiceDto(
-                userfromLoginId.getLoginId(),
-                userfromLoginId.getPassword(),
-                userfromLoginId.getRole()
-        );
+    public static LoginServiceDto from(UUID userId, Role role) {
+        return new LoginServiceDto(userId, role);
     }
 }

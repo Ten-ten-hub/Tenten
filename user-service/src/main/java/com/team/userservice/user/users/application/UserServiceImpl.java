@@ -49,7 +49,11 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public LoginServiceDto findByLoginId(String loginId) {
-        return LoginServiceDto.from(userRepository.findByLoginId(loginId));
+    public LoginServiceDto loginService(String loginId, String password) {
+        User user = userRepository.findByLoginId(loginId);
+        if (!password.equals(user.getPassword())) {
+            throw new UserException(UserErrorCode.INVALID_CREDENTIALS);
+        }
+        return LoginServiceDto.from(user.getId(), user.getRole());
     }
 }

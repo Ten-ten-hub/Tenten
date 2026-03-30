@@ -11,5 +11,5 @@ public interface UserService {
 
     void register(UUID userId, Role giveRole);
 
-    LoginServiceDto findByLoginId(String loginId);
+    LoginServiceDto loginService(String loginId, String password);
 }
