@@ -1,4 +1,7 @@
 package com.team.product_service.product.domain;
 
-public interface ProductRepository {
+import java.util.UUID;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface ProductRepository extends JpaRepository<Product, UUID> {
 }

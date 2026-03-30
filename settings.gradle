@@ -1,0 +1,9 @@
+rootProject.name = 'tenten'
+
+include 'common'
+include 'eureka-server'
+include 'api-gateway'
+include 'product-service'
+include 'company-service'
+include 'delivery-service'
+include 'notification-service'
