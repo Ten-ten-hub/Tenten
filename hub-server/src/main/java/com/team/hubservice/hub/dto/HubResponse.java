@@ -11,9 +11,9 @@ public record HubResponse(
         Double latitude,
         Double longitude,
         LocalDateTime createdAt,
-        String createdBy,
+        UUID createdBy,
         LocalDateTime updatedAt,
-        String updatedBy
+        UUID updatedBy
 ) {
     public static HubResponse from(Hub hub) {
         return new HubResponse(
