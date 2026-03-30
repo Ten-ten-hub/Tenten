@@ -1,0 +1,15 @@
+= Hub API 문서
+
+== 허브 생성
+
+==== Request Fields
+include::{snippets}/hub-create/request-fields.adoc[]
+
+==== Response Fields
+include::{snippets}/hub-create/response-fields.adoc[]
+
+==== HTTP Request
+include::{snippets}/hub-create/http-request.adoc[]
+
+==== HTTP Response
+include::{snippets}/hub-create/http-response.adoc[]
