@@ -13,4 +13,6 @@ public interface UserRepository {
     boolean existsByLoginId(String loginId);
 
     boolean existsByEmail(String email);
+
+    User findByLoginId(String loginId);
 }
