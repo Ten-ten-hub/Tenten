@@ -71,11 +71,13 @@ public class NotificationService {
                 condition.slackId(), pageable);
         }
 
-        // 결과가 비어있으면 404 예외 발생
-        if (result.isEmpty()) {
-            throw new ServiceException(ErrorCode.NOTI_NOTIFICATION_NOT_FOUND);
-        }
+//        // 결과가 비어있으면 404 예외 발생
+//        if (result.isEmpty()) {
+//            throw new ServiceException(ErrorCode.NOTI_NOTIFICATION_NOT_FOUND);
+//        }
+//        return result.map(NotificationResponse::from);
 
+        // 결과가 비어있어도 404를 던지지 않고 빈 페이지 반환 (200 OK 일관성 유지)
         return result.map(NotificationResponse::from);
     }
 
@@ -94,5 +96,7 @@ public class NotificationService {
 
         // 엔티티에 삭제 처리를 위임
         notification.delete(deletedBy);
+
+        notificationRepository.save(notification); // 변경 사항 명시적 반영
     }
 }

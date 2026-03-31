@@ -4,6 +4,8 @@ import com.team.notificationservice.application.NotificationRequest;
 import com.team.notificationservice.application.NotificationSearchCondition;
 import com.team.notificationservice.application.NotificationService;
 import com.team.notificationservice.presentation.common.ApiResponse;
+import com.team.notificationservice.presentation.common.ErrorCode;
+import com.team.notificationservice.presentation.common.ServiceException;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -12,14 +14,13 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @Slf4j
@@ -38,7 +39,14 @@ public class NotificationController {
 
     // 내부 시스템 호출용 (게이트웨이 설정 없이 서비스명:8085/internal/v1/... 으로 직접 호출)
     @PostMapping("/internal/v1/notifications/slack")
-    public ApiResponse<String> internalSend(@RequestBody @Valid NotificationRequest request) {
+    public ApiResponse<String> internalSend(@RequestHeader(value = "X-Internal-Token", required = false) String token,
+                                            @RequestBody @Valid NotificationRequest request) {
+
+        // 내부 호출 인증 체크 (예시?)
+        if (token == null || !token.equals("INTERNAL_SECRET")) {
+            throw new ServiceException(ErrorCode.COMMON_INVALID_INPUT_VALUE); // notification 권한 에러 코드로 대체하기
+        }
+
         notificationService.createAndSend(request);
         return ApiResponse.success("OK");
     }
@@ -57,16 +65,13 @@ public class NotificationController {
     }
 
     @DeleteMapping("/api/v1/notifications/{id}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public ApiResponse<Void> delete(
+    public ResponseEntity<Void> delete(
         @PathVariable UUID id,
         @RequestHeader(value = "X-User-Id", required = false) String userId) {
 
-        // 헤더값이 없으면 기본값 "SYSTEM" 사용
         String deletedBy = (userId != null) ? userId : "SYSTEM";
-
         notificationService.deleteNotification(id, deletedBy);
 
-        return ApiResponse.success(null);
+        return ResponseEntity.noContent().build();
     }
 }
