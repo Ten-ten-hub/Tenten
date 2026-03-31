@@ -63,7 +63,7 @@ public class User extends BaseEntity {
     private LocalDateTime deletedAt; // 레코드 삭제 시간
 
     @Column(name = "deleted_by", length = 100)
-    private String deletedBy; // 레코드 삭제자
+    private UUID deletedBy; // 레코드 삭제자
 
     @Builder(builderMethodName = "create")
     private User(String loginId, String password, String name, Role role,
