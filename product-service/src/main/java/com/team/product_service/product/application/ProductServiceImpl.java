@@ -1,5 +1,7 @@
 package com.team.product_service.product.application;
 
+import com.team.common.exception.BusinessException;
+import com.team.product_service.global.exception.ProductErrorCode;
 import com.team.product_service.product.application.dto.ProductCreateCommand;
 import com.team.product_service.product.application.dto.ProductGetQuery;
 import com.team.product_service.product.application.dto.ProductResult;
@@ -75,16 +77,14 @@ public class ProductServiceImpl implements ProductService {
     }
 
     private Product findActiveProductById(UUID productId) {
-        // common 모듈 pull 받은 뒤 수정
         return productRepository.findByIdAndDeletedAtIsNull(productId)
-            .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 상품입니다."));
+            .orElseThrow(() -> new BusinessException(ProductErrorCode.PRODUCT_NOT_FOUND));
     }
 
     private void validateDuplicateName(UUID companyId, String name, UUID excludedId) {
 
         if (productRepository.existsDuplicateName(companyId, name, excludedId)) {
-            // 공통 모듈 pull 받은 뒤 에러 코드 수정
-            throw new IllegalArgumentException("같은 업체 내 동일한 상품명이 이미 존재합니다. name=" + name);
+            throw new BusinessException(ProductErrorCode.DUPLICATE_PRODUCT_NAME);
         }
     }
 }
