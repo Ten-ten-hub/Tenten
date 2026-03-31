@@ -59,7 +59,6 @@ public class NotificationService {
         ));
     }
 
-    @Transactional(readOnly = true)
     public Page<NotificationResponse> searchNotifications(NotificationSearchCondition condition, Pageable pageable) {
         Page<Notification> result;
 
@@ -80,8 +79,7 @@ public class NotificationService {
         // 결과가 비어있어도 404를 던지지 않고 빈 페이지 반환 (200 OK 일관성 유지)
         return result.map(NotificationResponse::from);
     }
-
-    @Transactional(readOnly = true)
+    
     public NotificationResponse getNotification(UUID id) {
         return notificationRepository.findByIdAndDeletedAtIsNull(id)
             .map(NotificationResponse::from)
