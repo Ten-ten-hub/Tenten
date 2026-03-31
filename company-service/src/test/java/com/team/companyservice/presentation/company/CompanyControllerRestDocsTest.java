@@ -34,7 +34,7 @@ import com.team.companyservice.application.company.CompanyResponse;
 import com.team.companyservice.application.company.CompanyService;
 import com.team.companyservice.domain.company.CompanyType;
 import com.team.companyservice.presentation.common.CurrentUser;
-import com.team.companyservice.presentation.common.GlobalExceptionHandler;
+import com.team.common.exception.GlobalExceptionHandler;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

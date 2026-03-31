@@ -2,14 +2,14 @@
 
 == 허브 생성
 
-==== Request Fields
+=== Request Fields
 include::{snippets}/hub-create/request-fields.adoc[]
 
-==== Response Fields
+=== Response Fields
 include::{snippets}/hub-create/response-fields.adoc[]
 
-==== HTTP Request
+=== HTTP Request
 include::{snippets}/hub-create/http-request.adoc[]
 
-==== HTTP Response
+=== HTTP Response
 include::{snippets}/hub-create/http-response.adoc[]

@@ -12,7 +12,7 @@ CREATE TABLE p_notification
 (
     id                UUID PRIMARY KEY,
     order_id          UUID,   -- logical FK -> p_order.id
-    receiver_id       BIGINT, -- logical FK -> p_user.id
+    receiver_id       UUID, -- logical FK -> p_user.id
     receiver_slack_id VARCHAR(255),
     msg_type          VARCHAR(50) NOT NULL,
     msg_content       TEXT        NOT NULL,

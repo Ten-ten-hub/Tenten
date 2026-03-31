@@ -1,14 +1,10 @@
 package com.team.companyservice.presentation.common;
 
-import lombok.Getter;
+import com.team.common.exception.BusinessException;
 
-@Getter
-public class ServiceException extends RuntimeException {
-
-    private final ErrorCode errorCode;
+public class ServiceException extends BusinessException {
 
     public ServiceException(ErrorCode errorCode) {
-        super(errorCode.getMessage());
-        this.errorCode = errorCode;
+        super(errorCode);
     }
 }
