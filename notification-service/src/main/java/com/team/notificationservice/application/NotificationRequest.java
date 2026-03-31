@@ -1,6 +1,7 @@
 package com.team.notificationservice.application;
 
 import com.team.notificationservice.domain.MsgType;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -16,4 +17,9 @@ public record NotificationRequest(
     @NotNull(message = "메시지 타입은 필수입니다.")
     MsgType msgType
 ) {
+    @AssertTrue(message = "수신자의 슬랙 ID 또는 이메일 중 하나는 입력되어야 합니다.")
+    public boolean isValidRecipient() {
+        return (receiverSlackId != null && !receiverSlackId.isBlank())
+            || (email != null && !email.isBlank());
+    }
 }
