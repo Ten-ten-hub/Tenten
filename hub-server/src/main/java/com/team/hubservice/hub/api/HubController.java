@@ -79,7 +79,7 @@ public class HubController {
     @PreAuthorize("hasRole('MASTER')")
     public ResponseEntity<Map<String, Object>> updateHub(
             @PathVariable UUID hubId,
-            @RequestBody HubUpdateRequest request) {
+            @Valid @RequestBody HubUpdateRequest request) {
 
         HubResponse response = hubService.updateHub(hubId, request);
         return buildResponse(HttpStatus.OK.value(), "허브 정보가 성공적으로 수정되었습니다.", response);
