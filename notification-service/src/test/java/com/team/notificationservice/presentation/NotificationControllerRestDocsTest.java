@@ -3,6 +3,8 @@ package com.team.notificationservice.presentation;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
+import static org.springframework.restdocs.headers.HeaderDocumentation.headerWithName;
+import static org.springframework.restdocs.headers.HeaderDocumentation.requestHeaders;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.documentationConfiguration;
 import static org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders.delete;
@@ -43,6 +45,7 @@ import org.springframework.http.MediaType;
 import org.springframework.restdocs.RestDocumentationContextProvider;
 import org.springframework.restdocs.RestDocumentationExtension;
 import org.springframework.restdocs.payload.JsonFieldType;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -55,9 +58,13 @@ class NotificationControllerRestDocsTest {
     @Mock
     private NotificationService notificationService;
 
+    private NotificationController notificationController;
+
     @BeforeEach
     void setUp(RestDocumentationContextProvider restDocumentation) {
-        mockMvc = MockMvcBuilders.standaloneSetup(new NotificationController(notificationService))
+        notificationController = new NotificationController(notificationService);
+
+        mockMvc = MockMvcBuilders.standaloneSetup(notificationController) // 필드에 담긴 인스턴스를 사용해야 함
             .setControllerAdvice(new GlobalExceptionHandler())
             .setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
             .apply(documentationConfiguration(restDocumentation))
@@ -351,6 +358,79 @@ class NotificationControllerRestDocsTest {
                     fieldWithPath("data.totalPages").description("전체 페이지 수"),
                     fieldWithPath("data.number").description("현재 페이지 번호"),
                     fieldWithPath("data.empty").description("비어있음 여부")
+                )
+            ));
+    }
+
+    @Test
+    @DisplayName("내부 알림 생성 API 성공 문서화")
+    void internalSend_Success() throws Exception {
+        // given
+        NotificationRequest request = new NotificationRequest(
+            "U12345678", "test@team.com", UUID.randomUUID(), "내부 서비스 알림", MsgType.ORDER_ALERT
+        );
+
+        // 필드로 뺀 controller에 테스트용 토큰 주입
+        ReflectionTestUtils.setField(notificationController, "internalAuthToken", "test-internal-token");
+
+        doNothing().when(notificationService).createAndSend(any(NotificationRequest.class));
+
+        // when & then
+        mockMvc.perform(post("/internal/v1/notifications/slack")
+                .header("X-Internal-Token", "test-internal-token") // 설정한 토큰과 일치
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isOk())
+            .andDo(document("notifications/internal-create-success",
+                preprocessRequest(prettyPrint()),
+                preprocessResponse(prettyPrint()),
+                requestHeaders(
+                    headerWithName("X-Internal-Token").description("내부 서비스 인증용 보안 토큰")
+                ),
+                requestFields(
+                    fieldWithPath("receiverSlackId").description("수신자 슬랙 ID (이메일과 둘 중 하나 필수)").optional(),
+                    fieldWithPath("email").description("수신자 이메일 (슬랙 ID와 둘 중 하나 필수)").optional(),
+                    fieldWithPath("orderId").description("연관 주문 ID").optional(),
+                    fieldWithPath("message").description("알림 메시지 본문"),
+                    fieldWithPath("msgType").description("메시지 타입"),
+                    fieldWithPath("validRecipient").description("수신자 유효성 체크 필드").ignored()
+                ),
+                responseFields(
+                    fieldWithPath("success").description("성공 여부"),
+                    fieldWithPath("code").description("응답 코드"),
+                    fieldWithPath("message").description("응답 메시지"),
+                    fieldWithPath("data").description("응답 데이터 (null)").optional()
+                )
+            ));
+    }
+
+    @Test
+    @DisplayName("내부 알림 생성 API 실패 - 토큰 유효하지 않음")
+    void internalSend_Fail_InvalidToken() throws Exception {
+        // given
+        NotificationRequest request = new NotificationRequest(
+            "U12345678", "test@team.com", null, "메시지", MsgType.ORDER_ALERT
+        );
+
+        // 토큰 주입 (비어있지 않게 설정)
+        ReflectionTestUtils.setField(notificationController, "internalAuthToken", "test-internal-token");
+
+        // when & then
+        mockMvc.perform(post("/internal/v1/notifications/slack")
+                .header("X-Internal-Token", "wrong-token") // 잘못된 토큰 전달
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isUnauthorized()) // 401 Unauthorized 기대
+            .andDo(document("notifications/internal-create-fail-token",
+                preprocessResponse(prettyPrint()),
+                requestHeaders(
+                    headerWithName("X-Internal-Token").description("잘못된 인증 토큰")
+                ),
+                responseFields(
+                    fieldWithPath("success").description("false"),
+                    fieldWithPath("code").description("AUTH_INVALID_TOKEN"),
+                    fieldWithPath("message").description("인증 토큰이 유효하지 않습니다."),
+                    fieldWithPath("data").description("null").optional()
                 )
             ));
     }
