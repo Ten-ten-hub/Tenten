@@ -10,12 +10,14 @@ import com.team.userservice.user.users.application.dto.SignUpServiceDto;
 import com.team.userservice.user.users.domain.UserRepository;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
@@ -31,17 +33,23 @@ public class UserServiceImpl implements UserService {
             throw new UserException(UserErrorCode.DUPLICATE_EMAIL);
         }
 
-        User user = userRepository.save(User.create()
-            .loginId(serviceDto.loginId())
-            .password(passwordEncoder.encode(serviceDto.password()))
-            .name(serviceDto.name())
-            .role(serviceDto.role())
-            .slackId(serviceDto.slackId())
-            .email(serviceDto.email())
-            .phoneNumber(serviceDto.phoneNumber())
-            .build());
+        try {
+            User user = userRepository.save(User.create()
+                .loginId(serviceDto.loginId())
+                .password(passwordEncoder.encode(serviceDto.password()))
+                .name(serviceDto.name())
+                .role(serviceDto.role())
+                .slackId(serviceDto.slackId())
+                .email(serviceDto.email())
+                .phoneNumber(serviceDto.phoneNumber())
+                .build());
+            userRepository.flush();
+            return SignUpResultDto.from(user);
+        } catch (DataIntegrityViolationException e) {
+            throw new UserException(UserErrorCode.DUPLICATE_USER_INFO);
+        }
 
-        return SignUpResultDto.from(user);
+
     }
 
     @Override
