@@ -12,6 +12,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 @RequiredArgsConstructor
 public class UserRepositoryImpl implements UserRepository {
+
+
     private final UserJpaRepository userJpaRepository;
 
     @Override
@@ -22,7 +24,7 @@ public class UserRepositoryImpl implements UserRepository {
     @Override
     public void register(UUID userId, Role giveRole) {
         User user = userJpaRepository.findById(userId).orElseThrow(
-                () -> new UserException(UserErrorCode.USER_NOT_FOUND));
+            () -> new UserException(UserErrorCode.USER_NOT_FOUND));
         user.register(giveRole);
     }
 
@@ -39,6 +41,11 @@ public class UserRepositoryImpl implements UserRepository {
     @Override
     public User findByLoginId(String loginId) {
         return userJpaRepository.findByLoginId(loginId)
-                .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
+            .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
+    }
+
+    @Override
+    public void flush() {
+        userJpaRepository.flush();
     }
 }
