@@ -12,6 +12,7 @@ import static org.springframework.restdocs.operation.preprocess.Preprocessors.pr
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessResponse;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.prettyPrint;
 import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
+import static org.springframework.restdocs.payload.PayloadDocumentation.relaxedResponseFields;
 import static org.springframework.restdocs.payload.PayloadDocumentation.requestFields;
 import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
@@ -25,9 +26,7 @@ import com.team.notificationservice.application.NotificationRequest;
 import com.team.notificationservice.application.NotificationService;
 import com.team.notificationservice.domain.MsgType;
 import com.team.notificationservice.domain.SendStatus;
-import com.team.notificationservice.presentation.common.ErrorCode;
 import com.team.notificationservice.presentation.common.GlobalExceptionHandler;
-import com.team.notificationservice.presentation.common.ServiceException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -82,11 +81,13 @@ class NotificationControllerRestDocsTest {
                 preprocessRequest(prettyPrint()),
                 preprocessResponse(prettyPrint()),
                 requestFields(
-                    fieldWithPath("receiverSlackId").description("수신자 슬랙 ID"),
-                    fieldWithPath("email").description("수신자 이메일").optional(),
+                    fieldWithPath("receiverSlackId").description("수신자 슬랙 ID (이메일과 둘 중 하나 필수)").optional(),
+                    fieldWithPath("email").description("수신자 이메일 (슬랙 ID와 둘 중 하나 필수)").optional(),
                     fieldWithPath("orderId").description("연관 주문 ID").optional(),
                     fieldWithPath("message").description("알림 메시지 본문"),
-                    fieldWithPath("msgType").description("메시지 타입")
+                    fieldWithPath("msgType").description("메시지 타입"),
+                    // @AssertTrue 검증 필드에 대한 문서화 누락 해결
+                    fieldWithPath("validRecipient").description("수신자 유효성 체크 필드 (내부 검증용)").ignored()
                 ),
                 responseFields(
                     fieldWithPath("success").description("성공 여부"),
@@ -100,8 +101,8 @@ class NotificationControllerRestDocsTest {
     @Test
     @DisplayName("알림 생성 실패 문서화 (Validation 에러)")
     void sendNotification_Fail() throws Exception {
-        // message와 msgType이 null인 잘못된 요청
-        NotificationRequest invalidRequest = new NotificationRequest("U123", null, null, null, null);
+        // 모든 필드가 비어있어 수신자 검증 및 필수값 검증에서 실패하는 요청
+        NotificationRequest invalidRequest = new NotificationRequest(null, null, null, null, null);
 
         mockMvc.perform(post("/api/v1/notifications/slack")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -208,39 +209,45 @@ class NotificationControllerRestDocsTest {
 
         mockMvc.perform(delete("/api/v1/notifications/{id}", id)
                 .header("X-User-Id", "ADMIN"))
-            .andExpect(status().isNoContent())
+            .andExpect(status().isOk()) // ApiResponse.ok()를 쓰므로 200 OK
             .andDo(document("notifications/delete",
-                pathParameters(parameterWithName("id").description("알림 ID"))
-                // 204 No Content 응답이므로 responseFields는 바디가 없어 생략
-            ));
-    }
-
-    @Test
-    @DisplayName("알림 목록 조회 실패 - 결과 없음")
-    void getNotifications_Fail_NotFound() throws Exception {
-        // 검색 결과가 없을 때 ServiceException을 던지는 시나리오 유지
-        given(notificationService.searchNotifications(any(), any()))
-            .willThrow(new ServiceException(ErrorCode.NOTI_NOTIFICATION_NOT_FOUND));
-
-        mockMvc.perform(get("/api/v1/notifications")
-                .param("slackId", "INVALID_ID"))
-            .andExpect(status().isNotFound())
-            .andDo(document("notifications/list-fail",
-                preprocessResponse(prettyPrint()),
+                pathParameters(parameterWithName("id").description("삭제할 알림 ID")),
                 responseFields(
-                    fieldWithPath("success").description("성공 여부 (false)"),
-                    fieldWithPath("code").description("에러 코드"),
-                    fieldWithPath("message").description("에러 메시지"),
+                    fieldWithPath("success").description("성공 여부"),
                     fieldWithPath("data").description("데이터 (null)").optional(),
-                    // .type(JsonFieldType.ARRAY)를 추가하여 타입을 명시
-                    fieldWithPath("errors").type(JsonFieldType.ARRAY).description("상세 에러 목록 (null)").optional()
+                    fieldWithPath("code").description("코드"),
+                    fieldWithPath("message").description("메시지")
                 )
             ));
     }
 
+//    @Test
+//    @DisplayName("알림 목록 조회 실패 - 결과 없음")
+//    void getNotifications_Fail_NotFound() throws Exception {
+//        // 검색 결과가 없을 때 ServiceException을 던지는 시나리오 유지
+//        given(notificationService.searchNotifications(any(), any()))
+//            .willThrow(new ServiceException(ErrorCode.NOTI_NOTIFICATION_NOT_FOUND));
+//
+//        mockMvc.perform(get("/api/v1/notifications")
+//                .param("slackId", "INVALID_ID"))
+//            .andExpect(status().isNotFound())
+//            .andDo(document("notifications/list-fail",
+//                preprocessResponse(prettyPrint()),
+//                responseFields(
+//                    fieldWithPath("success").description("성공 여부 (false)"),
+//                    fieldWithPath("code").description("에러 코드"),
+//                    fieldWithPath("message").description("에러 메시지"),
+//                    fieldWithPath("data").description("데이터 (null)").optional(),
+//                    // .type(JsonFieldType.ARRAY)를 추가하여 타입을 명시
+//                    fieldWithPath("errors").type(JsonFieldType.ARRAY).description("상세 에러 목록 (null)").optional()
+//                )
+//            ));
+//    }
+
     @Test
     @DisplayName("알림 목록 조회 실패 - 슬랙 ID 누락")
     void getNotifications_Fail_InvalidCondition() throws Exception {
+        // Validation(@Valid)에 의한 400 에러
         mockMvc.perform(get("/api/v1/notifications")
                 // slackId 파라미터를 아예 보내지 않음
                 .param("page", "0")
@@ -256,6 +263,35 @@ class NotificationControllerRestDocsTest {
                     fieldWithPath("errors[].field").description("slackId"),
                     fieldWithPath("errors[].reason").description("조회할 슬랙 ID는 필수입니다."),
                     fieldWithPath("errors[].value").description("null")
+                )
+            ));
+    }
+
+    @Test
+    @DisplayName("알림 목록 조회 - 결과가 없을 때 빈 목록 응답 문서화")
+    void getNotifications_Empty() throws Exception {
+        // PageRequest를 명시하여 500 에러 방지
+        given(notificationService.searchNotifications(any(), any()))
+            .willReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
+
+        mockMvc.perform(get("/api/v1/notifications")
+                .param("slackId", "U12345678"))
+            .andExpect(status().isOk())
+            .andDo(document("notifications/list-empty",
+                preprocessResponse(prettyPrint()),
+                queryParameters(
+                    parameterWithName("slackId").description("조회할 슬랙 ID")
+                ),
+                // relaxedResponseFields를 사용하여 명시한 필드 외에는 검증하지 않음
+                relaxedResponseFields(
+                    fieldWithPath("success").description("성공 여부"),
+                    fieldWithPath("code").description("응답 코드"),
+                    fieldWithPath("message").description("응답 메시지"),
+                    fieldWithPath("data.content").description("빈 결과 리스트"),
+                    fieldWithPath("data.totalElements").description("전체 요소 개수"),
+                    fieldWithPath("data.totalPages").description("전체 페이지 수"),
+                    fieldWithPath("data.number").description("현재 페이지 번호"),
+                    fieldWithPath("data.empty").description("비어있음 여부")
                 )
             ));
     }
