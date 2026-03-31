@@ -95,3 +95,6 @@ CREATE INDEX idx_p_delivery_route_log_delivery_id ON p_delivery_route_log (deliv
 CREATE INDEX idx_p_delivery_route_log_departure_hub_id ON p_delivery_route_log (departure_hub_id);
 CREATE INDEX idx_p_delivery_route_log_arrival_hub_id ON p_delivery_route_log (arrival_hub_id);
 CREATE INDEX idx_p_delivery_route_log_deleted_at ON p_delivery_route_log (deleted_at);
+
+CREATE UNIQUE INDEX uk_p_delivery_order_id_active ON p_delivery(order_id) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX uk_p_delivery_route_log_delivery_id_sequence_no_active ON p_delivery_route_log (delivery_id, sequence_no) WHERE deleted_at IS NULL;
