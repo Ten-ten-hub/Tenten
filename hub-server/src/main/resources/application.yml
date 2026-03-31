@@ -1,14 +1,30 @@
+server:
+    port: 8090
+
 spring:
+    config:
+        import: optional:application-secret.yml
+
+    application:
+        name: hub-server
+
     datasource:
         driver-class-name: org.postgresql.Driver
-        url: jdbc:postgresql://localhost:5432/tenten_hub
-        username: postgres
-        password: postgres
+        url: ${DB_URL}
+        username: ${DB_USERNAME}
+        password: ${DB_PASSWORD}
 
     jpa:
         hibernate:
-            ddl-auto: update
-        show-sql: true
+            ddl-auto: ${JPA_DDL_AUTO}
+        show-sql: ${JPA_SHOW_SQL}
 
     flyway:
         enabled: false
+
+eureka:
+    client:
+        service-url:
+            defaultZone: ${EUREKA_SERVER_URL}
+    instance:
+        prefer-ip-address: true
