@@ -1,10 +1,7 @@
 package com.team.notificationservice.application;
 
-import com.team.notificationservice.domain.Notification;
 import com.team.notificationservice.domain.NotificationRepository;
 import com.team.notificationservice.infrastructure.SlackClient;
-import com.team.notificationservice.presentation.common.ErrorCode;
-import com.team.notificationservice.presentation.common.ServiceException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -22,9 +19,7 @@ public class NotificationEventListener {
     private final NotificationRepository notificationRepository;
     // private final KafkaTemplate<String, NotificationCreatedEvent> kafkaTemplate; // TODO: Kafka 도입 시 주입 예정
 
-    /**
-     * 알림 생성 이벤트를 처리 TransactionPhase.AFTER_COMMIT: 메인 비즈니스 로직이 DB에 완전히 커밋된 후 실행됨
-     */
+    // 알림 생성 이벤트를 처리 TransactionPhase.AFTER_COMMIT: 메인 비즈니스 로직이 DB에 완전히 커밋된 후 실행됨
     @Transactional(propagation = Propagation.REQUIRES_NEW) // 별도의 트랜잭션에서 전송 결과(성공/실패)를 기록함
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleNotificationCreatedEvent(NotificationCreatedEvent event) {
@@ -43,24 +38,26 @@ public class NotificationEventListener {
             // 1. 외부 서비스(슬랙) 호출
             boolean success = slackClient.sendDirectMessage(event.receiverSlackId(), event.message());
 
-            // 2. 알림 엔티티 조회 (커밋된 이후이므로 findById로 조회가 가능)
-            Notification notification = notificationRepository.findById(event.notificationId())
-                .orElseThrow(() -> new ServiceException(ErrorCode.NOTI_NOTIFICATION_NOT_FOUND));
+            // 2. 알림 엔티티 조회 및 상태 업데이트
+            notificationRepository.findById(event.notificationId()).ifPresentOrElse(notification -> {
+                if (success) {
+                    notification.markAsSuccess();
+                    log.info("슬랙 전송 성공: notificationId={}", event.notificationId());
+                } else {
+                    notification.markAsFailed();
+                    log.warn("슬랙 전송 실패(응답 False): notificationId={}", event.notificationId());
+                }
+                notificationRepository.save(notification); // 변경 사항 명시적 저장
+            }, () -> log.error("알림 엔티티를 찾을 수 없습니다: ID={}", event.notificationId()));
 
-            if (success) {
-                notification.markAsSuccess();
-                log.info("슬랙 전송 성공: notificationId={}", event.notificationId());
-            } else {
-                notification.markAsFailed();
-                log.warn("슬랙 전송 실패(API 응답 False): notificationId={}", event.notificationId());
-            }
         } catch (Exception e) {
             log.error("슬랙 전송 중 예외 발생: {}", e.getMessage());
-            // 예외 발생 시에도 전송 실패 상태를 DB에 남기기 위해 다시 조회하여 마킹
-            notificationRepository.findById(event.notificationId())
-                .ifPresent(Notification::markAsFailed);
-
-            throw new ServiceException(ErrorCode.NOTI_SLACK_API_ERROR);
+            // 예외 발생 시에도 실패 상태를 기록
+            notificationRepository.findById(event.notificationId()).ifPresent(n -> {
+                n.markAsFailed();
+                notificationRepository.save(n);
+            });
+            // AFTER_COMMIT 리스너이므로 사용자 응답에 영향을 주지 않기 위해 예외를 밖으로 던지지 않음
         }
     }
 }
