@@ -2,6 +2,7 @@ package com.team.notificationservice.presentation;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doNothing;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.documentationConfiguration;
 import static org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders.delete;
@@ -19,6 +20,7 @@ import static org.springframework.restdocs.request.RequestDocumentation.queryPar
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.team.notificationservice.application.NotificationRequest;
 import com.team.notificationservice.application.NotificationService;
 import com.team.notificationservice.domain.MsgType;
@@ -49,7 +51,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 class NotificationControllerRestDocsTest {
 
     private MockMvc mockMvc;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 
     @Mock
     private NotificationService notificationService;
@@ -69,6 +71,8 @@ class NotificationControllerRestDocsTest {
         NotificationRequest request = new NotificationRequest(
             "U12345678", "test@team.com", UUID.randomUUID(), "테스트 메시지", MsgType.ORDER_ALERT
         );
+
+        doNothing().when(notificationService).createAndSend(any(NotificationRequest.class));
 
         mockMvc.perform(post("/api/v1/notifications/slack")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -200,23 +204,21 @@ class NotificationControllerRestDocsTest {
     @DisplayName("알림 삭제 API 문서화")
     void deleteNotification() throws Exception {
         UUID id = UUID.randomUUID();
+        doNothing().when(notificationService).deleteNotification(any(), any());
+
         mockMvc.perform(delete("/api/v1/notifications/{id}", id)
                 .header("X-User-Id", "ADMIN"))
             .andExpect(status().isNoContent())
             .andDo(document("notifications/delete",
-                pathParameters(parameterWithName("id").description("ID")),
-                responseFields(
-                    fieldWithPath("success").description("성공 여부"),
-                    fieldWithPath("data").description("데이터 (null)").optional(),
-                    fieldWithPath("code").description("코드"),
-                    fieldWithPath("message").description("메시지")
-                )
+                pathParameters(parameterWithName("id").description("알림 ID"))
+                // 204 No Content 응답이므로 responseFields는 바디가 없어 생략
             ));
     }
 
     @Test
     @DisplayName("알림 목록 조회 실패 - 결과 없음")
     void getNotifications_Fail_NotFound() throws Exception {
+        // 검색 결과가 없을 때 ServiceException을 던지는 시나리오 유지
         given(notificationService.searchNotifications(any(), any()))
             .willThrow(new ServiceException(ErrorCode.NOTI_NOTIFICATION_NOT_FOUND));
 

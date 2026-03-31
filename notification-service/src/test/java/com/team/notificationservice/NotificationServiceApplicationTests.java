@@ -2,7 +2,7 @@ package com.team.notificationservice;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -20,8 +20,6 @@ import com.team.notificationservice.domain.NotificationRepository;
 import com.team.notificationservice.domain.SendStatus;
 import com.team.notificationservice.infrastructure.SlackClient;
 import com.team.notificationservice.presentation.NotificationResponse;
-import com.team.notificationservice.presentation.common.ErrorCode;
-import com.team.notificationservice.presentation.common.ServiceException;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -136,22 +134,22 @@ class NotificationServiceApplicationTests {
     }
 
     @Test
-    @DisplayName("슬랙 ID와 키워드로 검색 확인 - 결과가 없을 때 예외 발생")
-    void searchNotifications_Empty_Fail() {
+    @DisplayName("슬랙 ID와 키워드로 검색 확인 - 결과가 없을 때 빈 페이지 반환")
+    void searchNotifications_Empty_Success() {
         // given
         String slackId = "U123";
-        // 빈 결과를 반환하도록 설정
+        // 빈 결과를 반환하도록 설정 (Service에서 더 이상 예외를 던지지 않음)
         when(notificationRepository.findByReceiverSlackIdAndMsgContentContainingAndDeletedAtIsNull(anyString(),
             anyString(), any()))
             .thenReturn(new PageImpl<>(List.of()));
 
-        // when & then
+        // when
         NotificationSearchCondition cond = new NotificationSearchCondition(slackId, "배송");
-        ServiceException exception = assertThrows(ServiceException.class, () -> {
-            notificationService.searchNotifications(cond, PageRequest.of(0, 10));
-        });
+        Page<NotificationResponse> result = notificationService.searchNotifications(cond, PageRequest.of(0, 10));
 
-        assertEquals(ErrorCode.NOTI_NOTIFICATION_NOT_FOUND, exception.getErrorCode());
+        // then
+        assertTrue(result.isEmpty());
+        assertEquals(0, result.getTotalElements());
     }
 
     @Test
@@ -169,15 +167,19 @@ class NotificationServiceApplicationTests {
     }
 
     @Test
-    @DisplayName("삭제(Soft Delete) 테스트")
+    @DisplayName("삭제(Soft Delete) 테스트 및 저장 호출 확인")
     void deleteNotificationTest() {
+        // given
         UUID id = UUID.randomUUID();
         Notification mockNoti = Notification.builder().msgContent("삭제").build();
         when(notificationRepository.findByIdAndDeletedAtIsNull(id)).thenReturn(Optional.of(mockNoti));
 
+        // when
         notificationService.deleteNotification(id, "user-123");
 
+        // then
         assertNotNull(mockNoti.getDeletedAt());
         assertEquals("user-123", mockNoti.getDeletedBy());
+        verify(notificationRepository, times(1)).save(mockNoti); // save 호출 여부 확인 추가
     }
 }
