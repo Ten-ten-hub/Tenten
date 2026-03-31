@@ -1,7 +1,18 @@
 package com.team.product_service.product.domain;
 
-import java.util.UUID;
-import org.springframework.data.jpa.repository.JpaRepository;
+import com.team.product_service.product.application.dto.ProductGetQuery;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
-public interface ProductRepository extends JpaRepository<Product, UUID> {
+import java.util.Optional;
+import java.util.UUID;
+
+public interface ProductRepository {
+    Product save(Product product);
+
+    Optional<Product> findByIdAndDeletedAtIsNull(UUID id);
+
+    boolean existsDuplicateName(UUID companyId, String name, UUID excludeId);
+
+    Page<Product> search(ProductGetQuery query, Pageable pageable);
 }

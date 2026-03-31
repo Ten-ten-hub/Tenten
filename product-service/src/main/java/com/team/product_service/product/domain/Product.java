@@ -1,22 +1,11 @@
 package com.team.product_service.product.domain;
 
 import com.team.common.BaseEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.*;
+import lombok.*;
+
 import java.math.BigDecimal;
 import java.util.UUID;
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
 
 @Builder
 @AllArgsConstructor
@@ -41,7 +30,7 @@ public class Product extends BaseEntity {
     private UUID hubId;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false)
+    @Column(name = "status", nullable = false, length = 20)
     private ProductStatus status = ProductStatus.ON_SALE;
 
     @Column(name = "unit_price", nullable = false, precision = 12, scale = 2)
@@ -49,5 +38,22 @@ public class Product extends BaseEntity {
 
     @Column(name = "description", length = 500)
     private String description;
+
+    public static Product create(String name, UUID companyId, UUID hubId, BigDecimal unitPrice, String description) {
+        return Product.builder()
+            .name(name)
+            .companyId(companyId)
+            .hubId(hubId)
+            .unitPrice(unitPrice)
+            .description(description)
+            .build();
+    }
+
+    public void update(String name, BigDecimal unitPrice, String description, ProductStatus status) {
+        if (name != null) this.name = name;
+        if (unitPrice != null) this.unitPrice = unitPrice;
+        if (description != null) this.description = description;
+        if (status != null) this.status = status;
+    }
 
 }
