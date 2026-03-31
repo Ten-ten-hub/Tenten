@@ -1,6 +1,5 @@
 package com.team.userservice.user.users.presentation;
 
-import com.team.userservice.global.dto.CommonResponse;
 import com.team.userservice.user.users.application.UserService;
 import com.team.userservice.user.users.presentation.dto.request.LoginReqDto;
 import com.team.userservice.user.users.presentation.dto.response.LoginResDto;
@@ -11,14 +10,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/internal/")
+@RequestMapping("/internal")
 @RequiredArgsConstructor
 public class UserInternalController {
     private final UserService userService;
 
     @PostMapping("/users/verify")
-    public CommonResponse<LoginResDto> login(@RequestBody LoginReqDto loginRequest) {
-        return CommonResponse.onSuccess(
-                LoginResDto.from(userService.loginService(loginRequest.loginId(), loginRequest.password())));
+    public LoginResDto login(@RequestBody LoginReqDto loginRequest) {
+        return LoginResDto.from(userService.loginService(loginRequest.loginId(), loginRequest.password()));
     }
 }
