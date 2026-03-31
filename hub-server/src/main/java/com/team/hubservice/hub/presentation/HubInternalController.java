@@ -1,4 +1,4 @@
-package com.team.hubservice.hub.api;
+package com.team.hubservice.hub.presentation;
 
 import com.team.hubservice.hub.application.HubService;
 import java.util.HashMap;
