@@ -1,6 +1,6 @@
 package com.team.product_service.product.presentation;
 
-import com.team.product_service.global.PageResponse;
+import com.team.product_service.global.dto.PageResponse;
 import com.team.product_service.product.application.ProductService;
 import com.team.product_service.product.application.dto.ProductResult;
 import com.team.product_service.product.presentation.dto.ProductCreateRequest;

@@ -1,4 +1,4 @@
-package com.team.product_service.global;
+package com.team.product_service.global.dto;
 
 import org.springframework.data.domain.Page;
 
