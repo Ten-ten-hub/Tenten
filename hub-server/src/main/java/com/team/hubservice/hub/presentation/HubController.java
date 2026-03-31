@@ -1,9 +1,12 @@
-package com.team.hubservice.hub.api;
+package com.team.hubservice.hub.presentation;
 
+import com.team.hubservice.hub.application.HubCreateCommand;
+import com.team.hubservice.hub.application.HubResult;
 import com.team.hubservice.hub.application.HubService;
-import com.team.hubservice.hub.dto.HubCreateRequest;
-import com.team.hubservice.hub.dto.HubResponse;
-import com.team.hubservice.hub.dto.HubUpdateRequest;
+import com.team.hubservice.hub.application.HubUpdateCommand;
+import com.team.hubservice.hub.presentation.dto.HubCreateRequest;
+import com.team.hubservice.hub.presentation.dto.HubResponse;
+import com.team.hubservice.hub.presentation.dto.HubUpdateRequest;
 import jakarta.validation.Valid;
 import java.util.HashMap;
 import java.util.Map;
@@ -39,7 +42,17 @@ public class HubController {
     @PostMapping
     @PreAuthorize("hasRole('MASTER')")
     public ResponseEntity<Map<String, Object>> createHub(@Valid @RequestBody HubCreateRequest request) {
-        HubResponse response = hubService.createHub(request);
+        HubCreateCommand command = new HubCreateCommand(
+            request.name(),
+            request.address(),
+            request.latitude(),
+            request.longitude()
+        );
+
+        HubResult result = hubService.createHub(command);
+
+        HubResponse response = HubResponse.from(result);
+
         return buildResponse(HttpStatus.CREATED.value(), "허브 생성이 완료되었습니다.", response);
     }
 
@@ -53,7 +66,9 @@ public class HubController {
         int validSize = (size == 10 || size == 30 || size == 50) ? size : 10;
 
         Pageable pageable = PageRequest.of(Math.max(0, page - 1), validSize);
-        Page<HubResponse> hubPage = hubService.getHubs(name, pageable);
+        Page<HubResult> resultPage = hubService.getHubs(name, pageable);
+
+        Page<HubResponse> hubPage = resultPage.map(HubResponse::from);
 
         Map<String, Object> pageInfo = new HashMap<>();
         pageInfo.put("currentPage", hubPage.getNumber() + 1);
@@ -71,7 +86,8 @@ public class HubController {
     @GetMapping("/{hubId}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Map<String, Object>> getHub(@PathVariable UUID hubId) {
-        HubResponse response = hubService.getHub(hubId);
+        HubResult result = hubService.getHub(hubId);
+        HubResponse response = HubResponse.from(result);
         return buildResponse(HttpStatus.OK.value(), "허브 단건 조회를 성공했습니다.", response);
     }
 
@@ -81,7 +97,15 @@ public class HubController {
             @PathVariable UUID hubId,
             @Valid @RequestBody HubUpdateRequest request) {
 
-        HubResponse response = hubService.updateHub(hubId, request);
+        HubUpdateCommand command = new HubUpdateCommand(
+            request.name(),
+            request.latitude(),
+            request.longitude()
+        );
+
+        HubResult result = hubService.updateHub(hubId, command);
+
+        HubResponse response = HubResponse.from(result);
         return buildResponse(HttpStatus.OK.value(), "허브 정보가 성공적으로 수정되었습니다.", response);
     }
 

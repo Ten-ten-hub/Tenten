@@ -1,10 +1,7 @@
 package com.team.hubservice.hub.application;
 
 import com.team.hubservice.hub.domain.Hub;
-import com.team.hubservice.hub.dto.HubCreateRequest;
-import com.team.hubservice.hub.dto.HubResponse;
-import com.team.hubservice.hub.dto.HubUpdateRequest;
-import com.team.hubservice.hub.repository.HubRepository;
+import com.team.hubservice.hub.domain.HubRepository;
 import java.util.UUID;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -24,39 +21,39 @@ public class HubService {
     }
 
     @Transactional
-    public HubResponse createHub(HubCreateRequest request) {
-        if (hubRepository.existsByName(request.name())) {
+    public HubResult createHub(HubCreateCommand command) {
+        if (hubRepository.existsByName(command.name())) {
             throw new IllegalArgumentException("이미 동일한 이름의 허브가 존재합니다.");
         }
 
         Hub hub = Hub.create(
-                request.name(),
-                request.address(),
-                request.latitude(),
-                request.longitude()
+                command.name(),
+                command.address(),
+                command.latitude(),
+                command.longitude()
         );
 
-        return HubResponse.from(hubRepository.save(hub));
+        return HubResult.from(hubRepository.save(hub));
     }
 
-    public Page<HubResponse> getHubs(String name, Pageable pageable) {
+    public Page<HubResult> getHubs(String name, Pageable pageable) {
         if (name != null && !name.isBlank()) {
-            return hubRepository.findByNameContaining(name, pageable).map(HubResponse::from);
+            return hubRepository.findByNameContaining(name, pageable).map(HubResult::from);
         }
-        return hubRepository.findAll(pageable).map(HubResponse::from);
+        return hubRepository.findAll(pageable).map(HubResult::from);
     }
 
     @Cacheable(value = "hubs", key = "#hubId")
-    public HubResponse getHub(UUID hubId) {
-        return HubResponse.from(findHubById(hubId));
+    public HubResult getHub(UUID hubId) {
+        return HubResult.from(findHubById(hubId));
     }
 
     @Transactional
     @CacheEvict(value = "hubs", key = "#hubId")
-    public HubResponse updateHub(UUID hubId, HubUpdateRequest request) {
+    public HubResult updateHub(UUID hubId, HubUpdateCommand command) {
         Hub hub = findHubById(hubId);
-        hub.update(request.name(), request.latitude(), request.longitude());
-        return HubResponse.from(hub);
+        hub.update(command.name(), command.latitude(), command.longitude());
+        return HubResult.from(hub);
     }
 
     @Transactional
@@ -67,6 +64,10 @@ public class HubService {
         hub.softDelete(deletedBy);
     }
 
+    public boolean checkHubExists(UUID hubId) {
+        return hubRepository.existsById(hubId);
+    }
+
     private Hub findHubById(UUID hubId) {
         return hubRepository.findById(hubId)
                 .orElseThrow(() -> new IllegalArgumentException("요청한 허브 정보를 찾을 수 없습니다."));
@@ -74,9 +75,5 @@ public class HubService {
 
     private void checkActiveRoutesAndCompanies(UUID hubId) {
         // TODO: 연관 데이터 검증 로직 구현 예정 구역
-    }
-
-    public boolean checkHubExists(UUID hubId) {
-        return hubRepository.existsById(hubId);
     }
 }
