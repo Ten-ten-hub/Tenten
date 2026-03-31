@@ -30,12 +30,12 @@ public class ProductRepositoryImpl implements ProductRepository {
     @Override
     public boolean existsDuplicateName(UUID companyId, String name, UUID excludeId) {
         return excludeId == null
-            ? jpaRepository.existsByCompanyIdAndNameAndDeletedAtIsNull(companyId, name)
-            : jpaRepository.existsByCompanyIdAndNameAndIdNotAndDeletedAtIsNull(companyId, name, excludeId);
+                ? jpaRepository.existsByCompanyIdAndNameAndDeletedAtIsNull(companyId, name)
+                : jpaRepository.existsByCompanyIdAndNameAndIdNotAndDeletedAtIsNull(companyId, name, excludeId);
     }
 
     @Override
     public Page<Product> search(ProductGetQuery query, Pageable pageable) {
-        return null;
+        return jpaRepository.search(query.name(), query.companyId(), query.hubId(), query.status(), pageable);
     }
 }
