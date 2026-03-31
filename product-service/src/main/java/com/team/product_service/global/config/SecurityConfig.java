@@ -1,4 +1,4 @@
-package com.team.product_service.global;
+package com.team.product_service.global.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
