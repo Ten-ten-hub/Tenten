@@ -52,7 +52,7 @@ public class HubController {
 
         int validSize = (size == 10 || size == 30 || size == 50) ? size : 10;
 
-        Pageable pageable = PageRequest.of(page - 1, validSize);
+        Pageable pageable = PageRequest.of(Math.max(0, page - 1), validSize);
         Page<HubResponse> hubPage = hubService.getHubs(name, pageable);
 
         Map<String, Object> pageInfo = new HashMap<>();

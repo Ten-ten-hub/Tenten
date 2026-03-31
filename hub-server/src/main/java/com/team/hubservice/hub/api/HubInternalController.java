@@ -4,6 +4,7 @@ import com.team.hubservice.hub.application.HubService;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,6 +26,10 @@ public class HubInternalController {
     public ResponseEntity<Map<String, Object>> checkHubExists(
             @PathVariable UUID hubId,
             @RequestHeader(value = "X-Internal-Request", required = true) String internalHeader) {
+
+        if(!"true".equals(internalHeader)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
 
         boolean isExists = hubService.checkHubExists(hubId);
 
