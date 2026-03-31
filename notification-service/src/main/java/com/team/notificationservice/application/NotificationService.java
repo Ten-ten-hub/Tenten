@@ -31,12 +31,13 @@ public class NotificationService {
         String targetSlackId = dto.receiverSlackId();
 
         // 대상자 식별 예외 처리
-        // ID가 없고 이메일이 있다면 이메일로 ID 조회
-        if ((targetSlackId == null || targetSlackId.isEmpty()) && dto.email() != null) {
+        // targetSlackId가 없거나 공백인 경우, 이메일이 유효하다면(공백 아님) 조회 시도
+        if ((targetSlackId == null || targetSlackId.isBlank()) && dto.email() != null && !dto.email().isBlank()) {
             targetSlackId = slackClient.findSlackIdByEmail(dto.email());
         }
 
-        if (targetSlackId == null) {
+        // 최종 결과가 여전히 비어있거나 공백이면 예외 발생
+        if (targetSlackId == null || targetSlackId.isBlank()) {
             log.error("대상슬랙 ID를 찾을 수 없습니다. Email: {}", dto.email());
             throw new ServiceException(ErrorCode.NOTI_RECIPIENT_NOT_FOUND);
         }
@@ -70,16 +71,10 @@ public class NotificationService {
                 condition.slackId(), pageable);
         }
 
-//        // 결과가 비어있으면 404 예외 발생
-//        if (result.isEmpty()) {
-//            throw new ServiceException(ErrorCode.NOTI_NOTIFICATION_NOT_FOUND);
-//        }
-//        return result.map(NotificationResponse::from);
-
         // 결과가 비어있어도 404를 던지지 않고 빈 페이지 반환 (200 OK 일관성 유지)
         return result.map(NotificationResponse::from);
     }
-    
+
     public NotificationResponse getNotification(UUID id) {
         return notificationRepository.findByIdAndDeletedAtIsNull(id)
             .map(NotificationResponse::from)

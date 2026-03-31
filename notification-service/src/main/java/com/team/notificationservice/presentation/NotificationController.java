@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -30,7 +31,7 @@ public class NotificationController {
     private final NotificationService notificationService;
 
 
-    //    @Value("${internal.auth.token}")
+    @Value("${internal.auth.token:}") // application.yml 미설정 시 빈 값 주입
     private String internalAuthToken;
 
     // 외부용 API
@@ -42,12 +43,13 @@ public class NotificationController {
 
     // 내부 시스템 호출용 (게이트웨이 설정 없이 서비스명:8085/internal/v1/... 으로 직접 호출)
     @PostMapping("/internal/v1/notifications/slack")
-    public ApiResponse<String> internalSend(@RequestHeader(value = "X-Internal-Token", required = false) String token,
-                                            @RequestBody @Valid NotificationRequest request) {
+    public ApiResponse<String> internalSend(
+        @RequestHeader(value = "X-Internal-Token", required = false) String token,
+        @RequestBody @Valid NotificationRequest request) {
 
-        // 내부 호출 인증 체크 (예시?)
-        if (token == null || !token.equals(internalAuthToken)) {
-            throw new ServiceException(ErrorCode.COMMON_INVALID_INPUT_VALUE); // notification 권한 에러 코드로 대체하기
+        // 서버 설정 토큰이 비어있거나, 입력 토큰이 일치하지 않는 경우 차단
+        if (internalAuthToken.isBlank() || token == null || !token.equals(internalAuthToken)) {
+            throw new ServiceException(ErrorCode.COMMON_INVALID_INPUT_VALUE);
         }
 
         notificationService.createAndSend(request);
@@ -75,6 +77,6 @@ public class NotificationController {
         String deletedBy = (userId != null) ? userId : "SYSTEM";
         notificationService.deleteNotification(id, deletedBy);
 
-        return ApiResponse.ok();
+        return ApiResponse.success(null);
     }
 }
