@@ -2,9 +2,11 @@ package com.team.notificationservice.presentation.common;
 
 import com.team.notificationservice.presentation.common.ApiResponse.ValidationError;
 import java.util.List;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindException;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -28,7 +30,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({MethodArgumentNotValidException.class, BindException.class})
     public ResponseEntity<ApiResponse<Void>> handleValidationException(BindException e) {
-        log.error("ValidationException: {}", e.getMessage());
+        // 보안을 위해 원본 메시지(e.getMessage()) 대신 필드명과 에러 개수만 로깅
+        String fields = e.getBindingResult().getFieldErrors().stream()
+            .map(FieldError::getField)
+            .collect(Collectors.joining(", "));
+        log.warn("ValidationException: {} field error(s) in [{}]", e.getBindingResult().getFieldErrorCount(), fields);
 
         List<ValidationError> errors = e.getBindingResult()
             .getFieldErrors()
