@@ -47,9 +47,15 @@ public class NotificationController {
         @RequestHeader(value = "X-Internal-Token", required = false) String token,
         @RequestBody @Valid NotificationRequest request) {
 
-        // 서버 설정 토큰이 비어있거나, 입력 토큰이 일치하지 않는 경우 차단
-        if (internalAuthToken.isBlank() || token == null || !token.equals(internalAuthToken)) {
-            throw new ServiceException(ErrorCode.COMMON_INVALID_INPUT_VALUE);
+        // 1. 서버 설정 체크 (5xx)
+        if (internalAuthToken == null || internalAuthToken.isBlank()) {
+            log.error("Internal Auth Token is not configured in server.");
+            throw new ServiceException(ErrorCode.SERVER_CONFIG_ERROR);
+        }
+
+        // 2. 토큰 유효성 체크 (401)
+        if (token == null || !token.equals(internalAuthToken)) {
+            throw new ServiceException(ErrorCode.AUTH_INVALID_TOKEN);
         }
 
         notificationService.createAndSend(request);
@@ -74,7 +80,8 @@ public class NotificationController {
         @PathVariable UUID id,
         @RequestHeader(value = "X-User-Id", required = false) String userId) {
 
-        String deletedBy = (userId != null) ? userId : "SYSTEM";
+        // 빈 문자열이나 공백도 SYSTEM으로 정규화
+        String deletedBy = (userId != null && !userId.isBlank()) ? userId : "SYSTEM";
         notificationService.deleteNotification(id, deletedBy);
 
         return ApiResponse.success(null);
