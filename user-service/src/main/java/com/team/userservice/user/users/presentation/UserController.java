@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/users/")
+@RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
 public class UserController {
 
@@ -31,14 +31,14 @@ public class UserController {
     public CommonResponse<SignUpResDto> signUp(@Valid @RequestBody SignUpReqDto request) {
 
         return CommonResponse.onSuccess(HttpStatus.CREATED,
-                "회원가입 요청이 완료되었습니다. 마스터의 승인을 기다려주세요.",
-                SignUpResDto.from(userService.signUp(request.toServiceDto())));
+            "회원가입 요청이 완료되었습니다. 마스터의 승인을 기다려주세요.",
+            SignUpResDto.from(userService.signUp(request.toServiceDto())));
     }
 
     @PatchMapping("/{userId}/registration")
     public CommonResponse<String> register(@PathVariable("userId") UUID userId,
                                            @RequestHeader("X-User-Role") Role role,
-                                           @RequestBody RegisterReqDto request) {
+                                           @Valid @RequestBody RegisterReqDto request) {
 
         if (role != Role.MASTER_ADMIN) {
             throw new UserException(UserErrorCode.FORBIDDEN);
