@@ -14,7 +14,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,6 +29,10 @@ public class NotificationController {
 
     private final NotificationService notificationService;
 
+
+    //    @Value("${internal.auth.token}")
+    private String internalAuthToken;
+
     // 외부용 API
     @PostMapping("/api/v1/notifications/slack")
     public ApiResponse<String> send(@RequestBody @Valid NotificationRequest request) {
@@ -43,7 +46,7 @@ public class NotificationController {
                                             @RequestBody @Valid NotificationRequest request) {
 
         // 내부 호출 인증 체크 (예시?)
-        if (token == null || !token.equals("INTERNAL_SECRET")) {
+        if (token == null || !token.equals(internalAuthToken)) {
             throw new ServiceException(ErrorCode.COMMON_INVALID_INPUT_VALUE); // notification 권한 에러 코드로 대체하기
         }
 
@@ -65,13 +68,13 @@ public class NotificationController {
     }
 
     @DeleteMapping("/api/v1/notifications/{id}")
-    public ResponseEntity<Void> delete(
+    public ApiResponse<Void> delete(
         @PathVariable UUID id,
         @RequestHeader(value = "X-User-Id", required = false) String userId) {
 
         String deletedBy = (userId != null) ? userId : "SYSTEM";
         notificationService.deleteNotification(id, deletedBy);
 
-        return ResponseEntity.noContent().build();
+        return ApiResponse.ok();
     }
 }
