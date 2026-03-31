@@ -35,7 +35,7 @@ public class GlobalExceptionHandler {
             .stream()
             .map(error -> new ApiResponse.ValidationError(
                 error.getField(),
-                String.valueOf(error.getRejectedValue()),
+                maskSensitiveInfo(error.getField(), String.valueOf(error.getRejectedValue())),
                 error.getDefaultMessage()))
             .toList();
 
@@ -46,6 +46,17 @@ public class GlobalExceptionHandler {
                 ErrorCode.COMMON_INVALID_INPUT_VALUE.getMessage(),
                 errors
             ));
+    }
+
+    // 민감 정보 마스킹 로직 (예: 이메일)
+    private String maskSensitiveInfo(String field, String value) {
+        if (value == null || value.equals("null")) {
+            return value;
+        }
+        if (field.toLowerCase().contains("email") && value.contains("@")) {
+            return value.replaceAll("(^[^@]{3}|(?!^)\\G)[^@]", "$1*");
+        }
+        return value;
     }
 
     @ExceptionHandler(Exception.class)

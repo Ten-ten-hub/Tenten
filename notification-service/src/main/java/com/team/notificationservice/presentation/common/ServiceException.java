@@ -21,6 +21,13 @@ public class ServiceException extends RuntimeException {
         this.errors = errors;
     }
 
+    // 원인 보존을 위한 생성자 추가
+    public ServiceException(ErrorCode errorCode, Throwable cause) {
+        super(errorCode.getMessage(), cause);
+        this.errorCode = errorCode;
+        this.errors = null;
+    }
+
     public ErrorCode getErrorCode() {
         return errorCode;
     }
