@@ -11,7 +11,7 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
     Page<Notification> findByReceiverSlackIdAndDeletedAtIsNull(String slackId, Pageable pageable);
 
     Page<Notification> findByReceiverSlackIdAndMsgContentContainingAndDeletedAtIsNull(
-            String slackId, String msgContent, Pageable pageable);
+        String slackId, String msgContent, Pageable pageable);
 
     Optional<Notification> findByIdAndDeletedAtIsNull(UUID id);
 }
