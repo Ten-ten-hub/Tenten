@@ -10,6 +10,7 @@ import com.team.userservice.user.users.application.dto.SignUpServiceDto;
 import com.team.userservice.user.users.domain.UserRepository;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public SignUpResultDto signUp(SignUpServiceDto serviceDto) {
@@ -30,14 +32,14 @@ public class UserServiceImpl implements UserService {
         }
 
         User user = userRepository.save(User.create()
-                .loginId(serviceDto.loginId())
-                .password(serviceDto.password())
-                .name(serviceDto.name())
-                .role(serviceDto.role())
-                .slackId(serviceDto.slackId())
-                .email(serviceDto.email())
-                .phoneNumber(serviceDto.phoneNumber())
-                .build());
+            .loginId(serviceDto.loginId())
+            .password(passwordEncoder.encode(serviceDto.password()))
+            .name(serviceDto.name())
+            .role(serviceDto.role())
+            .slackId(serviceDto.slackId())
+            .email(serviceDto.email())
+            .phoneNumber(serviceDto.phoneNumber())
+            .build());
 
         return SignUpResultDto.from(user);
     }
@@ -51,7 +53,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public LoginServiceDto loginService(String loginId, String password) {
         User user = userRepository.findByLoginId(loginId);
-        if (!password.equals(user.getPassword())) {
+        if (!passwordEncoder.matches(password, user.getPassword())) {
             throw new UserException(UserErrorCode.INVALID_CREDENTIALS);
         }
         return LoginServiceDto.from(user.getId(), user.getRole());
