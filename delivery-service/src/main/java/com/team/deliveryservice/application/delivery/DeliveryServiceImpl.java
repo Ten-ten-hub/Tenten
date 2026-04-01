@@ -8,6 +8,7 @@ import com.team.deliveryservice.domain.delivery.DeliveryRouteLogRepository;
 import com.team.deliveryservice.presentation.common.CurrentUser;
 import com.team.deliveryservice.presentation.common.DeliveryErrorCode;
 import com.team.deliveryservice.presentation.common.ServiceException;
+import com.team.deliveryservice.domain.delivery.DeliveryStatus;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -65,7 +66,7 @@ public class DeliveryServiceImpl implements DeliveryService {
             .map(DeliveryRouteLogResponse::from)
             .toList();
 
-        return DeliveryResponse.from(delivery, routeLogs);
+        return DeliveryResponse.from(delivery, getRouteLogs(deliveryId));
     }
 
     @Override
@@ -120,7 +121,52 @@ public class DeliveryServiceImpl implements DeliveryService {
             .map(DeliveryRouteLogResponse::from)
             .toList();
 
-        return DeliveryResponse.from(delivery, routeLogs);
+        return DeliveryResponse.from(delivery, getRouteLogs(deliveryId));
+    }
+
+    @Override
+    @Transactional
+    public DeliveryResponse changeDeliveryStatus(UUID deliveryId, ChangeDeliveryStatusRequest request, CurrentUser currentUser) {
+        Delivery delivery = deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)
+            .orElseThrow(() -> new ServiceException(DeliveryErrorCode.DELIVERY_NOT_FOUND));
+
+        try {
+            delivery.updateStatus(request.deliveryStatus());
+        } catch (IllegalStateException e) {
+            throw new ServiceException(DeliveryErrorCode.DELIVERY_STATUS_CHANGE_NOT_ALLOWED);
+        }
+
+        return DeliveryResponse.from(delivery, getRouteLogs(deliveryId));
+    }
+
+    @Override
+    @Transactional
+    public DeliveryResponse cancelDelivery(UUID deliveryId, CurrentUser currentUser) {
+        Delivery delivery = deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)
+            .orElseThrow(() -> new ServiceException(DeliveryErrorCode.DELIVERY_NOT_FOUND));
+
+        try {
+            delivery.cancel();
+        } catch (IllegalStateException e) {
+            throw new ServiceException(DeliveryErrorCode.DELIVERY_CANCEL_NOT_ALLOWED);
+        }
+
+        return DeliveryResponse.from(delivery, getRouteLogs(deliveryId));
+    }
+
+    @Override
+    @Transactional
+    public DeliveryResponse assignDeliveryManager(UUID deliveryId, AssignDeliveryManagerRequest request, CurrentUser currentUser) {
+        Delivery delivery = deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)
+            .orElseThrow(() -> new ServiceException(DeliveryErrorCode.DELIVERY_NOT_FOUND));
+
+        try {
+            delivery.assignManager(request.companyDeliveryManagerId());
+        } catch (IllegalStateException e) {
+            throw new ServiceException(DeliveryErrorCode.DELIVERY_ASSIGN_NOT_ALLOWED);
+        }
+
+        return DeliveryResponse.from(delivery, getRouteLogs(deliveryId));
     }
 
     @Override
@@ -135,5 +181,13 @@ public class DeliveryServiceImpl implements DeliveryService {
             deliveryRouteLogRepository.findAllByDeliveryIdAndDeletedAtIsNullOrderBySequenceNoAsc(deliveryId);
 
         routeLogs.forEach(routeLog -> routeLog.softDelete(currentUser.userId()));
+    }
+
+    private List<DeliveryRouteLogResponse> getRouteLogs(UUID deliveryId) {
+        return deliveryRouteLogRepository
+            .findAllByDeliveryIdAndDeletedAtIsNullOrderBySequenceNoAsc(deliveryId)
+            .stream()
+            .map(DeliveryRouteLogResponse::from)
+            .toList();
     }
 }

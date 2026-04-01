@@ -6,6 +6,8 @@ import com.team.deliveryservice.application.delivery.DeliveryResponse;
 import com.team.deliveryservice.application.delivery.DeliverySearchCondition;
 import com.team.deliveryservice.application.delivery.DeliveryService;
 import com.team.deliveryservice.application.delivery.UpdateDeliveryRequest;
+import com.team.deliveryservice.application.delivery.AssignDeliveryManagerRequest;
+import com.team.deliveryservice.application.delivery.ChangeDeliveryStatusRequest;
 import com.team.deliveryservice.presentation.common.ApiResponse;
 import com.team.deliveryservice.presentation.common.CurrentUser;
 import jakarta.validation.Valid;
@@ -60,6 +62,38 @@ public class DeliveryController {
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
             deliveryService.updateDelivery(deliveryId, request, currentUser)
+        ));
+    }
+
+    @PatchMapping("/{deliveryId}/status")
+    public ResponseEntity<ApiResponse<DeliveryResponse>> changeStatus(
+        @PathVariable UUID deliveryId,
+        @Valid @RequestBody ChangeDeliveryStatusRequest request,
+        CurrentUser currentUser
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok(
+            deliveryService.changeDeliveryStatus(deliveryId, request, currentUser)
+        ));
+    }
+
+    @PatchMapping("/{deliveryId}/cancel")
+    public ResponseEntity<ApiResponse<DeliveryResponse>> cancel(
+        @PathVariable UUID deliveryId,
+        CurrentUser currentUser
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok(
+            deliveryService.cancelDelivery(deliveryId, currentUser)
+        ));
+    }
+
+    @PatchMapping("/{deliveryId}/assign")
+    public ResponseEntity<ApiResponse<DeliveryResponse>> assign(
+        @PathVariable UUID deliveryId,
+        @Valid @RequestBody AssignDeliveryManagerRequest request,
+        CurrentUser currentUser
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok(
+            deliveryService.assignDeliveryManager(deliveryId, request, currentUser)
         ));
     }
 
