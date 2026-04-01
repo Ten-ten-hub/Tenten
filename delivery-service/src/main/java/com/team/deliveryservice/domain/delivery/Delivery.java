@@ -163,9 +163,9 @@ public class Delivery extends BaseEntity {
         this.deliveryStatus = DeliveryStatus.CANCELLED;
     }
 
-    public void assignManager(UUID companyDeliveryManagerId) {
+    public void assignCompanyDeliveryManager(UUID companyDeliveryManagerId) {
         if (this.deliveryStatus == DeliveryStatus.DELIVERED || this.deliveryStatus == DeliveryStatus.CANCELLED) {
-            throw new IllegalStateException("완료 또는 취소된 배송에는 담당자를 배정할 수 없습니다.");
+            throw new IllegalStateException("완료 또는 취소된 배송에는 업체 배송 담당자를 배정할 수 없습니다.");
         }
 
         this.companyDeliveryManagerId = companyDeliveryManagerId;

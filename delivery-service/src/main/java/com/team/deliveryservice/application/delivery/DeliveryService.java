@@ -17,7 +17,9 @@ public interface DeliveryService {
 
     DeliveryResponse cancelDelivery(UUID deliveryId, CurrentUser currentUser);
 
-    DeliveryResponse assignDeliveryManager(UUID deliveryId, AssignDeliveryManagerRequest request, CurrentUser currentUser);
+    DeliveryResponse assignCompanyDeliveryManager(UUID deliveryId, AssignCompanyDeliveryManagerRequest request, CurrentUser currentUser);
+
+    DeliveryResponse assignHubDeliveryManager(UUID deliveryId, AssignHubDeliveryManagerRequest request, CurrentUser currentUser);
 
     void deleteDelivery(UUID deliveryId, CurrentUser currentUser);
 }
