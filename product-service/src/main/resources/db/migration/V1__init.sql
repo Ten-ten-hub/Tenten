@@ -62,6 +62,7 @@ CREATE INDEX idx_p_product_deleted_at ON p_product (deleted_at);
 CREATE TABLE p_stock (
                          id UUID PRIMARY KEY,
                          product_id UUID NOT NULL UNIQUE,
+                         hub_id UUID NOT NULL,
                          quantity INTEGER NOT NULL DEFAULT 0 CHECK (quantity >= 0),
                          status stock_status NOT NULL DEFAULT 'AVAILABLE',
                          created_at TIMESTAMP NOT NULL DEFAULT NOW(),
