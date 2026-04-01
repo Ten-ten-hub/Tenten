@@ -21,14 +21,15 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.team.deliveryservice.application.deliverymanager.CreateDeliveryManagerRequest;
-import com.team.deliveryservice.application.deliverymanager.DeliveryManagerPageResponse;
-import com.team.deliveryservice.application.deliverymanager.DeliveryManagerResponse;
-import com.team.deliveryservice.application.deliverymanager.DeliveryManagerService;
-import com.team.deliveryservice.application.deliverymanager.UpdateDeliveryManagerRequest;
-import com.team.deliveryservice.domain.deliverymanager.DeliveryManagerType;
-import com.team.deliveryservice.presentation.common.CurrentUserArgumentResolver;
-import com.team.deliveryservice.presentation.common.CurrentUserResolverConfig;
+import com.team.deliveryservice.deliverymanager.application.dto.request.CreateDeliveryManagerRequest;
+import com.team.deliveryservice.deliverymanager.application.dto.response.DeliveryManagerPageResponse;
+import com.team.deliveryservice.deliverymanager.application.dto.response.DeliveryManagerResponse;
+import com.team.deliveryservice.deliverymanager.application.service.DeliveryManagerService;
+import com.team.deliveryservice.deliverymanager.application.dto.request.UpdateDeliveryManagerRequest;
+import com.team.deliveryservice.deliverymanager.domain.DeliveryManagerType;
+import com.team.deliveryservice.deliverymanager.presentation.DeliveryManagerController;
+import com.team.deliveryservice.global.config.CurrentUserArgumentResolver;
+import com.team.deliveryservice.global.config.CurrentUserResolverConfig;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
