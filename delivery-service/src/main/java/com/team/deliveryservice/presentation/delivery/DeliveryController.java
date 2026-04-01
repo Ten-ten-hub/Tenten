@@ -1,13 +1,14 @@
 package com.team.deliveryservice.presentation.delivery;
 
+import com.team.deliveryservice.application.delivery.AssignCompanyDeliveryManagerRequest;
+import com.team.deliveryservice.application.delivery.AssignHubDeliveryManagerRequest;
+import com.team.deliveryservice.application.delivery.ChangeDeliveryStatusRequest;
 import com.team.deliveryservice.application.delivery.CreateDeliveryRequest;
 import com.team.deliveryservice.application.delivery.DeliveryPageResponse;
 import com.team.deliveryservice.application.delivery.DeliveryResponse;
 import com.team.deliveryservice.application.delivery.DeliverySearchCondition;
 import com.team.deliveryservice.application.delivery.DeliveryService;
 import com.team.deliveryservice.application.delivery.UpdateDeliveryRequest;
-import com.team.deliveryservice.application.delivery.AssignDeliveryManagerRequest;
-import com.team.deliveryservice.application.delivery.ChangeDeliveryStatusRequest;
 import com.team.deliveryservice.presentation.common.ApiResponse;
 import com.team.deliveryservice.presentation.common.CurrentUser;
 import jakarta.validation.Valid;
@@ -86,14 +87,25 @@ public class DeliveryController {
         ));
     }
 
-    @PatchMapping("/{deliveryId}/assign")
-    public ResponseEntity<ApiResponse<DeliveryResponse>> assign(
+    @PatchMapping("/{deliveryId}/assign-company-manager")
+    public ResponseEntity<ApiResponse<DeliveryResponse>> assignCompanyManager(
         @PathVariable UUID deliveryId,
-        @Valid @RequestBody AssignDeliveryManagerRequest request,
+        @Valid @RequestBody AssignCompanyDeliveryManagerRequest request,
         CurrentUser currentUser
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            deliveryService.assignDeliveryManager(deliveryId, request, currentUser)
+            deliveryService.assignCompanyDeliveryManager(deliveryId, request, currentUser)
+        ));
+    }
+
+    @PatchMapping("/{deliveryId}/assign-delivery-manager")
+    public ResponseEntity<ApiResponse<DeliveryResponse>> assignDeliveryManager(
+        @PathVariable UUID deliveryId,
+        @Valid @RequestBody AssignHubDeliveryManagerRequest request,
+        CurrentUser currentUser
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok(
+            deliveryService.assignHubDeliveryManager(deliveryId, request, currentUser)
         ));
     }
 

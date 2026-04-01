@@ -108,6 +108,14 @@ public class DeliveryRouteLog extends BaseEntity {
             .build();
     }
 
+    public void assignDeliveryManager(UUID deliveryManagerId) {
+        if (this.routeStatus == DeliveryRouteStatus.DELIVERED || this.routeStatus == DeliveryRouteStatus.CANCELLED) {
+            throw new IllegalStateException("완료 또는 취소된 배송 경로에는 담당자를 배정할 수 없습니다.");
+        }
+
+        this.deliveryManagerId = deliveryManagerId;
+    }
+
     private static void validate(
         UUID deliveryId,
         Integer sequenceNo,

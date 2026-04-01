@@ -5,10 +5,12 @@ import com.team.deliveryservice.domain.delivery.Delivery;
 import com.team.deliveryservice.domain.delivery.DeliveryRepository;
 import com.team.deliveryservice.domain.delivery.DeliveryRouteLog;
 import com.team.deliveryservice.domain.delivery.DeliveryRouteLogRepository;
+import com.team.deliveryservice.domain.deliverymanager.DeliveryManager;
+import com.team.deliveryservice.domain.deliverymanager.DeliveryManagerRepository;
+import com.team.deliveryservice.domain.deliverymanager.DeliveryManagerType;
 import com.team.deliveryservice.presentation.common.CurrentUser;
 import com.team.deliveryservice.presentation.common.DeliveryErrorCode;
 import com.team.deliveryservice.presentation.common.ServiceException;
-import com.team.deliveryservice.domain.delivery.DeliveryStatus;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class DeliveryServiceImpl implements DeliveryService {
 
     private final DeliveryRepository deliveryRepository;
+    private final DeliveryManagerRepository deliveryManagerRepository;
     private final DeliveryRouteLogRepository deliveryRouteLogRepository;
 
     @Override
@@ -59,12 +62,6 @@ public class DeliveryServiceImpl implements DeliveryService {
     public DeliveryResponse getDelivery(UUID deliveryId, CurrentUser currentUser) {
         Delivery delivery = deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)
             .orElseThrow(() -> new ServiceException(DeliveryErrorCode.DELIVERY_NOT_FOUND));
-
-        List<DeliveryRouteLogResponse> routeLogs = deliveryRouteLogRepository
-            .findAllByDeliveryIdAndDeletedAtIsNullOrderBySequenceNoAsc(deliveryId)
-            .stream()
-            .map(DeliveryRouteLogResponse::from)
-            .toList();
 
         return DeliveryResponse.from(delivery, getRouteLogs(deliveryId));
     }
@@ -115,18 +112,16 @@ public class DeliveryServiceImpl implements DeliveryService {
             request.companyDeliveryManagerId()
         );
 
-        List<DeliveryRouteLogResponse> routeLogs = deliveryRouteLogRepository
-            .findAllByDeliveryIdAndDeletedAtIsNullOrderBySequenceNoAsc(deliveryId)
-            .stream()
-            .map(DeliveryRouteLogResponse::from)
-            .toList();
-
         return DeliveryResponse.from(delivery, getRouteLogs(deliveryId));
     }
 
     @Override
     @Transactional
-    public DeliveryResponse changeDeliveryStatus(UUID deliveryId, ChangeDeliveryStatusRequest request, CurrentUser currentUser) {
+    public DeliveryResponse changeDeliveryStatus(
+        UUID deliveryId,
+        ChangeDeliveryStatusRequest request,
+        CurrentUser currentUser
+    ) {
         Delivery delivery = deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)
             .orElseThrow(() -> new ServiceException(DeliveryErrorCode.DELIVERY_NOT_FOUND));
 
@@ -156,14 +151,61 @@ public class DeliveryServiceImpl implements DeliveryService {
 
     @Override
     @Transactional
-    public DeliveryResponse assignDeliveryManager(UUID deliveryId, AssignDeliveryManagerRequest request, CurrentUser currentUser) {
+    public DeliveryResponse assignCompanyDeliveryManager(
+        UUID deliveryId,
+        AssignCompanyDeliveryManagerRequest request,
+        CurrentUser currentUser
+    ) {
         Delivery delivery = deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)
             .orElseThrow(() -> new ServiceException(DeliveryErrorCode.DELIVERY_NOT_FOUND));
 
+        DeliveryManager manager = deliveryManagerRepository.findByIdAndDeletedAtIsNull(request.deliveryManagerId())
+            .orElseThrow(() -> new ServiceException(DeliveryErrorCode.DELIVERY_MANAGER_NOT_FOUND));
+
+        if (manager.getType() != DeliveryManagerType.COMPANY_DELIVERY_MANAGER) {
+            throw new ServiceException(DeliveryErrorCode.DELIVERY_MANAGER_TYPE_INVALID);
+        }
+
+        if (manager.getHubId() == null || !manager.getHubId().equals(delivery.getDestinationHubId())) {
+            throw new ServiceException(DeliveryErrorCode.DELIVERY_MANAGER_HUB_MISMATCH);
+        }
+
         try {
-            delivery.assignManager(request.companyDeliveryManagerId());
+            delivery.assignCompanyDeliveryManager(manager.getId());
         } catch (IllegalStateException e) {
             throw new ServiceException(DeliveryErrorCode.DELIVERY_ASSIGN_NOT_ALLOWED);
+        }
+
+        return DeliveryResponse.from(delivery, getRouteLogs(deliveryId));
+    }
+
+    @Override
+    @Transactional
+    public DeliveryResponse assignHubDeliveryManager(
+        UUID deliveryId,
+        AssignHubDeliveryManagerRequest request,
+        CurrentUser currentUser
+    ) {
+        Delivery delivery = deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)
+            .orElseThrow(() -> new ServiceException(DeliveryErrorCode.DELIVERY_NOT_FOUND));
+
+        DeliveryRouteLog routeLog = getRouteLog(request.routeLogId());
+
+        if (!routeLog.getDeliveryId().equals(delivery.getId())) {
+            throw new ServiceException(DeliveryErrorCode.DELIVERY_ROUTE_MANAGER_ASSIGN_NOT_ALLOWED);
+        }
+
+        DeliveryManager manager = deliveryManagerRepository.findByIdAndDeletedAtIsNull(request.deliveryManagerId())
+            .orElseThrow(() -> new ServiceException(DeliveryErrorCode.DELIVERY_MANAGER_NOT_FOUND));
+
+        if (manager.getType() != DeliveryManagerType.HUB_DELIVERY_MANAGER) {
+            throw new ServiceException(DeliveryErrorCode.DELIVERY_MANAGER_TYPE_INVALID);
+        }
+
+        try {
+            routeLog.assignDeliveryManager(manager.getId());
+        } catch (IllegalStateException e) {
+            throw new ServiceException(DeliveryErrorCode.DELIVERY_ROUTE_MANAGER_ASSIGN_NOT_ALLOWED);
         }
 
         return DeliveryResponse.from(delivery, getRouteLogs(deliveryId));
@@ -189,5 +231,10 @@ public class DeliveryServiceImpl implements DeliveryService {
             .stream()
             .map(DeliveryRouteLogResponse::from)
             .toList();
+    }
+
+    private DeliveryRouteLog getRouteLog(UUID routeLogId) {
+        return deliveryRouteLogRepository.findByIdAndDeletedAtIsNull(routeLogId)
+            .orElseThrow(() -> new ServiceException(DeliveryErrorCode.DELIVERY_ROUTE_LOG_NOT_FOUND));
     }
 }
