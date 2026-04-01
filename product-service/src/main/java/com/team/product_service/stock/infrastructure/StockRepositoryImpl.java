@@ -1,8 +1,8 @@
 package com.team.product_service.stock.infrastructure;
 
-import com.team.product_service.stock.application.dto.StockHistoryGetQuery;
 import com.team.product_service.stock.domain.Stock;
 import com.team.product_service.stock.domain.StockHistory;
+import com.team.product_service.stock.domain.StockHistoryType;
 import com.team.product_service.stock.domain.StockRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -35,7 +35,7 @@ public class StockRepositoryImpl implements StockRepository {
     }
 
     @Override
-    public Page<StockHistory> searchHistory(StockHistoryGetQuery query, Pageable pageable) {
-        return null;
+    public Page<StockHistory> searchHistory(UUID stockId, UUID orderId, StockHistoryType type, Pageable pageable) {
+        return stockHistoryJpaRepository.search(stockId, orderId, type, pageable);
     }
 }

@@ -15,12 +15,14 @@ public interface StockHistoryJpaRepository extends JpaRepository<StockHistory, U
     // 나중에 QueryDSL로 교체
     @Query("""
         SELECT h FROM StockHistory h
-        WHERE h.stockId = :stockId
-          AND h.deletedAt IS NULL
-          AND (CAST(:type AS string) IS NULL OR h.type = :type)
+        WHERE h.deletedAt IS NULL
+          AND (:stockId IS NULL OR h.stockId = :stockId)
+          AND (:orderId IS NULL OR h.orderId = :orderId)
+          AND (:type IS NULL OR h.type = :type)
         """)
-    Page<StockHistory> findByStockId(
+    Page<StockHistory> search(
         @Param("stockId") UUID stockId,
+        @Param("orderId") UUID orderId,
         @Param("type") StockHistoryType type,
         Pageable pageable
     );
