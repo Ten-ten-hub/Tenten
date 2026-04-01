@@ -131,6 +131,10 @@ public class Delivery extends BaseEntity {
         String recipientSlackId,
         UUID companyDeliveryManagerId
     ) {
+        if (this.deliveryStatus == DeliveryStatus.DELIVERED || this.deliveryStatus == DeliveryStatus.CANCELLED) {
+            throw new IllegalStateException("완료 또는 취소된 배송은 수정할 수 없습니다.");
+        }
+
         this.deliveryAddress = deliveryAddress;
         this.deliveryAddressDetail = deliveryAddressDetail;
         this.recipientName = recipientName;
@@ -138,16 +142,58 @@ public class Delivery extends BaseEntity {
         this.companyDeliveryManagerId = companyDeliveryManagerId;
     }
 
-    public void updateStatus(DeliveryStatus deliveryStatus) {
-        this.deliveryStatus = deliveryStatus;
+    public void updateStatus(DeliveryStatus nextStatus) {
+        validateStatusChange(nextStatus);
+        this.deliveryStatus = nextStatus;
 
-        if (this.startedAt == null && deliveryStatus == DeliveryStatus.MOVING_BETWEEN_HUBS) {
+        if (this.startedAt == null && nextStatus == DeliveryStatus.MOVING_BETWEEN_HUBS) {
             this.startedAt = LocalDateTime.now();
         }
 
-        // 최초 완료 시각만 기록하도록 수정
-        if (this.completedAt == null && deliveryStatus == DeliveryStatus.DELIVERED) {
+        if (this.completedAt == null && nextStatus == DeliveryStatus.DELIVERED) {
             this.completedAt = LocalDateTime.now();
+        }
+    }
+
+    public void cancel() {
+        if (this.deliveryStatus != DeliveryStatus.WAITING_AT_HUB) {
+            throw new IllegalStateException("배송 취소는 WAITING_AT_HUB 상태에서만 가능합니다.");
+        }
+
+        this.deliveryStatus = DeliveryStatus.CANCELLED;
+    }
+
+    public void assignManager(UUID companyDeliveryManagerId) {
+        if (this.deliveryStatus == DeliveryStatus.DELIVERED || this.deliveryStatus == DeliveryStatus.CANCELLED) {
+            throw new IllegalStateException("완료 또는 취소된 배송에는 담당자를 배정할 수 없습니다.");
+        }
+
+        this.companyDeliveryManagerId = companyDeliveryManagerId;
+    }
+
+    private void validateStatusChange(DeliveryStatus nextStatus) {
+        if (this.deliveryStatus == DeliveryStatus.DELIVERED) {
+            throw new IllegalStateException("완료된 배송은 상태를 변경할 수 없습니다.");
+        }
+
+        if (this.deliveryStatus == DeliveryStatus.CANCELLED) {
+            throw new IllegalStateException("취소된 배송은 상태를 변경할 수 없습니다.");
+        }
+
+        if (this.deliveryStatus == nextStatus) {
+            return;
+        }
+
+        boolean valid = switch (this.deliveryStatus) {
+            case WAITING_AT_HUB -> nextStatus == DeliveryStatus.MOVING_BETWEEN_HUBS;
+            case MOVING_BETWEEN_HUBS -> nextStatus == DeliveryStatus.ARRIVED_AT_DESTINATION_HUB;
+            case ARRIVED_AT_DESTINATION_HUB -> nextStatus == DeliveryStatus.OUT_FOR_DELIVERY;
+            case OUT_FOR_DELIVERY -> nextStatus == DeliveryStatus.DELIVERED;
+            case DELIVERED, CANCELLED -> false;
+        };
+
+        if (!valid) {
+            throw new IllegalStateException("허용되지 않은 배송 상태 전이입니다.");
         }
     }
 }

@@ -13,5 +13,11 @@ public interface DeliveryService {
 
     DeliveryResponse updateDelivery(UUID deliveryId, UpdateDeliveryRequest request, CurrentUser currentUser);
 
+    DeliveryResponse changeDeliveryStatus(UUID deliveryId, ChangeDeliveryStatusRequest request, CurrentUser currentUser);
+
+    DeliveryResponse cancelDelivery(UUID deliveryId, CurrentUser currentUser);
+
+    DeliveryResponse assignDeliveryManager(UUID deliveryId, AssignDeliveryManagerRequest request, CurrentUser currentUser);
+
     void deleteDelivery(UUID deliveryId, CurrentUser currentUser);
 }
