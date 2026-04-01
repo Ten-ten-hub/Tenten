@@ -1,7 +1,7 @@
 package com.team.deliveryservice.domain.delivery;
 
 import com.team.common.BaseEntity;
-import com.team.deliveryservice.presentation.common.ErrorCode;
+import com.team.deliveryservice.presentation.common.DeliveryErrorCode;
 import com.team.deliveryservice.presentation.common.ServiceException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -117,27 +117,27 @@ public class DeliveryRouteLog extends BaseEntity {
         Integer expectedDurationMinutes
     ) {
         if (deliveryId == null) {
-            throw new ServiceException(ErrorCode.COMMON_INVALID_INPUT);
+            throw new ServiceException(DeliveryErrorCode.COMMON_INVALID_INPUT);
         }
 
         if (sequenceNo == null || sequenceNo <= 0) {
-            throw new ServiceException(ErrorCode.COMMON_INVALID_INPUT);
+            throw new ServiceException(DeliveryErrorCode.COMMON_INVALID_INPUT);
         }
 
         if (departureHubId == null || arrivalHubId == null) {
-            throw new ServiceException(ErrorCode.COMMON_INVALID_INPUT);
+            throw new ServiceException(DeliveryErrorCode.COMMON_INVALID_INPUT);
         }
 
         if (departureHubId.equals(arrivalHubId)) {
-            throw new ServiceException(ErrorCode.COMMON_INVALID_INPUT);
+            throw new ServiceException(DeliveryErrorCode.COMMON_INVALID_INPUT);
         }
 
         if (expectedDistanceKm == null || expectedDistanceKm.compareTo(BigDecimal.ZERO) < 0) {
-            throw new ServiceException(ErrorCode.COMMON_INVALID_INPUT);
+            throw new ServiceException(DeliveryErrorCode.COMMON_INVALID_INPUT);
         }
 
         if (expectedDurationMinutes == null || expectedDurationMinutes < 0) {
-            throw new ServiceException(ErrorCode.COMMON_INVALID_INPUT);
+            throw new ServiceException(DeliveryErrorCode.COMMON_INVALID_INPUT);
         }
     }
 }

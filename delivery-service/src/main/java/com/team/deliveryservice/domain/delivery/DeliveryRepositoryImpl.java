@@ -1,6 +1,6 @@
 package com.team.deliveryservice.domain.delivery;
 
-import com.team.deliveryservice.application.common.SortDirection;
+import com.team.common.page.SortDirection;
 import com.team.deliveryservice.application.delivery.DeliverySearchCondition;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;

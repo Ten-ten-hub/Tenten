@@ -33,7 +33,7 @@ public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolve
         String companyId = request.getHeader("X-Company-Id");
 
         if (userId == null || role == null) {
-            throw new ServiceException(ErrorCode.COMMON_UNAUTHORIZED);
+            throw new ServiceException(CompanyErrorCode.COMMON_UNAUTHORIZED);
         }
 
         return new CurrentUser(
