@@ -1,4 +1,4 @@
-package com.team.deliveryservice.application.common;
+package com.team.common.page;
 
 import java.util.Set;
 
