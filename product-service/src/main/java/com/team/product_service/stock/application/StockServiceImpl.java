@@ -81,10 +81,11 @@ public class StockServiceImpl implements StockService {
             stockId = stock.get().getId();
         }
         StockHistoryGetQuery resolvedQuery = new StockHistoryGetQuery(
-            query.productId(), stockId, query.orderId(), query.type()
+            stockId, query.productId(), query.orderId(), query.type()
         );
 
-        return stockRepository.searchHistory(resolvedQuery, pageable).map(StockHistoryResult::from);
+        return stockRepository.searchHistory(stockId, query.orderId(), query.type(), pageable)
+            .map(StockHistoryResult::from);
     }
 
 

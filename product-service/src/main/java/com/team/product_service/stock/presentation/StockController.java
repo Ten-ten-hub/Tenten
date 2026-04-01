@@ -40,7 +40,7 @@ public class StockController {
         return ResponseEntity.ok(StockResponse.from(result));
     }
 
-    // 내부용 - 재고 차감 (주문 서비스 호출)
+    // 내부용 - 재고 복원 (주문 취소 시 호출)
     @PostMapping("/restore")
     public ResponseEntity<Void> restoreStock(
         @PathVariable UUID productId,
@@ -50,7 +50,7 @@ public class StockController {
         return ResponseEntity.noContent().build();
     }
 
-    // 내부용 - 재고 복원 (주문 취소 시 호출)
+    // 내부용 - 재고 차감 (주문 서비스 호출)
     @PostMapping("/deduct")
     public ResponseEntity<Void> deductStock(
         @PathVariable UUID productId,

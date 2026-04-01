@@ -1,6 +1,5 @@
 package com.team.product_service.stock.domain;
 
-import com.team.product_service.stock.application.dto.StockHistoryGetQuery;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -15,5 +14,5 @@ public interface StockRepository {
 
     StockHistory saveHistory(StockHistory stockHistory);
 
-    Page<StockHistory> searchHistory(StockHistoryGetQuery query, Pageable pageable);
+    Page<StockHistory> searchHistory(UUID stockId, UUID orderId, StockHistoryType type, Pageable pageable);
 }

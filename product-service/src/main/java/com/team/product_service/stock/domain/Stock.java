@@ -45,11 +45,17 @@ public class Stock extends BaseEntity {
     }
 
     public void increase(int amount) {
+        if (amount < 0) {
+            throw new BusinessException(ProductErrorCode.INVALID_STOCK_AMOUNT);
+        }
         this.quantity += amount;
         updateStatus();
     }
 
     public void decrease(int amount) {
+        if (amount < 0) {
+            throw new BusinessException(ProductErrorCode.INVALID_STOCK_AMOUNT);
+        }
         if (this.quantity - amount < 0) {
             throw new BusinessException(ProductErrorCode.STOCK_NOT_ENOUGH);
         }
