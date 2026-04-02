@@ -9,6 +9,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 @FeignClient(name = "user-service")
 public interface UserInternalClient {
 
-    @PostMapping("/internal/users/verify")
+    @PostMapping("/internal/v1/users/verify")
     UserVerifyResDto verify(@RequestBody UserVerifyReqDto userVerifyReqDto);
 }
