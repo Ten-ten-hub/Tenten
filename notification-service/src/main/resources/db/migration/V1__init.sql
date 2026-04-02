@@ -3,17 +3,17 @@
    Table: p_notification
    ========================================================= */
 
--- 1. ENUM 타입 생성 (메시지 유형 및 전송 상태)
-CREATE TYPE notification_msg_type AS ENUM (
-    'ORDER_ALERT',
-    'DAILY_REPORT'
-);
-
-CREATE TYPE notification_send_status AS ENUM (
-    'PENDING',
-    'SUCCESS',
-    'FAIL'
-);
+-- -- 1. ENUM 타입 생성 (메시지 유형 및 전송 상태)
+-- CREATE TYPE notification_msg_type AS ENUM (
+--     'ORDER_ALERT',
+--     'DAILY_REPORT'
+-- );
+--
+-- CREATE TYPE notification_send_status AS ENUM (
+--     'PENDING',
+--     'SUCCESS',
+--     'FAIL'
+-- );
 
 -- 2. TABLE 생성
 CREATE TABLE p_notification
@@ -25,14 +25,14 @@ CREATE TABLE p_notification
     receiver_id       UUID,                              -- logical FK -> p_user.id
     receiver_slack_id VARCHAR(100)             NOT NULL,
     order_id          UUID,                              -- logical FK -> p_order.id
-    msg_type          notification_msg_type    NOT NULL,
+    msg_type          VARCHAR(50)              NOT NULL,
     msg_content       TEXT                     NOT NULL,
-    send_status       notification_send_status NOT NULL DEFAULT 'PENDING',
+    send_status       VARCHAR(20)              NOT NULL DEFAULT 'PENDING',
     ref_id            UUID,                              -- 참조 ID (추가된 필드)
 
     -- common.BaseEntity 상속 필드 (Audit)
     created_at        TIMESTAMP                NOT NULL DEFAULT NOW(),
-    created_by        UUID                     NOT NULL,
+    created_by        UUID                     NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     updated_at        TIMESTAMP,
     updated_by        UUID,
     deleted_at        TIMESTAMP,

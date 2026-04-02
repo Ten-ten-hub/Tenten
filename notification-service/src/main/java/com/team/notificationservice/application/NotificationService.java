@@ -7,7 +7,6 @@ import com.team.notificationservice.infrastructure.SlackClient;
 import com.team.notificationservice.presentation.NotificationResponse;
 import com.team.notificationservice.presentation.common.ErrorCode;
 import com.team.notificationservice.presentation.common.ServiceException;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,7 +15,10 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -50,7 +52,7 @@ public class NotificationService {
     /**
      * 실제 DB 저장 및 이벤트를 발행하는 핵심 로직 쓰기 트랜잭션 범위를 최소화
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void saveAndPublish(NotificationRequest dto, String targetSlackId) {
         Notification notification = Notification.builder()
             .receiverSlackId(targetSlackId) // 조회된 혹은 입력된 ID 저장
@@ -60,7 +62,7 @@ public class NotificationService {
             .sendStatus(SendStatus.PENDING)
             .build();
 
-        notificationRepository.save(notification);
+        notificationRepository.saveAndFlush(notification);
 
         // 슬랙 발송 로직 대신 이벤트를 던짐
         eventPublisher.publishEvent(new NotificationCreatedEvent(
@@ -129,9 +131,16 @@ public class NotificationService {
         Notification notification = notificationRepository.findByIdAndDeletedAtIsNull(id)
             .orElseThrow(() -> new ServiceException(ErrorCode.NOTI_NOTIFICATION_NOT_FOUND));
 
-        // 엔티티에 삭제 처리를 위임
-        notification.delete(deletedBy);
+        UUID adminUuid;
+        try {
+            adminUuid = (deletedBy == null || deletedBy.isBlank())
+                ? UUID.fromString("00000000-0000-0000-0000-000000000000")
+                : UUID.fromString(deletedBy);
+        } catch (Exception e) {
+            adminUuid = UUID.fromString("00000000-0000-0000-0000-000000000000");
+        }
+        notification.delete(adminUuid);
 
-        notificationRepository.save(notification); // 변경 사항 명시적 반영
+        notificationRepository.save(notification);
     }
 }
