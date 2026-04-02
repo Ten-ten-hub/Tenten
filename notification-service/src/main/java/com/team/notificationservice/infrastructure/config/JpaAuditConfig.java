@@ -37,7 +37,8 @@ public class JpaAuditConfig {
             try {
                 return Optional.of(UUID.fromString(userId));
             } catch (IllegalArgumentException e) {
-                log.warn("X-User-Id 헤더에 부정확한 UUID : {}", userId);
+                log.warn("X-User-Id 헤더에 부정확한 UUID : {}",
+                    userId.length() > 50 ? userId.substring(0, 50) + "..." : userId);
                 // UUID 형식이 잘못됨 -> 에러 추적용 UUID 사용
                 return Optional.of(Constants.UNKNOWN_USER_UUID);
             }

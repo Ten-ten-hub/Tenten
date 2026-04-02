@@ -106,6 +106,7 @@ public class NotificationService {
             try {
                 adminUuid = UUID.fromString(deletedBy);
             } catch (IllegalArgumentException e) {
+                log.debug("deletedBy UUID 파싱 실패, 시스템 ID로 대체: {}", deletedBy);
                 adminUuid = Constants.SYSTEM_UUID;
             }
         }
