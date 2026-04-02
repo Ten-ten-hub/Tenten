@@ -36,9 +36,14 @@ public class NotificationEventListener {
          */
 
         // 1. 엔티티 조회 (AFTER_COMMIT 단계이므로 즉시 조회 가능)
-        Notification notification = notificationRepository.findById(event.notificationId())
-            .orElseThrow(() -> new IllegalStateException("알림 엔티티를 찾을 수 없습니다: ID=" + event.notificationId()));
-
+        Notification notification;
+        try {
+            notification = notificationRepository.findById(event.notificationId())
+                .orElseThrow(() -> new IllegalStateException("알림 엔티티를 찾을 수 없습니다: ID=" + event.notificationId()));
+        } catch (IllegalStateException e) {
+            log.error("알림 처리 실패 - 엔티티 조회 불가: {}", e.getMessage());
+            return;
+        }
         try {
             // 2. 외부 서비스(슬랙) 호출
             boolean success = slackClient.sendDirectMessage(event.receiverSlackId(), event.message());
