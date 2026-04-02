@@ -206,10 +206,11 @@ class NotificationControllerRestDocsTest {
     @DisplayName("알림 삭제 API 문서화")
     void deleteNotification() throws Exception {
         UUID id = UUID.randomUUID();
+        String validUserId = "00000000-0000-0000-0000-000000000000"; // 유효한 UUID 형식으로 변경
         doNothing().when(notificationService).deleteNotification(any(), any());
 
         mockMvc.perform(delete("/api/v1/notifications/{id}", id)
-                .header("X-User-Id", "ADMIN"))
+                .header("X-User-Id", validUserId))
             .andExpect(status().isOk()) // ApiResponse.ok()를 쓰므로 200 OK
             .andDo(document("notifications/delete",
                 pathParameters(parameterWithName("id").description("삭제할 알림 ID")),
