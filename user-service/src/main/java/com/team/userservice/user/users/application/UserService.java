@@ -1,6 +1,7 @@
 package com.team.userservice.user.users.application;
 
 import com.team.userservice.user.core.User;
+import com.team.userservice.user.core.enums.AffiliatedStatus;
 import com.team.userservice.user.core.enums.Affiliation;
 import com.team.userservice.user.core.enums.Role;
 import com.team.userservice.user.core.enums.SignupStatus;
@@ -33,7 +34,11 @@ public interface UserService {
 
     Page<User> getAllUserInfo(Pageable pageable);
 
+    Page<User> getAllUserInfo(List<Role> roles, AffiliatedStatus affiliatedStatus, Pageable pageable);
+
     List<User> getAllUserInfoInternal();
+
+    List<User> getAllUserInfoInternal(List<Role> roles, AffiliatedStatus affiliatedStatus);
 
     Page<User> getAllUserInfoBySignUpStatus(SignupStatus signupStatus, Pageable pageable);
 

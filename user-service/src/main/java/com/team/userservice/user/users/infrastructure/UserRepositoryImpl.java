@@ -6,8 +6,10 @@ import com.team.userservice.user.company.domain.CompanyRepository;
 import com.team.userservice.user.core.CompanyUser;
 import com.team.userservice.user.core.HubUser;
 import com.team.userservice.user.core.User;
+import com.team.userservice.user.core.enums.AffiliatedStatus;
 import com.team.userservice.user.core.enums.Role;
 import com.team.userservice.user.core.enums.SignupStatus;
+import org.springframework.data.jpa.domain.Specification;
 import com.team.userservice.user.hub.domain.HubRepository;
 import com.team.userservice.user.users.domain.UserRepository;
 import java.util.List;
@@ -97,8 +99,22 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
+    public Page<User> findAll(List<Role> roles, AffiliatedStatus affiliatedStatus, Pageable pageable) {
+        Specification<User> spec = UserSpecification.hasRoles(roles)
+            .and(UserSpecification.hasAffiliatedStatus(affiliatedStatus));
+        return userJpaRepository.findAll(spec, pageable);
+    }
+
+    @Override
     public List<User> findAll() {
         return userJpaRepository.findAll();
+    }
+
+    @Override
+    public List<User> findAll(List<Role> roles, AffiliatedStatus affiliatedStatus) {
+        Specification<User> spec = UserSpecification.hasRoles(roles)
+            .and(UserSpecification.hasAffiliatedStatus(affiliatedStatus));
+        return userJpaRepository.findAll(spec);
     }
 
     @Override
