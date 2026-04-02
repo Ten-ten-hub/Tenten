@@ -47,7 +47,7 @@ public class NotificationService {
 
         if (receiverUuid == null) {
             // 필요 시 테스트용 UUID를 직접 넣거나, null로 보내어 Saver에서 0000... 시스템 ID가 박히게 함
-            log.info("헤더값이 없어서 일단 시스템id로 진행 ");
+            log.debug("헤더값이 없어서 일단 시스템id로 진행 ");
         }
 
         // 3. 별도 트랜잭션 컴포넌트(Saver)를 통해 저장 및 이벤트 발행

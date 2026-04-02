@@ -54,10 +54,14 @@ public class NotificationEventListener {
                 notification.markAsFailed();
             }
         } catch (Exception e) {
-            log.error("슬랙 전송 처리 중 오류: {}", e.getMessage());
+            log.error("슬랙 전송 처리 중 오류: notificationId={}", event.notificationId(), e);
             notification.markAsFailed();
         } finally {
-            notificationRepository.save(notification);
+            try {
+                notificationRepository.save(notification);
+            } catch (Exception saveEx) {
+                log.error("알림 상태 저장 실패: notificationId={}", event.notificationId(), saveEx);
+            }
         }
     }
 }
