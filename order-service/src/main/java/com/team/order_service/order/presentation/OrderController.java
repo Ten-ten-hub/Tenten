@@ -59,7 +59,7 @@ public class OrderController {
         @RequestHeader("X-User-Id") UUID requestUserId,
         @RequestHeader("X-User-Role") String requestUserRole,
         @PathVariable UUID orderId,
-        @RequestBody OrderUpdateRequest request
+        @Valid @RequestBody OrderUpdateRequest request
     ) {
         OrderResult result = orderService.updateOrder(request.toCommand(orderId));
         return ResponseEntity.ok(OrderResponse.from(result));
