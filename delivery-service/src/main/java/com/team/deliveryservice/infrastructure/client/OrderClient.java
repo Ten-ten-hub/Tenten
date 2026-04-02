@@ -1,6 +1,6 @@
 package com.team.deliveryservice.infrastructure.client;
 
-import com.team.deliveryservice.infrastructure.config.FeignRetryConfig;
+import com.team.deliveryservice.global.config.FeignRetryConfig;
 import org.springframework.cloud.openfeign.FeignClient;
 
 @FeignClient(
