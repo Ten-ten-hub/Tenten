@@ -77,6 +77,12 @@ public class Order extends BaseEntity {
             .build();
     }
 
+    @Override
+    public void softDelete(UUID deletedBy) {
+        super.softDelete(deletedBy);
+        this.orderStatus = OrderStatus.DELETED;
+    }
+
     public void addOrderItem(OrderItem orderItem) {
         this.orderItems.add(orderItem);
         recalculateTotalPrice();
