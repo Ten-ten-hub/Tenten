@@ -1,6 +1,7 @@
 package com.team.userservice.user.users.application.dto;
 
 import com.team.userservice.user.core.User;
+import com.team.userservice.user.core.enums.AffiliatedStatus;
 import com.team.userservice.user.core.enums.Affiliation;
 import com.team.userservice.user.core.enums.Role;
 import com.team.userservice.user.core.enums.SignupStatus;
@@ -16,14 +17,14 @@ public record UserDataDto(
     String email,
     String phoneNumber,
     String slackId,
-    Affiliation affiliation,
+    AffiliatedStatus affiliatedStatus,
     UUID affiliationId,
     LocalDateTime lastLoginAt,
     LocalDateTime createdAt,
     LocalDateTime updatedAt
 ) {
 
-    public static UserDataDto fromUserInfo(User user, Affiliation affiliation, UUID affiliationId) {
+    public static UserDataDto fromUserInfo(User user, UUID affiliationId) {
         return new UserDataDto(
             user.getId(),
             user.getRole(),
@@ -33,7 +34,7 @@ public record UserDataDto(
             user.getEmail(),
             user.getPhoneNumber(),
             user.getSlackId(),
-            affiliation,
+            user.getAffiliatedStatus(),
             affiliationId,
             user.getLastLoginAt(),
             user.getCreatedAt(),
@@ -41,7 +42,7 @@ public record UserDataDto(
         );
     }
 
-    public static UserDataDto fromMaster(User user) {
+    public static UserDataDto fromUserInfo(User user) {
         return new UserDataDto(
             user.getId(),
             user.getRole(),
@@ -51,8 +52,8 @@ public record UserDataDto(
             user.getEmail(),
             user.getPhoneNumber(),
             user.getSlackId(),
-            Affiliation.NONE,
-            UUID.fromString("00000000-0000-0000-0000-000000000000"),
+            user.getAffiliatedStatus(),
+            null,
             user.getLastLoginAt(),
             user.getCreatedAt(),
             user.getUpdatedAt()

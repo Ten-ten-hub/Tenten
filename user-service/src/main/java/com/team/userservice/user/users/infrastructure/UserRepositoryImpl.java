@@ -73,12 +73,12 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public void updateHubUser(User user, UUID affiliationId) {
-        hubRepository.update(user, affiliationId);
+        hubRepository.save(user, affiliationId);
     }
 
     @Override
     public void updateCompanyUser(User user, UUID affiliationId) {
-        companyRepository.update(user, affiliationId);
+        companyRepository.save(user, affiliationId);
     }
 
     @Override

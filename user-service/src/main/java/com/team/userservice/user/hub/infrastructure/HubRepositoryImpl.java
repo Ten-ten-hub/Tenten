@@ -15,16 +15,12 @@ public class HubRepositoryImpl implements HubRepository {
     private final HubJpaRepository hubJpaRepository;
 
     @Override
-    public void update(User user, UUID affiliationId) {
-        hubJpaRepository.findByUser(user)
-            .ifPresentOrElse(
-                hubUser -> hubUser.updateHubId(affiliationId),
-                () -> hubJpaRepository.save(HubUser.create(user, affiliationId))
-            );
+    public void save(User user, UUID affiliationId) {
+        hubJpaRepository.save(HubUser.create(user, affiliationId));
     }
 
     @Override
     public HubUser findByUser(User user) {
-        return hubJpaRepository.findByUser(user).orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
+        return hubJpaRepository.findByUser(user).orElseThrow(() -> new UserException(UserErrorCode.HUB_USER_NOT_FOUND));
     }
 }

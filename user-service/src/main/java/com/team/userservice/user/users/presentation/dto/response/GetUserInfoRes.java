@@ -1,5 +1,6 @@
 package com.team.userservice.user.users.presentation.dto.response;
 
+import com.team.userservice.user.core.enums.AffiliatedStatus;
 import com.team.userservice.user.core.enums.Affiliation;
 import com.team.userservice.user.core.enums.Role;
 import com.team.userservice.user.core.enums.SignupStatus;
@@ -16,7 +17,7 @@ public record GetUserInfoRes(
     String email,
     String phoneNumber,
     String slackId,
-    Affiliation affiliation,
+    AffiliatedStatus affiliatedStatus,
     UUID affiliationId,
     LocalDateTime lastLoginAt,
     LocalDateTime createdAt,
@@ -32,7 +33,7 @@ public record GetUserInfoRes(
             userInfo.email(),
             userInfo.phoneNumber(),
             userInfo.slackId(),
-            userInfo.affiliation(),
+            userInfo.affiliatedStatus(),
             userInfo.affiliationId(),
             userInfo.lastLoginAt(),
             userInfo.createdAt(),

@@ -6,7 +6,7 @@ import java.util.UUID;
 
 public interface CompanyRepository {
 
-    void update(User user, UUID affiliationId);
+    void save(User user, UUID affiliationId);
 
     CompanyUser findByUser(User user);
 }
