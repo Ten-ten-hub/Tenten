@@ -1,15 +1,13 @@
 package com.team.companyservice.domain.company;
 
-import java.util.UUID;
-
-import com.team.companyservice.domain.common.BaseEntity;
-
+import com.team.common.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -57,17 +55,17 @@ public class Company extends BaseEntity {
 
     @Builder
     private Company(
-            UUID id,
-            String name,
-            CompanyType companyType,
-            UUID hubId,
-            String address,
-            String addressDetail,
-            String zipcode,
-            String contactName,
-            String contactPhone,
-            String contactSlackId,
-            boolean isActive
+        UUID id,
+        String name,
+        CompanyType companyType,
+        UUID hubId,
+        String address,
+        String addressDetail,
+        String zipcode,
+        String contactName,
+        String contactPhone,
+        String contactSlackId,
+        boolean isActive
     ) {
         this.id = id;
         this.name = name;
@@ -83,46 +81,41 @@ public class Company extends BaseEntity {
     }
 
     public static Company create(
-            String name,
-            CompanyType companyType,
-            UUID hubId,
-            String address,
-            String addressDetail,
-            String zipcode,
-            String contactName,
-            String contactPhone,
-            String contactSlackId,
-            UUID createdBy
+        String name,
+        CompanyType companyType,
+        UUID hubId,
+        String address,
+        String addressDetail,
+        String zipcode,
+        String contactName,
+        String contactPhone,
+        String contactSlackId
     ) {
-        Company company = Company.builder()
-                .id(UUID.randomUUID())
-                .name(name)
-                .companyType(companyType)
-                .hubId(hubId)
-                .address(address)
-                .addressDetail(addressDetail)
-                .zipcode(zipcode)
-                .contactName(contactName)
-                .contactPhone(contactPhone)
-                .contactSlackId(contactSlackId)
-                .isActive(true)
-                .build();
-
-        company.markCreated(createdBy);
-        return company;
+        return Company.builder()
+            .id(UUID.randomUUID())
+            .name(name)
+            .companyType(companyType)
+            .hubId(hubId)
+            .address(address)
+            .addressDetail(addressDetail)
+            .zipcode(zipcode)
+            .contactName(contactName)
+            .contactPhone(contactPhone)
+            .contactSlackId(contactSlackId)
+            .isActive(true)
+            .build();
     }
 
     public void update(
-            String name,
-            CompanyType companyType,
-            UUID hubId,
-            String address,
-            String addressDetail,
-            String zipcode,
-            String contactName,
-            String contactPhone,
-            String contactSlackId,
-            UUID updatedBy
+        String name,
+        CompanyType companyType,
+        UUID hubId,
+        String address,
+        String addressDetail,
+        String zipcode,
+        String contactName,
+        String contactPhone,
+        String contactSlackId
     ) {
         this.name = name;
         this.companyType = companyType;
@@ -133,11 +126,10 @@ public class Company extends BaseEntity {
         this.contactName = contactName;
         this.contactPhone = contactPhone;
         this.contactSlackId = contactSlackId;
-        this.markUpdated(updatedBy);
     }
 
     public void softDelete(UUID deletedBy) {
         this.isActive = false;
-        this.markDeleted(deletedBy);
+        super.softDelete(deletedBy);
     }
 }

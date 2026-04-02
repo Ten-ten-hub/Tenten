@@ -1,12 +1,12 @@
 package com.team.deliveryservice.application.delivery;
 
-import com.team.deliveryservice.application.common.PageSizeUtils;
+import com.team.common.page.PageSizeUtils;
 import com.team.deliveryservice.domain.delivery.Delivery;
 import com.team.deliveryservice.domain.delivery.DeliveryRepository;
 import com.team.deliveryservice.domain.delivery.DeliveryRouteLog;
 import com.team.deliveryservice.domain.delivery.DeliveryRouteLogRepository;
 import com.team.deliveryservice.presentation.common.CurrentUser;
-import com.team.deliveryservice.presentation.common.ErrorCode;
+import com.team.deliveryservice.presentation.common.DeliveryErrorCode;
 import com.team.deliveryservice.presentation.common.ServiceException;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -30,7 +30,7 @@ public class DeliveryServiceImpl implements DeliveryService {
     @Transactional
     public DeliveryResponse createDelivery(CreateDeliveryRequest request, CurrentUser currentUser) {
         if (deliveryRepository.existsByOrderIdAndDeletedAtIsNull(request.orderId())) {
-            throw new ServiceException(ErrorCode.DELIVERY_ALREADY_EXISTS);
+            throw new ServiceException(DeliveryErrorCode.DELIVERY_ALREADY_EXISTS);
         }
 
         Delivery delivery = Delivery.create(
@@ -50,14 +50,14 @@ public class DeliveryServiceImpl implements DeliveryService {
             Delivery savedDelivery = deliveryRepository.save(delivery);
             return DeliveryResponse.from(savedDelivery, List.of());
         } catch (DataIntegrityViolationException e) {
-            throw new ServiceException(ErrorCode.DELIVERY_ALREADY_EXISTS);
+            throw new ServiceException(DeliveryErrorCode.DELIVERY_ALREADY_EXISTS);
         }
     }
 
     @Override
     public DeliveryResponse getDelivery(UUID deliveryId, CurrentUser currentUser) {
         Delivery delivery = deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)
-            .orElseThrow(() -> new ServiceException(ErrorCode.DELIVERY_NOT_FOUND));
+            .orElseThrow(() -> new ServiceException(DeliveryErrorCode.DELIVERY_NOT_FOUND));
 
         List<DeliveryRouteLogResponse> routeLogs = deliveryRouteLogRepository
             .findAllByDeliveryIdAndDeletedAtIsNullOrderBySequenceNoAsc(deliveryId)
@@ -104,7 +104,7 @@ public class DeliveryServiceImpl implements DeliveryService {
     @Transactional
     public DeliveryResponse updateDelivery(UUID deliveryId, UpdateDeliveryRequest request, CurrentUser currentUser) {
         Delivery delivery = deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)
-            .orElseThrow(() -> new ServiceException(ErrorCode.DELIVERY_NOT_FOUND));
+            .orElseThrow(() -> new ServiceException(DeliveryErrorCode.DELIVERY_NOT_FOUND));
 
         delivery.updateInfo(
             request.deliveryAddress(),
@@ -127,7 +127,7 @@ public class DeliveryServiceImpl implements DeliveryService {
     @Transactional
     public void deleteDelivery(UUID deliveryId, CurrentUser currentUser) {
         Delivery delivery = deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)
-            .orElseThrow(() -> new ServiceException(ErrorCode.DELIVERY_NOT_FOUND));
+            .orElseThrow(() -> new ServiceException(DeliveryErrorCode.DELIVERY_NOT_FOUND));
 
         delivery.softDelete(currentUser.userId());
 
