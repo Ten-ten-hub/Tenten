@@ -1,14 +1,12 @@
 package com.team.userservice.user.users.presentation.dto.request;
 
-import com.team.userservice.user.core.enums.Role;
 import com.team.userservice.user.users.application.dto.SignUpServiceDto;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 
 
-public record SignUpReqDto(
+public record SignUpReq(
     @NotBlank(message = "성함을 입력해주세요.")
     String name,
 
@@ -21,9 +19,6 @@ public record SignUpReqDto(
         message = "비밀번호는 8~15자, 대/소문자, 숫자, 특수문자를 포함해야 합니다.")
     String password,
 
-    @NotNull(message = "가입 유형을 입력해주세요.")
-    Role role,
-
     @NotBlank(message = "슬랙 아이디를 입력해주세요.")
     String slackId,
 
@@ -35,6 +30,6 @@ public record SignUpReqDto(
     String phoneNumber
 ) {
     public SignUpServiceDto toServiceDto() {
-        return new SignUpServiceDto(name, loginId, password, role, slackId, email, phoneNumber);
+        return new SignUpServiceDto(name, loginId, password, slackId, email, phoneNumber);
     }
 }
