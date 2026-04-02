@@ -1,6 +1,5 @@
-package com.team.hubservice.hub.repository;
+package com.team.hubservice.hub.domain;
 
-import com.team.hubservice.hub.domain.Hub;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

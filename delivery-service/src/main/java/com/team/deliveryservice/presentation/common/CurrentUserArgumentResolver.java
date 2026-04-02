@@ -27,7 +27,7 @@ public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolve
     ) {
         HttpServletRequest request = webRequest.getNativeRequest(HttpServletRequest.class);
         if (request == null) {
-            throw new ServiceException(ErrorCode.COMMON_INTERNAL_ERROR);
+            throw new ServiceException(DeliveryErrorCode.COMMON_INTERNAL_ERROR);
         }
 
         return new CurrentUser(
@@ -45,7 +45,7 @@ public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolve
         try {
             return UUID.fromString(value);
         } catch (IllegalArgumentException e) {
-            throw new ServiceException(ErrorCode.COMMON_INVALID_INPUT);
+            throw new ServiceException(DeliveryErrorCode.COMMON_INVALID_INPUT);
         }
     }
 }

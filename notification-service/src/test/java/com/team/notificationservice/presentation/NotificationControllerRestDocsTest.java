@@ -28,7 +28,7 @@ import com.team.notificationservice.application.NotificationRequest;
 import com.team.notificationservice.application.NotificationService;
 import com.team.notificationservice.domain.MsgType;
 import com.team.notificationservice.domain.SendStatus;
-import com.team.notificationservice.presentation.common.GlobalExceptionHandler;
+import com.team.notificationservice.presentation.common.NotificationExceptionHandler;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -65,7 +65,7 @@ class NotificationControllerRestDocsTest {
         notificationController = new NotificationController(notificationService);
 
         mockMvc = MockMvcBuilders.standaloneSetup(notificationController) // 필드에 담긴 인스턴스를 사용해야 함
-            .setControllerAdvice(new GlobalExceptionHandler())
+            .setControllerAdvice(new NotificationExceptionHandler())
             .setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
             .apply(documentationConfiguration(restDocumentation))
             .build();

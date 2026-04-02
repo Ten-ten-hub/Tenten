@@ -5,8 +5,6 @@ import com.team.notificationservice.infrastructure.SlackClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
@@ -20,7 +18,6 @@ public class NotificationEventListener {
     // private final KafkaTemplate<String, NotificationCreatedEvent> kafkaTemplate; // TODO: Kafka 도입 시 주입 예정
 
     // 알림 생성 이벤트를 처리 TransactionPhase.AFTER_COMMIT: 메인 비즈니스 로직이 DB에 완전히 커밋된 후 실행됨
-    @Transactional(propagation = Propagation.REQUIRES_NEW) // 별도의 트랜잭션에서 전송 결과(성공/실패)를 기록함
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleNotificationCreatedEvent(NotificationCreatedEvent event) {
         log.info("이벤트 수신 - 알림 전송 시작: ID={}", event.notificationId());

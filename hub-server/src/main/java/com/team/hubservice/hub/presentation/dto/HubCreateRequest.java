@@ -1,4 +1,4 @@
-package com.team.hubservice.hub.dto;
+package com.team.hubservice.hub.presentation.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
