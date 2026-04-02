@@ -10,13 +10,17 @@ import com.team.order_service.order.domain.Order;
 import com.team.order_service.order.domain.OrderItem;
 import com.team.order_service.order.domain.OrderRepository;
 import com.team.order_service.order.domain.OrderStatus;
+import com.team.order_service.order.infrastructure.client.DeliveryClient;
+import com.team.order_service.order.infrastructure.client.ProductClient;
+import com.team.order_service.order.infrastructure.client.dto.ProductResponse;
+import com.team.order_service.order.infrastructure.client.dto.StockDeductRequest;
+import com.team.order_service.order.infrastructure.client.dto.StockRestoreRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.util.UUID;
 
 @Service
@@ -25,6 +29,8 @@ import java.util.UUID;
 public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
+    private final ProductClient productClient;
+    private final DeliveryClient deliveryClient;
 
     @Override
     @Transactional
@@ -40,21 +46,49 @@ public class OrderServiceImpl implements OrderService {
         );
         Order saved = orderRepository.save(order);
 
-        // 2. 주문 아이템 추가 (TODO: Feign Client 연동 후 실제 상품 정보로 교체)
-        command.orderItems().forEach(itemCommand -> {
+        // 2. 주문 아이템 추가
+        command.orderItems().forEach(orderItemCommand -> {
+            ProductResponse product;
+            try {
+                product = productClient.getProduct(command.orderedBy(), orderItemCommand.productId());
+            } catch (Exception e) {
+                throw new BusinessException(OrderErrorCode.PRODUCT_NOT_FOUND);
+            }
             OrderItem orderItem = OrderItem.create(
                 saved,
-                itemCommand.productId(),
-                "상품명 임시",               // TODO: productClient.getProduct()로 교체
-                BigDecimal.ZERO,             // TODO: 실제 단가로 교체
-                itemCommand.quantity()
+                orderItemCommand.productId(),
+                product.name(),
+                product.unitPrice(),
+                orderItemCommand.quantity()
             );
             saved.addOrderItem(orderItem);
         });
 
-        // TODO: 재고 차감 (Feign Client 연동 후 추가)
+        // 3. 재고 차감
+        command.orderItems().forEach(orderItemCommand -> {
+            try {
+                productClient.deductStock(
+                    command.orderedBy(),
+                    orderItemCommand.productId(),
+                    new StockDeductRequest(orderItemCommand.quantity(), saved.getId())
+                );
+            } catch (Exception e) {
+                throw new BusinessException(OrderErrorCode.STOCK_DEDUCT_FAILED);
+            }
+        });
 
-        // TODO: 배송 생성 및 배송 ID 저장 (Feign Client 연동 후 추가)
+//        // 4. 배송 생성 (배송 연동 후 주석 해제)
+//        DeliveryResponse delivery;
+//        try {
+//            delivery = deliveryClient.createDelivery(
+//                command.orderedBy(),
+//                new DeliveryCreateRequest(saved.getId(), command.supplierCompanyId(), command.receiverCompanyId())
+//            );
+//        } catch (Exception e) {
+//            throw new BusinessException(OrderErrorCode.DELIVERY_CREATE_FAILED);
+//        }
+//
+//        saved.assignDelivery(delivery.id());
 
         return OrderResult.from(saved);
     }
@@ -101,9 +135,27 @@ public class OrderServiceImpl implements OrderService {
             throw new BusinessException(OrderErrorCode.ORDER_NOT_CANCELLABLE);
         }
 
-        // TODO: 재고 복원 (Feign Client 연동 후 추가)
+        // 1. 재고 복원
+        order.getOrderItems().forEach(orderItem -> {
+            try {
+                productClient.restoreStock(
+                    cancelledBy,
+                    orderItem.getProductId(),
+                    new StockRestoreRequest(orderItem.getQuantity(), orderId)
+                );
+            } catch (Exception e) {
+                throw new BusinessException(OrderErrorCode.STOCK_RESTORE_FAILED);
+            }
+        });
 
-        // TODO: 배송 취소 (Feign Client 연동 후 추가)
+//        // 2. 배송 취소 (배송 연동 후 주석 해제)
+//        if (order.getDeliveryId() != null) {
+//            try {
+//                deliveryClient.cancelDelivery(cancelledBy, order.getDeliveryId());
+//            } catch (Exception e) {
+//                throw new BusinessException(OrderErrorCode.DELIVERY_CANCEL_FAILED);
+//            }
+//        }
 
         // 3. 주문 취소
         order.cancel(cancelledBy);
