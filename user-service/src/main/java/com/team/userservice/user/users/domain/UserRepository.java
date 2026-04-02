@@ -3,6 +3,7 @@ package com.team.userservice.user.users.domain;
 import com.team.userservice.user.core.CompanyUser;
 import com.team.userservice.user.core.HubUser;
 import com.team.userservice.user.core.User;
+import com.team.userservice.user.core.enums.AffiliatedStatus;
 import com.team.userservice.user.core.enums.Role;
 import com.team.userservice.user.core.enums.SignupStatus;
 import java.util.List;
@@ -39,7 +40,11 @@ public interface UserRepository {
 
     Page<User> findAll(Pageable pageable);
 
+    Page<User> findAll(List<Role> roles, AffiliatedStatus affiliatedStatus, Pageable pageable);
+
     List<User> findAll();
+
+    List<User> findAll(List<Role> roles, AffiliatedStatus affiliatedStatus);
 
     Page<User> findAllBySignupStatus(SignupStatus signupStatus, Pageable pageable);
 }

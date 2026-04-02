@@ -7,8 +7,9 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
-public interface UserJpaRepository extends JpaRepository<User, UUID> {
+public interface UserJpaRepository extends JpaRepository<User, UUID>, JpaSpecificationExecutor<User> {
 
     boolean existsByLoginId(String loginId);
 

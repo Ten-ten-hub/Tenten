@@ -1,6 +1,8 @@
 package com.team.userservice.user.users.presentation;
 
 import com.team.userservice.global.dto.CommonResponse;
+import com.team.userservice.user.core.enums.AffiliatedStatus;
+import com.team.userservice.user.core.enums.Role;
 import com.team.userservice.user.users.application.UserService;
 import com.team.userservice.user.users.presentation.dto.request.LoginReq;
 import com.team.userservice.user.users.presentation.dto.response.GetAllUserInfoRes;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -30,9 +33,12 @@ public class UserInternalController {
     }
 // 사용자 정보 다건 조회 내부 api
     @GetMapping("/v1/users")
-    public CommonResponse<List<GetAllUserInfoRes>> getAllUserInfoInternal() {
+    public CommonResponse<List<GetAllUserInfoRes>> getAllUserInfoInternal(
+        @RequestParam(required = false) List<Role> roles,
+        @RequestParam(required = false) AffiliatedStatus affiliatedStatus
+    ) {
         return CommonResponse.onSuccess(
-            userService.getAllUserInfoInternal()
+            userService.getAllUserInfoInternal(roles, affiliatedStatus)
                 .stream()
                 .map(GetAllUserInfoRes::from)
                 .toList()

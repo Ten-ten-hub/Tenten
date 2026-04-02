@@ -2,6 +2,7 @@ package com.team.userservice.user.users.presentation;
 
 import com.team.userservice.global.auth.RequireRole;
 import com.team.userservice.global.dto.CommonResponse;
+import com.team.userservice.user.core.enums.AffiliatedStatus;
 import com.team.userservice.user.core.enums.Role;
 import com.team.userservice.user.core.enums.SignupStatus;
 import com.team.userservice.user.users.application.UserService;
@@ -20,6 +21,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import java.util.List;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -28,6 +30,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -88,9 +91,14 @@ public class UserController {
     @RequireRole(Role.MASTER_ADMIN)
     @GetMapping
     public CommonResponse<Page<GetAllUserInfoRes>> getAllUserInfo(
+        @RequestParam(required = false) List<Role> roles,
+        @RequestParam(required = false) AffiliatedStatus affiliatedStatus,
         @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        return CommonResponse.onSuccess(userService.getAllUserInfo(pageable).map(GetAllUserInfoRes::from));
+        if (roles == null && affiliatedStatus == null) {
+            return CommonResponse.onSuccess(userService.getAllUserInfo(pageable).map(GetAllUserInfoRes::from));
+        }
+        return CommonResponse.onSuccess(userService.getAllUserInfo(roles, affiliatedStatus, pageable).map(GetAllUserInfoRes::from));
     }
 
     // 7. 사용자 삭제
