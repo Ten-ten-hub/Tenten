@@ -15,12 +15,14 @@ import com.team.order_service.order.infrastructure.client.ProductClient;
 import com.team.order_service.order.infrastructure.client.dto.ProductResponse;
 import com.team.order_service.order.infrastructure.client.dto.StockDeductRequest;
 import com.team.order_service.order.infrastructure.client.dto.StockRestoreRequest;
+import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -48,12 +50,7 @@ public class OrderServiceImpl implements OrderService {
 
         // 2. 주문 아이템 추가
         command.orderItems().forEach(orderItemCommand -> {
-            ProductResponse product;
-            try {
-                product = productClient.getProduct(command.orderedBy(), orderItemCommand.productId());
-            } catch (Exception e) {
-                throw new BusinessException(OrderErrorCode.PRODUCT_NOT_FOUND);
-            }
+            ProductResponse product = getProductWithFallback(command.orderedBy(), orderItemCommand.productId());
             OrderItem orderItem = OrderItem.create(
                 saved,
                 orderItemCommand.productId(),
@@ -64,20 +61,36 @@ public class OrderServiceImpl implements OrderService {
             saved.addOrderItem(orderItem);
         });
 
-        // 3. 재고 차감
-        command.orderItems().forEach(orderItemCommand -> {
-            try {
-                productClient.deductStock(
+        // 3. 재고 차감 (실패 시 이미 차감된 항목 복원 - 보상 트랜잭션) - 추후 메시징 시스템으로 전환 후 SAGA 패턴 적용
+        int deductedCount = 0;
+        var items = command.orderItems();
+        try {
+            for (var orderItemCommand : command.orderItems()) {
+                deductStockWithFallback(
                     command.orderedBy(),
                     orderItemCommand.productId(),
-                    new StockDeductRequest(orderItemCommand.quantity(), saved.getId())
+                    orderItemCommand.quantity(),
+                    saved.getId()
                 );
-            } catch (Exception e) {
-                throw new BusinessException(OrderErrorCode.STOCK_DEDUCT_FAILED);
+                deductedCount++;
             }
-        });
+        } catch (BusinessException e) {
+            // 이미 차감된 항목 복원
+            for (int i = 0; i < deductedCount; i++) {
+                try {
+                    productClient.restoreStock(
+                        command.orderedBy(),
+                        items.get(i).productId(),
+                        new StockRestoreRequest(items.get(i).quantity(), saved.getId())
+                    );
+                } catch (Exception ignored) {
+                }
+            }
+            throw e;
+        }
 
-//        // 4. 배송 생성 (배송 연동 후 주석 해제)
+
+//        // 4. 배송 생성 (TODO: 배송 서비스 API 확정 후 주석 해제)
 //        DeliveryResponse delivery;
 //        try {
 //            delivery = deliveryClient.createDelivery(
@@ -135,18 +148,29 @@ public class OrderServiceImpl implements OrderService {
             throw new BusinessException(OrderErrorCode.ORDER_NOT_CANCELLABLE);
         }
 
-        // 1. 재고 복원
-        order.getOrderItems().forEach(orderItem -> {
-            try {
-                productClient.restoreStock(
+        // 1. 재고 복원 (실패 시 이미 복원된 항목 다시 차감 - 보상 트랜잭션) - 추후 메시징 시스템으로 전환 후 SAGA 패턴 적용
+        int restoredCount = 0;
+        List<OrderItem> orderItems = order.getOrderItems();
+        try {
+            for (var orderItem : orderItems) {
+                restoreStockWithFallback(
                     cancelledBy,
                     orderItem.getProductId(),
-                    new StockRestoreRequest(orderItem.getQuantity(), orderId)
+                    orderItem.getQuantity(),
+                    orderId
                 );
-            } catch (Exception e) {
-                throw new BusinessException(OrderErrorCode.STOCK_RESTORE_FAILED);
+                restoredCount++;
             }
-        });
+        } catch (BusinessException e) {
+            // 이미 복원된 항목 다시 차감 (보상)
+            for (int i = 0; i < restoredCount; i++) {
+                try {
+
+                } catch (Exception ignored) {
+                }
+            }
+            throw e;
+        }
 
 //        // 2. 배송 취소 (배송 연동 후 주석 해제)
 //        if (order.getDeliveryId() != null) {
@@ -159,6 +183,44 @@ public class OrderServiceImpl implements OrderService {
 
         // 3. 주문 취소
         order.cancel(cancelledBy);
+    }
+
+    // -------------------------------------------------------
+    // private helpers - Feign 예외 타입별 분기 처리
+    // -------------------------------------------------------
+
+    private ProductResponse getProductWithFallback(UUID requestUserId, UUID productId) {
+        try {
+            return productClient.getProduct(requestUserId, productId);
+        } catch (FeignException.NotFound e) {
+            throw new BusinessException(OrderErrorCode.PRODUCT_NOT_FOUND);
+        } catch (Exception e) {
+            throw new BusinessException(OrderErrorCode.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    private void deductStockWithFallback(UUID requestUserId, UUID productId, int quantity, UUID orderId) {
+        try {
+            productClient.deductStock(requestUserId, productId, new StockDeductRequest(quantity, orderId));
+        } catch (FeignException.NotFound e) {
+            throw new BusinessException(OrderErrorCode.PRODUCT_NOT_FOUND);
+        } catch (FeignException e) {
+            throw new BusinessException(OrderErrorCode.STOCK_DEDUCT_FAILED);
+        } catch (Exception e) {
+            throw new BusinessException(OrderErrorCode.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    private void restoreStockWithFallback(UUID requestUserId, UUID productId, int quantity, UUID orderId) {
+        try {
+            productClient.restoreStock(requestUserId, productId, new StockRestoreRequest(quantity, orderId));
+        } catch (FeignException.NotFound e) {
+            throw new BusinessException(OrderErrorCode.PRODUCT_NOT_FOUND);
+        } catch (FeignException e) {
+            throw new BusinessException(OrderErrorCode.STOCK_RESTORE_FAILED);
+        } catch (Exception e) {
+            throw new BusinessException(OrderErrorCode.SERVICE_UNAVAILABLE);
+        }
     }
 
     private Order findActiveOrderById(UUID orderId) {
