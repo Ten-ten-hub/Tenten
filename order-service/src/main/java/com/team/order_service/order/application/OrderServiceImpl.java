@@ -202,7 +202,10 @@ public class OrderServiceImpl implements OrderService {
     public void deleteOrder(UUID orderId, UUID deletedBy) {
         Order order = findActiveOrderById(orderId);
         order.softDelete(deletedBy);
-        deliveryClient.deleteDelivery(order.getDeliveryId());
+
+        if (order.getDeliveryId() != null) {
+            deliveryClient.deleteDelivery(order.getDeliveryId());
+        }
     }
 
     // -------------------------------------------------------
