@@ -207,11 +207,18 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public void deleteOrder(UUID orderId, UUID deletedBy) {
         Order order = findActiveOrderById(orderId);
+
+        // 취소되지 않은 주문은 삭제 전 취소 처리 (재고 복원 포함)
+        if (order.isCancellable()) {
+            cancelOrder(orderId, deletedBy);
+        }
+
         order.softDelete(deletedBy);
 
-        if (order.getDeliveryId() != null) {
-            deliveryClient.deleteDelivery(order.getDeliveryId());
-        }
+//         // 배송 삭제 (TODO: 배송 서비스 API 확정 후 주석 해제)
+//         if (order.getDeliveryId() != null) {
+//             deleteDeliveryWithFallback(order.getDeliveryId());
+//         }
     }
 
     // -------------------------------------------------------
@@ -247,6 +254,16 @@ public class OrderServiceImpl implements OrderService {
             throw new BusinessException(OrderErrorCode.PRODUCT_NOT_FOUND);
         } catch (FeignException e) {
             throw new BusinessException(OrderErrorCode.STOCK_RESTORE_FAILED);
+        } catch (Exception e) {
+            throw new BusinessException(OrderErrorCode.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    private void deleteDeliveryWithFallback(UUID deliveryId) {
+        try {
+            deliveryClient.deleteDelivery(deliveryId);
+        } catch (FeignException.NotFound e) {
+            // 이미 삭제된 배송은 무시
         } catch (Exception e) {
             throw new BusinessException(OrderErrorCode.SERVICE_UNAVAILABLE);
         }
