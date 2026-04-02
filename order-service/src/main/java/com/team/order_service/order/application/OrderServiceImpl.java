@@ -61,7 +61,11 @@ public class OrderServiceImpl implements OrderService {
             saved.addOrderItem(orderItem);
         });
 
-        // 3. 재고 차감 (실패 시 이미 차감된 항목 복원 - 보상 트랜잭션) - 추후 메시징 시스템으로 전환 후 SAGA 패턴 적용
+        // 3. 재고 차감 (실패 시 이미 차감된 항목 복원 - 보상 트랜잭션)
+        // TODO: [사가 패턴 도입 시 개선 필요]
+        //   - 현재 REST 기반 보상 트랜잭션은 멱등성 보장 불가
+        //   - 보상 후 재시도 시 동일 orderId로 중복 차감 발생 가능
+        //   - 사가 패턴 도입 시 이벤트 ID 기반 중복 처리 방지로 해결 예정
         int deductedCount = 0;
         var items = command.orderItems();
         try {
@@ -148,7 +152,11 @@ public class OrderServiceImpl implements OrderService {
             throw new BusinessException(OrderErrorCode.ORDER_NOT_CANCELLABLE);
         }
 
-        // 1. 재고 복원 (실패 시 이미 복원된 항목 다시 차감 - 보상 트랜잭션) - 추후 메시징 시스템으로 전환 후 SAGA 패턴 적용
+        // 1. 재고 복원 (실패 시 이미 복원된 항목 다시 차감 - 보상 트랜잭션)
+        // TODO: [사가 패턴 도입 시 개선 필요]
+        //   - 현재 REST 기반 보상 트랜잭션은 멱등성 보장 불가
+        //   - 보상 후 재시도 시 동일 orderId로 중복 복원 발생 가능
+        //   - 사가 패턴 도입 시 이벤트 ID 기반 중복 처리 방지로 해결 예정
         int restoredCount = 0;
         List<OrderItem> orderItems = order.getOrderItems();
         try {
@@ -165,7 +173,11 @@ public class OrderServiceImpl implements OrderService {
             // 이미 복원된 항목 다시 차감 (보상)
             for (int i = 0; i < restoredCount; i++) {
                 try {
-
+                    productClient.deductStock(
+                        cancelledBy,
+                        orderItems.get(i).getProductId(),
+                        new StockDeductRequest(orderItems.get(i).getQuantity(), orderId)
+                    );
                 } catch (Exception ignored) {
                 }
             }
@@ -183,6 +195,14 @@ public class OrderServiceImpl implements OrderService {
 
         // 3. 주문 취소
         order.cancel(cancelledBy);
+    }
+
+    @Override
+    @Transactional
+    public void deleteOrder(UUID orderId, UUID deletedBy) {
+        Order order = findActiveOrderById(orderId);
+        order.softDelete(deletedBy);
+        deliveryClient.deleteDelivery(order.getDeliveryId());
     }
 
     // -------------------------------------------------------

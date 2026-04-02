@@ -66,6 +66,16 @@ public class OrderController {
     }
 
     @DeleteMapping("/{orderId}")
+    ResponseEntity<Void> deleteOrder(
+        @RequestHeader("X-User-Id") UUID requestUserId,
+        @RequestHeader("X-User-Role") String requestUserRole,
+        @PathVariable UUID orderId
+    ) {
+        orderService.deleteOrder(orderId, requestUserId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{orderId}/cancel")
     public ResponseEntity<Void> cancelOrder(
         @RequestHeader("X-User-Id") UUID requestUserId,
         @RequestHeader("X-User-Role") String requestUserRole,
