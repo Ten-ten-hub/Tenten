@@ -5,6 +5,7 @@ import com.team.hubservice.hubroute.domain.HubRoute;
 import com.team.hubservice.hubroute.domain.HubRouteRepository;
 import com.team.hubservice.hubroute.exception.HubRouteErrorCode;
 import java.util.UUID;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -33,7 +34,12 @@ public class HubRouteService {
             command.distance()
         );
 
-        return HubRouteResult.from(hubRouteRepository.save(route));
+        try {
+            return HubRouteResult.from(hubRouteRepository.save(route));
+        } catch (DataIntegrityViolationException e) {
+            // 동시성 문제로 DB 유니크 인덱스에 걸렸을 때 처리
+            throw new BusinessException(HubRouteErrorCode.ROUTE_DUPLICATED);
+        }
     }
 
     public HubRouteResult getHubRoute(UUID routeId) {
