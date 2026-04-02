@@ -4,6 +4,8 @@ import com.slack.api.Slack;
 import com.slack.api.methods.MethodsClient;
 import com.slack.api.methods.response.chat.ChatPostMessageResponse;
 import com.slack.api.methods.response.users.UsersLookupByEmailResponse;
+import com.team.notificationservice.presentation.common.ErrorCode;
+import com.team.notificationservice.presentation.common.ServiceException;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -30,11 +32,19 @@ public class SlackClient {
             if (response.isOk()) {
                 return response.getUser().getId();
             }
-            log.warn("이메일로 사용자를 찾을 수 없음: {}", maskEmail(email));
+
+            if ("users_not_found".equals(response.getError())) {
+                log.warn("이메일로 사용자를 찾을 수 없음: {}", maskEmail(email));
+                return null;
+            }
+
+            throw new ServiceException(ErrorCode.NOTI_SLACK_API_ERROR);
+        } catch (ServiceException e) {
+            throw e;
         } catch (Exception e) {
             log.error("슬랙 이메일 조회 중 오류", e);
+            throw new ServiceException(ErrorCode.NOTI_SLACK_API_ERROR, e);
         }
-        return null;
     }
 
     // 2. 메시지 전송 (최종 타겟 ID 사용)
@@ -53,6 +63,13 @@ public class SlackClient {
 
     private String maskEmail(String email) {
         if (email == null || !email.contains("@")) return "UNKNOWN";
-        return email.replaceAll("(^[^@]{2}|(?!^)\\G)[^@]", "$1*");
+        String[] parts = email.split("@", 2);
+        String local = parts[0];
+        String domain = parts[1];
+
+        if (local.isEmpty()) return "UNKNOWN";
+        if (local.length() == 1) return "*" + "@" + domain;
+
+        return local.charAt(0) + "*".repeat(local.length() - 1) + "@" + domain;
     }
 }

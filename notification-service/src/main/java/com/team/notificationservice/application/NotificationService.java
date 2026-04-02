@@ -4,6 +4,7 @@ import com.team.notificationservice.domain.Notification;
 import com.team.notificationservice.domain.NotificationRepository;
 import com.team.notificationservice.infrastructure.SlackClient;
 import com.team.notificationservice.presentation.NotificationResponse;
+import com.team.notificationservice.presentation.common.Constants;
 import com.team.notificationservice.presentation.common.ErrorCode;
 import com.team.notificationservice.presentation.common.ServiceException;
 import lombok.RequiredArgsConstructor;
@@ -97,15 +98,15 @@ public class NotificationService {
         Notification notification = notificationRepository.findByIdAndDeletedAtIsNull(id)
             .orElseThrow(() -> new ServiceException(ErrorCode.NOTI_NOTIFICATION_NOT_FOUND));
 
-        // try-catch 없이 조건문으로 처리
+        // deletedBy가 null/blank/SYSTEM인 경우 조건문으로 처리하고, 그 외의 경우 try-catch를 통해 UUID 파싱 실패 시 시스템 ID로 대체
         UUID adminUuid;
-        if (deletedBy == null || deletedBy.isBlank() || "SYSTEM".equals(deletedBy)) {
-            adminUuid = UUID.fromString("00000000-0000-0000-0000-000000000000");
+        if (deletedBy == null || deletedBy.isBlank() || Constants.SYSTEM_USER_ID.equals(deletedBy)) {
+            adminUuid = Constants.SYSTEM_UUID;
         } else {
             try {
                 adminUuid = UUID.fromString(deletedBy);
             } catch (IllegalArgumentException e) {
-                adminUuid = UUID.fromString("00000000-0000-0000-0000-000000000000");
+                adminUuid = Constants.SYSTEM_UUID;
             }
         }
 
