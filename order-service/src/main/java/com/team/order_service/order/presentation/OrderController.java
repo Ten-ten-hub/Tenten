@@ -50,7 +50,7 @@ public class OrderController {
         @PageableDefault(size = 10, sort = "createdAt") Pageable pageable
     ) {
         Pageable validatedPageable = validatePageSize(pageable);
-        Page<OrderResult> results = orderService.getOrders(request.toQuery(), pageable);
+        Page<OrderResult> results = orderService.getOrders(request.toQuery(), validatedPageable);
         return ResponseEntity.ok(PageResponse.from(results.map(OrderResponse::from)));
     }
 
