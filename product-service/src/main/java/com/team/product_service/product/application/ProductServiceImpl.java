@@ -12,6 +12,7 @@ import com.team.product_service.product.domain.event.ProductCreatedEvent;
 import com.team.product_service.product.domain.event.ProductDeletedEvent;
 import com.team.product_service.product.infrastructure.client.CompanyClient;
 import com.team.product_service.product.infrastructure.client.HubClient;
+import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
@@ -39,15 +40,19 @@ public class ProductServiceImpl implements ProductService {
         // companyId 존재 여부 확인
         try {
             companyClient.checkCompanyExists(command.companyId());
-        } catch (Exception e) {
+        } catch (FeignException.NotFound e) {
             throw new BusinessException(ProductErrorCode.COMPANY_NOT_FOUND);
+        } catch (FeignException e) {
+            throw new BusinessException(ProductErrorCode.SERVICE_UNAVAILABLE);
         }
 
         // hubId 존재 여부 확인
         try {
             hubClient.checkHubExists(command.hubId());
-        } catch (Exception e) {
+        } catch (FeignException.NotFound e) {
             throw new BusinessException(ProductErrorCode.HUB_NOT_FOUND);
+        } catch (FeignException e) {
+            throw new BusinessException(ProductErrorCode.SERVICE_UNAVAILABLE);
         }
 
         Product product = Product.create(

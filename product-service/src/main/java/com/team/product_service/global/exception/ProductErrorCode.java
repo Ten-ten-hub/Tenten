@@ -25,8 +25,10 @@ public enum ProductErrorCode implements ErrorCode {
     DUPLICATE_PRODUCT_NAME("DUPLICATE_PRODUCT_NAME", "이미 존재하는 상품명입니다", HttpStatus.CONFLICT),
 
     // 500
-    STOCK_RESTORE_FAILED("STOCK_RESTORE_FAILED", "재고 복원에 실패했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+    STOCK_RESTORE_FAILED("STOCK_RESTORE_FAILED", "재고 복원에 실패했습니다", HttpStatus.INTERNAL_SERVER_ERROR),
 
+    // 503
+    SERVICE_UNAVAILABLE("SERVICE_UNAVAILABLE", "외부 서비스 연동에 실패했습니다", HttpStatus.SERVICE_UNAVAILABLE);
 
     private final String code;
     private final String message;

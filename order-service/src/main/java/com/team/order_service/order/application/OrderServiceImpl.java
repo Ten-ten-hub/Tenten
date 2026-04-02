@@ -17,6 +17,7 @@ import com.team.order_service.order.infrastructure.client.dto.StockDeductRequest
 import com.team.order_service.order.infrastructure.client.dto.StockRestoreRequest;
 import feign.FeignException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -87,7 +89,9 @@ public class OrderServiceImpl implements OrderService {
                         items.get(i).productId(),
                         new StockRestoreRequest(items.get(i).quantity(), saved.getId())
                     );
-                } catch (Exception ignored) {
+                } catch (Exception compensationEx) {
+                    log.error("[주문생성 보상 트랜잭션 실패] orderId={}, productId={}, error={}",
+                        saved.getId(), items.get(i).productId(), compensationEx.getMessage());
                 }
             }
             throw e;
@@ -178,7 +182,9 @@ public class OrderServiceImpl implements OrderService {
                         orderItems.get(i).getProductId(),
                         new StockDeductRequest(orderItems.get(i).getQuantity(), orderId)
                     );
-                } catch (Exception ignored) {
+                } catch (Exception compensationEx) {
+                    log.error("[주문취소 보상 트랜잭션 실패] orderId={}, productId={}, error={}",
+                        orderId, orderItems.get(i).getProductId(), compensationEx.getMessage());
                 }
             }
             throw e;
