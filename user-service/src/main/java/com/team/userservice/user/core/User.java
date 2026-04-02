@@ -2,6 +2,8 @@ package com.team.userservice.user.core;
 
 import com.team.userservice.global.domain.error.UserErrorCode;
 import com.team.userservice.global.exception.UserException;
+import com.team.userservice.user.core.enums.AffiliatedStatus;
+import com.team.userservice.user.core.enums.Affiliation;
 import com.team.userservice.user.core.enums.Role;
 import com.team.userservice.user.core.enums.SignupStatus;
 import com.team.userservice.user.core.vo.UserUpdateInfo;
@@ -57,6 +59,10 @@ public class User extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private SignupStatus signupStatus;
 
+    @Column(name = "affiliated_status")
+    @Enumerated(EnumType.STRING)
+    private AffiliatedStatus affiliatedStatus;
+
     @Column(name = "last_login_at")
     private LocalDateTime lastLoginAt; //TODO: api 명세서에 업데이트하는 api 추가해야함
 
@@ -67,12 +73,13 @@ public class User extends BaseEntity {
     private UUID deletedBy; // 레코드 삭제자
 
     @Builder(builderMethodName = "create")
-    private User(String loginId, String password, String name, Role role,
+    private User(String loginId, String password, String name,
                  String slackId, String email, String phoneNumber) {
         this.loginId = loginId;
         this.password = password;
         this.name = name;
-        this.role = role;
+        this.role = Role.NONE;
+        this.affiliatedStatus = AffiliatedStatus.NOT_APPLICABLE;
         this.slackId = slackId;
         this.email = email;
         this.phoneNumber = phoneNumber;
@@ -87,6 +94,21 @@ public class User extends BaseEntity {
     }
 
     public void updateRole(Role role) {
+        boolean wasHub = this.role == Role.HUB_ADMIN || this.role == Role.HUB_DELIVERY_MANAGER;
+        boolean wasCompany = this.role == Role.COMPANY_MANAGER || this.role == Role.COM_DELIVERY_MANAGER;
+        boolean toHub = role == Role.HUB_ADMIN || role == Role.HUB_DELIVERY_MANAGER;
+        boolean toCompany = role == Role.COMPANY_MANAGER || role == Role.COM_DELIVERY_MANAGER;
+
+        if((wasHub && toCompany) || (wasCompany && toHub)){
+            this.affiliatedStatus = AffiliatedStatus.UNAFFILIATED;
+        }
+
+        if(role == Role.NONE || role == Role.MASTER_ADMIN){
+            this.affiliatedStatus = AffiliatedStatus.NOT_APPLICABLE;
+        }else if(this.affiliatedStatus == AffiliatedStatus.NOT_APPLICABLE){
+            this.affiliatedStatus = AffiliatedStatus.UNAFFILIATED;
+        }
+
         this.role = role;
     }
 
@@ -116,6 +138,10 @@ public class User extends BaseEntity {
 
     public void updateLastLoginAt(LocalDateTime lastLoginAt) {
         this.lastLoginAt = lastLoginAt;
+    }
+
+    public void updateUserAffiliation(AffiliatedStatus affiliatedStatus) {
+        this.affiliatedStatus = affiliatedStatus;
     }
 }
 

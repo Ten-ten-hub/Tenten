@@ -28,7 +28,7 @@ public class UserInternalController {
     public LoginRes login(@Valid @RequestBody LoginReq loginRequest) {
         return LoginRes.from(userService.loginService(loginRequest.loginId(), loginRequest.password()));
     }
-
+// 사용자 정보 다건 조회 내부 api
     @GetMapping("/v1/users")
     public CommonResponse<List<GetAllUserInfoRes>> getAllUserInfoInternal() {
         return CommonResponse.onSuccess(

@@ -5,7 +5,7 @@ import com.team.userservice.user.core.User;
 import java.util.UUID;
 
 public interface HubRepository {
-    void update(User user, UUID affiliationId);
+    void save(User user, UUID affiliationId);
 
     HubUser findByUser(User user);
 }

@@ -15,16 +15,12 @@ public class CompanyRepositoryImpl implements CompanyRepository {
     private final CompanyJpaRepository companyJpaRepository;
 
     @Override
-    public void update(User user, UUID affiliationId) {
-        companyJpaRepository.findByUser(user)
-            .ifPresentOrElse(
-                companyUser -> companyUser.updateCompanyId(affiliationId),
-                () -> companyJpaRepository.save(CompanyUser.create(user, affiliationId))
-            );
+    public void save(User user, UUID affiliationId) {
+        companyJpaRepository.save(CompanyUser.create(user, affiliationId));
     }
 
     @Override
     public CompanyUser findByUser(User user) {
-        return companyJpaRepository.findByUser(user).orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
+        return companyJpaRepository.findByUser(user).orElseThrow(() -> new UserException(UserErrorCode.COM_USER_NOT_FOUND));
     }
 }
