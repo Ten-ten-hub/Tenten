@@ -8,6 +8,7 @@ public record ProductCreateCommand(
     UUID companyId,
     UUID hubId,
     BigDecimal unitPrice,
-    String description
+    String description,
+    UUID requestedBy
 ) {
 }

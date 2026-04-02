@@ -32,7 +32,7 @@ public class ProductController {
         @RequestHeader("X-User-Role") String requestUserRole,
         @Valid @RequestBody ProductCreateRequest request
     ) {
-        ProductResult result = productService.createProduct(request.toCommand());
+        ProductResult result = productService.createProduct(request.toCommand(requestUserId));
         return ResponseEntity.status(HttpStatus.CREATED)
             .body(ProductResponse.from(result));
     }

@@ -10,6 +10,8 @@ import com.team.product_service.product.domain.Product;
 import com.team.product_service.product.domain.ProductRepository;
 import com.team.product_service.product.domain.event.ProductCreatedEvent;
 import com.team.product_service.product.domain.event.ProductDeletedEvent;
+import com.team.product_service.product.infrastructure.client.CompanyClient;
+import com.team.product_service.product.infrastructure.client.HubClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
@@ -26,14 +28,27 @@ public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final HubClient hubClient;
+    private final CompanyClient companyClient;
 
     @Override
     @Transactional
     public ProductResult createProduct(ProductCreateCommand command) {
         validateDuplicateName(command.companyId(), command.name(), null);
 
-        // TODO: companyId 존재 여부 확인 (Feign Client 연동 시 추가)
-        // TODO: hubId 존재 여부 확인 (Feign Client 연동 시 추가)
+        // companyId 존재 여부 확인
+        try {
+            companyClient.checkCompanyExists(command.companyId());
+        } catch (Exception e) {
+            throw new BusinessException(ProductErrorCode.COMPANY_NOT_FOUND);
+        }
+
+        // hubId 존재 여부 확인
+        try {
+            hubClient.checkHubExists("true", command.hubId());
+        } catch (Exception e) {
+            throw new BusinessException(ProductErrorCode.HUB_NOT_FOUND);
+        }
 
         Product product = Product.create(
             command.name(),
@@ -82,7 +97,7 @@ public class ProductServiceImpl implements ProductService {
     public void deleteProduct(UUID productId, UUID deletedBy) {
         Product product = findActiveProductById(productId);
         product.softDelete(deletedBy);
-        
+
         eventPublisher.publishEvent(new ProductDeletedEvent(productId, deletedBy));
     }
 
