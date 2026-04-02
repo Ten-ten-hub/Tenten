@@ -58,7 +58,7 @@ public class NotificationEventListener {
             notification.markAsFailed();
         } finally {
             try {
-                notificationRepository.save(notification);
+                notificationRepository.saveAndFlush(notification);
             } catch (Exception saveEx) {
                 log.error("알림 상태 저장 실패: notificationId={}", event.notificationId(), saveEx);
             }
