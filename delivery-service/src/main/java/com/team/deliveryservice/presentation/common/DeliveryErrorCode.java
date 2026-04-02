@@ -2,7 +2,7 @@ package com.team.deliveryservice.presentation.common;
 
 import org.springframework.http.HttpStatus;
 
-public enum ErrorCode implements com.team.common.exception.ErrorCode {
+public enum DeliveryErrorCode implements com.team.common.exception.ErrorCode {
 
     DELIVERY_NOT_FOUND(HttpStatus.NOT_FOUND, "DELIVERY_NOT_FOUND", "배송 정보를 찾을 수 없습니다."),
     DELIVERY_ALREADY_EXISTS(HttpStatus.CONFLICT, "DELIVERY_ALREADY_EXISTS", "이미 배송이 생성된 주문입니다."),
@@ -15,7 +15,7 @@ public enum ErrorCode implements com.team.common.exception.ErrorCode {
     private final String code;
     private final String message;
 
-    ErrorCode(HttpStatus status, String code, String message) {
+    DeliveryErrorCode(HttpStatus status, String code, String message) {
         this.status = status;
         this.code = code;
         this.message = message;

@@ -35,7 +35,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
 
-@SpringBootTest
+@SpringBootTest(properties = {
+    "spring.config.import=optional:file:../application-common.properties,optional:file:../application-secret.properties"
+})
 @RecordApplicationEvents
 class NotificationServiceApplicationTests {
 
@@ -171,15 +173,19 @@ class NotificationServiceApplicationTests {
     void deleteNotificationTest() {
         // given
         UUID id = UUID.randomUUID();
+        // 테스트용 유효한 UUID 문자열 생성
+        String validAdminId = UUID.randomUUID().toString();
+
         Notification mockNoti = Notification.builder().msgContent("삭제").build();
         when(notificationRepository.findByIdAndDeletedAtIsNull(id)).thenReturn(Optional.of(mockNoti));
 
         // when
-        notificationService.deleteNotification(id, "user-123");
+        // "user-123" 대신 UUID 형식인 validAdminId를 전달
+        notificationService.deleteNotification(id, validAdminId);
 
         // then
         assertNotNull(mockNoti.getDeletedAt());
-        assertEquals("user-123", mockNoti.getDeletedBy());
-        verify(notificationRepository, times(1)).save(mockNoti); // save 호출 여부 확인 추가
+        assertEquals(validAdminId, mockNoti.getDeletedBy().toString());
+        verify(notificationRepository, times(1)).save(mockNoti);
     }
 }

@@ -17,7 +17,6 @@ public class SlackClient {
 
     // 1. 이메일로 슬랙 ID(U...) 찾기
     public String findSlackIdByEmail(String email) {
-        log.info("현재 사용 중인 토큰: {}", slackToken); // 토큰이 xoxb-로 시작하는지 확인
         try {
             MethodsClient client = Slack.getInstance().methods(slackToken);
             UsersLookupByEmailResponse response = client.usersLookupByEmail(r -> r.email(email));

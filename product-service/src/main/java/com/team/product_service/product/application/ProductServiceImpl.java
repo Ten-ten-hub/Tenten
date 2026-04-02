@@ -8,7 +8,10 @@ import com.team.product_service.product.application.dto.ProductResult;
 import com.team.product_service.product.application.dto.ProductUpdateCommand;
 import com.team.product_service.product.domain.Product;
 import com.team.product_service.product.domain.ProductRepository;
+import com.team.product_service.product.domain.event.ProductCreatedEvent;
+import com.team.product_service.product.domain.event.ProductDeletedEvent;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -22,6 +25,7 @@ import java.util.UUID;
 public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -38,7 +42,12 @@ public class ProductServiceImpl implements ProductService {
             command.unitPrice(),
             command.description()
         );
-        return ProductResult.from(productRepository.save(product));
+
+        Product saved = productRepository.save(product);
+
+        eventPublisher.publishEvent(new ProductCreatedEvent(saved.getId(), saved.getHubId()));
+
+        return ProductResult.from(saved);
     }
 
     @Override
@@ -73,6 +82,8 @@ public class ProductServiceImpl implements ProductService {
     public void deleteProduct(UUID productId, UUID deletedBy) {
         Product product = findActiveProductById(productId);
         product.softDelete(deletedBy);
+        
+        eventPublisher.publishEvent(new ProductDeletedEvent(productId, deletedBy));
     }
 
     private Product findActiveProductById(UUID productId) {

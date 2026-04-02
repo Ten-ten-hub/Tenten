@@ -18,25 +18,25 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 public abstract class BaseEntity {
 
     @CreatedDate
-    @Column(updatable = false, nullable = false)
+    @Column(name = "created_at", updatable = false, nullable = false)
     private LocalDateTime createdAt;
 
     @CreatedBy
-    @Column(updatable = false, nullable = false)
+    @Column(name = "created_by", updatable = false, nullable = false)
     private UUID createdBy;
 
     @LastModifiedDate
-    @Column
+    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
     @LastModifiedBy
-    @Column
+    @Column(name = "updated_by")
     private UUID updatedBy;
 
-    @Column
+    @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
-    @Column
+    @Column(name = "deleted_by")
     private UUID deletedBy;
 
     public void softDelete(UUID deletedBy) {
