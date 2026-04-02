@@ -16,6 +16,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.UUID;
 
@@ -50,13 +51,8 @@ public class NotificationController {
             throw new ServiceException(ErrorCode.SERVER_CONFIG_ERROR);
         }
 
-        // 2. 토큰 유효성 체크 (401)
-        if (token == null || !token.equals(internalAuthToken)) {
-            throw new ServiceException(ErrorCode.AUTH_INVALID_TOKEN);
-        }
-
-        // MessageDigest.isEqual을 사용하여 타이밍 공격 방지
-        if (token == null || !MessageDigest.isEqual(token.getBytes(), internalAuthToken.getBytes())) {
+        // 2. 타이밍 공격 방지 및 null-safe 비교 (401)
+        if (token == null || !MessageDigest.isEqual(token.getBytes(StandardCharsets.UTF_8), internalAuthToken.getBytes(StandardCharsets.UTF_8))) {
             throw new ServiceException(ErrorCode.AUTH_INVALID_TOKEN);
         }
 
