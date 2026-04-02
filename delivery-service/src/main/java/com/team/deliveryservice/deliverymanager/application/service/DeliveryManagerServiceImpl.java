@@ -1,7 +1,6 @@
 package com.team.deliveryservice.deliverymanager.application.service;
 
 import com.team.common.page.PageSizeUtils;
-import com.team.common.page.SortDirection;
 import com.team.deliveryservice.deliverymanager.application.dto.request.CreateDeliveryManagerRequest;
 import com.team.deliveryservice.deliverymanager.application.dto.request.UpdateDeliveryManagerRequest;
 import com.team.deliveryservice.deliverymanager.application.dto.response.DeliveryManagerPageResponse;
@@ -13,15 +12,11 @@ import com.team.deliveryservice.deliverymanager.domain.DeliveryManagerType;
 import com.team.deliveryservice.global.common.CurrentUser;
 import com.team.deliveryservice.global.error.DeliveryErrorCode;
 import com.team.deliveryservice.global.error.ServiceException;
-import java.util.Comparator;
-import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 
 @Service
 @RequiredArgsConstructor
@@ -61,28 +56,14 @@ public class DeliveryManagerServiceImpl implements DeliveryManagerService {
         DeliveryManagerSearchCondition condition,
         CurrentUser currentUser
     ) {
-        List<DeliveryManager> managers = deliveryManagerRepository.findAllByDeletedAtIsNull();
-
-        managers = applyRoleFilter(managers, currentUser);
-        managers = applyConditionFilter(managers, condition);
-        managers = applySort(managers, condition);
-
         int size = PageSizeUtils.normalize(condition.size());
         int page = condition.page() == null || condition.page() < 0 ? 0 : condition.page();
 
-        int start = page * size;
-        int end = Math.min(start + size, managers.size());
+        var pageable = PageRequest.of(page, size);
+        var result = deliveryManagerRepository.search(condition, currentUser, pageable)
+            .map(DeliveryManagerResponse::from);
 
-        List<DeliveryManagerResponse> content = start >= managers.size()
-            ? List.of()
-            : managers.subList(start, end).stream()
-            .map(DeliveryManagerResponse::from)
-            .toList();
-
-        PageImpl<DeliveryManagerResponse> resultPage =
-            new PageImpl<>(content, PageRequest.of(page, size), managers.size());
-
-        return DeliveryManagerPageResponse.from(resultPage);
+        return DeliveryManagerPageResponse.from(result);
     }
 
     @Override
@@ -129,67 +110,6 @@ public class DeliveryManagerServiceImpl implements DeliveryManagerService {
             .findTopByTypeAndHubIdAndDeletedAtIsNullOrderByDeliverySequenceDesc(type, hubId)
             .map(manager -> manager.getDeliverySequence() + 1)
             .orElse(0);
-    }
-
-    private List<DeliveryManager> applyRoleFilter(List<DeliveryManager> managers, CurrentUser currentUser) {
-        String role = currentUser.role();
-
-        if ("MASTER_ADMIN".equals(role)) {
-            return managers;
-        }
-
-        if ("HUB_ADMIN".equals(role)) {
-            if (currentUser.hubId() == null) {
-                throw new ServiceException(DeliveryErrorCode.COMMON_ACCESS_DENIED);
-            }
-            return managers.stream()
-                .filter(manager -> currentUser.hubId().equals(manager.getHubId()))
-                .toList();
-        }
-
-        if ("HUB_DELIVERY_MANAGER".equals(role) || "COM_DELIVERY_MANAGER".equals(role)) {
-            return managers.stream()
-                .filter(manager -> manager.getId().equals(currentUser.userId()))
-                .toList();
-        }
-
-        throw new ServiceException(DeliveryErrorCode.COMMON_ACCESS_DENIED);
-    }
-
-    private List<DeliveryManager> applyConditionFilter(
-        List<DeliveryManager> managers,
-        DeliveryManagerSearchCondition condition
-    ) {
-        return managers.stream()
-            .filter(manager -> condition.hubId() == null || condition.hubId().equals(manager.getHubId()))
-            .filter(manager -> condition.type() == null || condition.type() == manager.getType())
-            .toList();
-    }
-
-    private List<DeliveryManager> applySort(
-        List<DeliveryManager> managers,
-        DeliveryManagerSearchCondition condition
-    ) {
-        String sortBy = (condition.sortBy() == null || condition.sortBy().isBlank())
-            ? "deliverySequence"
-            : condition.sortBy();
-
-        SortDirection direction = SortDirection.from(condition.direction());
-
-        Comparator<DeliveryManager> comparator = switch (sortBy) {
-            case "createdAt" -> Comparator.comparing(DeliveryManager::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder()));
-            case "updatedAt" -> Comparator.comparing(DeliveryManager::getUpdatedAt, Comparator.nullsLast(Comparator.naturalOrder()));
-            case "deliverySequence" -> Comparator.comparing(DeliveryManager::getDeliverySequence);
-            default -> Comparator.comparing(DeliveryManager::getDeliverySequence);
-        };
-
-        if (direction == SortDirection.DESC) {
-            comparator = comparator.reversed();
-        }
-
-        return managers.stream()
-            .sorted(comparator)
-            .toList();
     }
 
     private void validateCreatePermission(CreateDeliveryManagerRequest request, CurrentUser currentUser) {

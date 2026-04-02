@@ -62,7 +62,6 @@ class DeliveryServiceImplTest {
             "101호",
             "홍길동",
             "U12345678",
-            UUID.randomUUID(),
             LocalDateTime.of(2026, 4, 1, 18, 0)
         );
 
@@ -93,7 +92,6 @@ class DeliveryServiceImplTest {
             "101호",
             "홍길동",
             "U12345678",
-            UUID.randomUUID(),
             LocalDateTime.of(2026, 4, 1, 18, 0)
         );
 
@@ -194,7 +192,6 @@ class DeliveryServiceImplTest {
             "101호",
             "홍길동",
             "U12345678",
-            null,
             LocalDateTime.of(2026, 4, 1, 18, 0)
         );
 
@@ -250,7 +247,6 @@ class DeliveryServiceImplTest {
             "101호",
             "홍길동",
             "U12345678",
-            null,
             LocalDateTime.of(2026, 4, 1, 18, 0)
         );
 
@@ -284,7 +280,6 @@ class DeliveryServiceImplTest {
             "101호",
             "홍길동",
             "U12345678",
-            null,
             LocalDateTime.of(2026, 4, 1, 18, 0)
         );
 
@@ -317,7 +312,6 @@ class DeliveryServiceImplTest {
             "101호",
             "홍길동",
             "U12345678",
-            null,
             LocalDateTime.of(2026, 4, 1, 18, 0)
         );
         delivery.cancel();
@@ -512,7 +506,6 @@ class DeliveryServiceImplTest {
             "101호",
             "홍길동",
             "U12345678",
-            UUID.randomUUID(),
             LocalDateTime.of(2026, 4, 1, 18, 0)
         );
     }

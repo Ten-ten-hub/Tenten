@@ -1,7 +1,6 @@
 package com.team.deliveryservice.deliverymanager.application.dto.response;
 
 import java.util.List;
-
 import lombok.Builder;
 import org.springframework.data.domain.Page;
 

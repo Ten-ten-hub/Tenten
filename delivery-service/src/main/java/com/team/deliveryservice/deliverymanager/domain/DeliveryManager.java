@@ -20,10 +20,10 @@ import lombok.NoArgsConstructor;
 public class DeliveryManager extends BaseEntity {
 
     @Id
-    private UUID id; // user-service 의 사용자 ID와 동일
+    private UUID id;
 
     @Column(name = "hub_id")
-    private UUID hubId; // HUB_DELIVERY_MANAGER 인 경우 null 허용 가능
+    private UUID hubId;
 
     @Column(name = "slack_id", nullable = false, length = 100)
     private String slackId;
@@ -76,8 +76,16 @@ public class DeliveryManager extends BaseEntity {
     }
 
     private static void validate(DeliveryManagerType type, UUID hubId) {
+        if (type == null) {
+            throw new IllegalArgumentException("배송 담당자 타입은 필수입니다.");
+        }
+
         if (type == DeliveryManagerType.COMPANY_DELIVERY_MANAGER && hubId == null) {
             throw new IllegalArgumentException("업체 배송 담당자는 소속 허브 ID가 필요합니다.");
+        }
+
+        if (type == DeliveryManagerType.HUB_DELIVERY_MANAGER && hubId != null) {
+            throw new IllegalArgumentException("허브 배송 담당자는 소속 허브 ID를 가지면 안 됩니다.");
         }
     }
 }

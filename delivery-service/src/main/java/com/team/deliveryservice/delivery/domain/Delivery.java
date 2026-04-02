@@ -80,9 +80,9 @@ public class Delivery extends BaseEntity {
         LocalDateTime completedAt,
         LocalDateTime finalDispatchDeadlineAt
     ) {
-        this.id = id;
+        this.id = id == null ? UUID.randomUUID() : id;
         this.orderId = orderId;
-        this.deliveryStatus = deliveryStatus;
+        this.deliveryStatus = deliveryStatus == null ? DeliveryStatus.WAITING_AT_HUB : deliveryStatus;
         this.originHubId = originHubId;
         this.destinationHubId = destinationHubId;
         this.receiverCompanyId = receiverCompanyId;
@@ -105,13 +105,10 @@ public class Delivery extends BaseEntity {
         String deliveryAddressDetail,
         String recipientName,
         String recipientSlackId,
-        UUID companyDeliveryManagerId,
         LocalDateTime finalDispatchDeadlineAt
     ) {
         return Delivery.builder()
-            .id(UUID.randomUUID())
             .orderId(orderId)
-            .deliveryStatus(DeliveryStatus.WAITING_AT_HUB)
             .originHubId(originHubId)
             .destinationHubId(destinationHubId)
             .receiverCompanyId(receiverCompanyId)
@@ -119,7 +116,6 @@ public class Delivery extends BaseEntity {
             .deliveryAddressDetail(deliveryAddressDetail)
             .recipientName(recipientName)
             .recipientSlackId(recipientSlackId)
-            .companyDeliveryManagerId(companyDeliveryManagerId)
             .finalDispatchDeadlineAt(finalDispatchDeadlineAt)
             .build();
     }
@@ -128,8 +124,7 @@ public class Delivery extends BaseEntity {
         String deliveryAddress,
         String deliveryAddressDetail,
         String recipientName,
-        String recipientSlackId,
-        UUID companyDeliveryManagerId
+        String recipientSlackId
     ) {
         if (this.deliveryStatus == DeliveryStatus.DELIVERED || this.deliveryStatus == DeliveryStatus.CANCELLED) {
             throw new IllegalStateException("완료 또는 취소된 배송은 수정할 수 없습니다.");
@@ -139,7 +134,6 @@ public class Delivery extends BaseEntity {
         this.deliveryAddressDetail = deliveryAddressDetail;
         this.recipientName = recipientName;
         this.recipientSlackId = recipientSlackId;
-        this.companyDeliveryManagerId = companyDeliveryManagerId;
     }
 
     public void updateStatus(DeliveryStatus nextStatus) {

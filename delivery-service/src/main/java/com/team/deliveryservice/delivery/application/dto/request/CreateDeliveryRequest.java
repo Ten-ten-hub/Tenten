@@ -14,7 +14,6 @@ public record CreateDeliveryRequest(
     String deliveryAddressDetail,
     @NotBlank String recipientName,
     @NotBlank String recipientSlackId,
-    UUID companyDeliveryManagerId,
     LocalDateTime finalDispatchDeadlineAt
 ) {
 }
