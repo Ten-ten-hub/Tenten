@@ -33,7 +33,7 @@ import com.team.deliveryservice.delivery.application.service.DeliveryService;
 import com.team.deliveryservice.delivery.application.dto.request.UpdateDeliveryRequest;
 import com.team.deliveryservice.delivery.domain.DeliveryRouteStatus;
 import com.team.deliveryservice.delivery.domain.DeliveryStatus;
-import com.team.deliveryservice.delivery.presentation.DeliveryController;
+import com.team.deliveryservice.delivery.presentation.ExternalDeliveryController;
 import com.team.deliveryservice.global.config.CurrentUserArgumentResolver;
 import com.team.deliveryservice.global.config.CurrentUserResolverConfig;
 import java.math.BigDecimal;
@@ -55,7 +55,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
-@WebMvcTest(DeliveryController.class)
+@WebMvcTest(ExternalDeliveryController.class)
 @AutoConfigureMockMvc(addFilters = false)
 @AutoConfigureRestDocs(outputDir = "build/generated-snippets")
 @AutoConfigureObservability
@@ -69,7 +69,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
     "spring.docker.compose.enabled=false",
     "management.tracing.enabled=false"
 })
-class DeliveryControllerRestDocsTest {
+class ExternalDeliveryControllerRestDocsTest {
 
     @Autowired
     private MockMvc mockMvc;
