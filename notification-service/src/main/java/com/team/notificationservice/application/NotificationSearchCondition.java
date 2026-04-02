@@ -1,11 +1,10 @@
 package com.team.notificationservice.application;
 
-import lombok.Getter;
-import lombok.Setter;
+import jakarta.validation.constraints.NotBlank;
 
-@Getter
-@Setter
-public class NotificationSearchCondition {
-    private String slackId;
-    private String keyword; // 메시지 내용 검색용 키워드 추가
+public record NotificationSearchCondition(
+    @NotBlank(message = "조회할 슬랙 ID는 필수입니다.")
+    String slackId,
+    String keyword
+) {
 }

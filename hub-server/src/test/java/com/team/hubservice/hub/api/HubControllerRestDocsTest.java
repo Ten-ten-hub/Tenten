@@ -1,9 +1,11 @@
 package com.team.hubservice.hub.api;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.team.hubservice.hub.application.HubCreateCommand;
+import com.team.hubservice.hub.application.HubResult;
 import com.team.hubservice.hub.application.HubService;
-import com.team.hubservice.hub.dto.HubCreateRequest;
-import com.team.hubservice.hub.dto.HubResponse;
+import com.team.hubservice.hub.presentation.dto.HubCreateRequest;
+import com.team.hubservice.hub.presentation.HubController;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -49,15 +51,15 @@ class HubControllerRestDocsTest {
     void createHub() throws Exception {
         // Given
         HubCreateRequest request = new HubCreateRequest(
-            "서울특별시 센터", "서울특별시 송파구 송파대로 55", (Double) 37.495, (Double) 127.122
+            "서울특별시 센터", "서울특별시 송파구 송파대로 55", 37.495, 127.122
         );
 
-        HubResponse response = new HubResponse(
-            UUID.randomUUID(), "서울특별시 센터", "서울특별시 송파구 송파대로 55", (Double) 37.495, (Double) 127.122,
+        HubResult result = new HubResult(
+            UUID.randomUUID(), "서울특별시 센터", "서울특별시 송파구 송파대로 55", 37.495, 127.122,
             LocalDateTime.now(), UUID.randomUUID(), LocalDateTime.now(), UUID.randomUUID()
         );
 
-        Mockito.when(hubService.createHub(any(HubCreateRequest.class))).thenReturn(response);
+        Mockito.when(hubService.createHub(any(HubCreateCommand.class))).thenReturn(result);
 
         // When & Then
         mockMvc.perform(post("/api/v1/hubs")

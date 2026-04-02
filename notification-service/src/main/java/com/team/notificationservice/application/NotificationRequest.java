@@ -1,18 +1,25 @@
 package com.team.notificationservice.application;
 
 import com.team.notificationservice.domain.MsgType;
+import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.util.UUID;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 
-@Getter
-@Setter
-@NoArgsConstructor
-public class NotificationRequest {
-    private String receiverSlackId;
-    private String email;
-    private UUID orderId;
-    private String message;
-    private MsgType msgType;
+public record NotificationRequest(
+    String receiverSlackId,
+    @Email(message = "올바른 이메일 형식이 아닙니다.")
+    String email,
+    UUID orderId,
+    @NotBlank(message = "메시지 내용은 필수입니다.")
+    String message,
+    @NotNull(message = "메시지 타입은 필수입니다.")
+    MsgType msgType
+) {
+    @AssertTrue(message = "수신자의 슬랙 ID 또는 이메일 중 하나는 입력되어야 합니다.")
+    public boolean isValidRecipient() {
+        return (receiverSlackId != null && !receiverSlackId.isBlank())
+            || (email != null && !email.isBlank());
+    }
 }

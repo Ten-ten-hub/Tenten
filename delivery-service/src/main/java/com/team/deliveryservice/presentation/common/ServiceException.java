@@ -1,15 +1,9 @@
 package com.team.deliveryservice.presentation.common;
 
-public class ServiceException extends RuntimeException {
+import com.team.common.exception.BusinessException;
 
-    private final ErrorCode errorCode;
-
-    public ServiceException(ErrorCode errorCode) {
-        super(errorCode.message());
-        this.errorCode = errorCode;
-    }
-
-    public ErrorCode getErrorCode() {
-        return errorCode;
+public class ServiceException extends BusinessException {
+    public ServiceException(DeliveryErrorCode errorCode) {
+        super(errorCode);
     }
 }

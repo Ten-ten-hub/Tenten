@@ -3,62 +3,87 @@ package com.team.notificationservice.presentation;
 import com.team.notificationservice.application.NotificationRequest;
 import com.team.notificationservice.application.NotificationSearchCondition;
 import com.team.notificationservice.application.NotificationService;
+import com.team.notificationservice.presentation.common.ApiResponse;
+import com.team.notificationservice.presentation.common.ErrorCode;
+import com.team.notificationservice.presentation.common.ServiceException;
+import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/notifications")
 @RequiredArgsConstructor
 public class NotificationController {
 
     private final NotificationService notificationService;
 
-    @PostMapping("/slack")
-    public ResponseEntity<String> send(@RequestBody NotificationRequest request) {
-        log.info("알림 서비스 요청 수신: {}", request); // 요청이 들어오는지 확인
+
+    @Value("${internal.auth.token:}") // application.yml 미설정 시 빈 값 주입
+    private String internalAuthToken;
+
+    // 외부용 API
+    @PostMapping("/api/v1/notifications/slack")
+    public ApiResponse<String> send(@RequestBody @Valid NotificationRequest request) {
         notificationService.createAndSend(request);
-        return ResponseEntity.ok("OK");
+        return ApiResponse.success("OK");
     }
 
-    @GetMapping
-    public ResponseEntity<Page<NotificationResponse>> getNotifications(
-            NotificationSearchCondition condition,
-            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+    // 내부 시스템 호출용 (게이트웨이 설정 없이 서비스명:8085/internal/v1/... 으로 직접 호출)
+    @PostMapping("/internal/v1/notifications/slack")
+    public ApiResponse<String> internalSend(
+        @RequestHeader(value = "X-Internal-Token", required = false) String token,
+        @RequestBody @Valid NotificationRequest request) {
 
-        return ResponseEntity.ok(notificationService.searchNotifications(condition, pageable));
+        // 1. 서버 설정 체크 (5xx)
+        if (internalAuthToken == null || internalAuthToken.isBlank()) {
+            log.error("Internal Auth Token is not configured in server.");
+            throw new ServiceException(ErrorCode.SERVER_CONFIG_ERROR);
+        }
+
+        // 2. 토큰 유효성 체크 (401)
+        if (token == null || !token.equals(internalAuthToken)) {
+            throw new ServiceException(ErrorCode.AUTH_INVALID_TOKEN);
+        }
+
+        notificationService.createAndSend(request);
+        return ApiResponse.success("OK");
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<NotificationResponse> getNotification(@PathVariable UUID id) {
-        NotificationResponse response = notificationService.getNotification(id);
-        return ResponseEntity.ok(response);
+    @GetMapping("/api/v1/notifications/{id}")
+    public ApiResponse<NotificationResponse> getNotification(@PathVariable UUID id) {
+        return ApiResponse.success(notificationService.getNotification(id));
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(
-            @PathVariable UUID id,
-            @RequestHeader(value = "X-User-Id", required = false) String userId) {
+    @GetMapping("/api/v1/notifications")
+    public ApiResponse<Page<NotificationResponse>> getNotifications(
+        @Valid NotificationSearchCondition condition,
+        @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 
-        // 헤더값이 없으면 기본값 "SYSTEM" 사용
-        String deletedBy = (userId != null) ? userId : "SYSTEM";
+        return ApiResponse.success(notificationService.searchNotifications(condition, pageable));
+    }
 
+    @DeleteMapping("/api/v1/notifications/{id}")
+    public ApiResponse<Void> delete(
+        @PathVariable UUID id,
+        @RequestHeader(value = "X-User-Id", required = false) String userId) {
+
+        // 빈 문자열이나 공백도 SYSTEM으로 정규화
+        String deletedBy = (userId != null && !userId.isBlank()) ? userId : "SYSTEM";
         notificationService.deleteNotification(id, deletedBy);
 
-        return ResponseEntity.noContent().build();
+        return ApiResponse.success(null);
     }
 }

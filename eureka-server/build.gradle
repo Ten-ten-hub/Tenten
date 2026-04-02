@@ -51,3 +51,6 @@ dependencyManagement {
 tasks.named('test') {
     useJUnitPlatform()
 }
+
+// IntelliJ Kotlin 플러그인 오류 해결을 위한 태스크 등록
+tasks.register("prepareKotlinBuildScriptModel") {}

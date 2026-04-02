@@ -27,3 +27,7 @@ appendonly.aof
 # Secrets
 **/secrets.json
 *-secret.yml
+application-secret.properties
+application-common.properties
+**/application-secret.properties
+**/application-common.properties
