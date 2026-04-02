@@ -1,8 +1,9 @@
 package com.team.notificationservice.presentation.common;
 
 import com.team.common.exception.BusinessException;
-import java.util.List;
 import lombok.Getter;
+
+import java.util.List;
 
 public class ServiceException extends BusinessException {
     private final ErrorCode errorCode;
@@ -26,7 +27,7 @@ public class ServiceException extends BusinessException {
 
     // 원인 보존을 위한 생성자 추가
     public ServiceException(ErrorCode errorCode, Throwable cause) {
-        super(errorCode);
+        super(errorCode, cause);
         this.errorCode = errorCode;
         this.errors = null;
     }
