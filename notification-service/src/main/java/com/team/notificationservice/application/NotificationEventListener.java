@@ -40,8 +40,8 @@ public class NotificationEventListener {
         try {
             notification = notificationRepository.findById(event.notificationId())
                 .orElseThrow(() -> new IllegalStateException("알림 엔티티를 찾을 수 없습니다: ID=" + event.notificationId()));
-        } catch (IllegalStateException e) {
-            log.error("알림 처리 실패 - 엔티티 조회 불가: {}", e.getMessage());
+        } catch (Exception e) {
+            log.error("알림 처리 실패 - 엔티티 조회 불가: notificationId={}", event.notificationId(), e);
             return;
         }
         try {
