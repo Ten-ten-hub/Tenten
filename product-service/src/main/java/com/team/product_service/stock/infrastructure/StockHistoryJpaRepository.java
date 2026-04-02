@@ -18,7 +18,7 @@ public interface StockHistoryJpaRepository extends JpaRepository<StockHistory, U
         WHERE h.deletedAt IS NULL
           AND (:stockId IS NULL OR h.stockId = :stockId)
           AND (:orderId IS NULL OR h.orderId = :orderId)
-          AND (:type IS NULL OR h.type = :type)
+          AND (CAST(:type AS string) IS NULL OR h.type = :type)
         """)
     Page<StockHistory> search(
         @Param("stockId") UUID stockId,
