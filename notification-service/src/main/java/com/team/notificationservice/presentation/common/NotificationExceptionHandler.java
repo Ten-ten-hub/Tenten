@@ -4,6 +4,8 @@ import com.team.notificationservice.presentation.common.ApiResponse.ValidationEr
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
@@ -13,7 +15,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @Slf4j
 @RestControllerAdvice
-public class GlobalExceptionHandler {
+@Order(Ordered.HIGHEST_PRECEDENCE)
+public class NotificationExceptionHandler {
 
     @ExceptionHandler(ServiceException.class)
     public ResponseEntity<ApiResponse<Void>> handleServiceException(ServiceException e) {
