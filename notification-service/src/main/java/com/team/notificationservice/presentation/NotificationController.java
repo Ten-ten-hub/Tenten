@@ -7,7 +7,6 @@ import com.team.notificationservice.presentation.common.ApiResponse;
 import com.team.notificationservice.presentation.common.ErrorCode;
 import com.team.notificationservice.presentation.common.ServiceException;
 import jakarta.validation.Valid;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,13 +14,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.UUID;
 
 @Slf4j
 @RestController
@@ -36,8 +33,9 @@ public class NotificationController {
 
     // 외부용 API
     @PostMapping("/api/v1/notifications/slack")
-    public ApiResponse<String> send(@RequestBody @Valid NotificationRequest request) {
-        notificationService.createAndSend(request);
+    public ApiResponse<String> send(@RequestHeader(value = "X-User-Id", required = false) String userId, // 헤더 추가
+                                    @RequestBody @Valid NotificationRequest request) {
+        notificationService.createAndSend(request, userId);
         return ApiResponse.success("OK");
     }
 
@@ -53,12 +51,13 @@ public class NotificationController {
             throw new ServiceException(ErrorCode.SERVER_CONFIG_ERROR);
         }
 
-        // 2. 토큰 유효성 체크 (401)
-        if (token == null || !token.equals(internalAuthToken)) {
+        // 2. 타이밍 공격 방지 및 null-safe 비교 (401)
+        if (token == null || !MessageDigest.isEqual(token.getBytes(StandardCharsets.UTF_8), internalAuthToken.getBytes(StandardCharsets.UTF_8))) {
             throw new ServiceException(ErrorCode.AUTH_INVALID_TOKEN);
         }
 
-        notificationService.createAndSend(request);
+        // 내부 시스템 호출 시에는 별도 유저 ID가 없을 수 있으므로 null 전달
+        notificationService.createAndSend(request, null);
         return ApiResponse.success("OK");
     }
 
