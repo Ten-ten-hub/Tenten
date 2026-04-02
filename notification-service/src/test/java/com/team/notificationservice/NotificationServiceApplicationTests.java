@@ -1,28 +1,12 @@
 package com.team.notificationservice;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
-import com.team.notificationservice.application.NotificationCreatedEvent;
-import com.team.notificationservice.application.NotificationRequest;
-import com.team.notificationservice.application.NotificationSearchCondition;
-import com.team.notificationservice.application.NotificationService;
+import com.team.notificationservice.application.*;
 import com.team.notificationservice.domain.MsgType;
 import com.team.notificationservice.domain.Notification;
 import com.team.notificationservice.domain.NotificationRepository;
 import com.team.notificationservice.domain.SendStatus;
 import com.team.notificationservice.infrastructure.SlackClient;
 import com.team.notificationservice.presentation.NotificationResponse;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +18,14 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 @SpringBootTest(properties = {
     "spring.config.import=optional:file:../application-common.properties,optional:file:../application-secret.properties"
@@ -50,6 +42,9 @@ class NotificationServiceApplicationTests {
     @MockitoBean
     private SlackClient slackClient;
 
+    @MockitoBean
+    private NotificationSaver notificationSaver;
+
     @Autowired
     private ApplicationEvents applicationEvents;
 
@@ -59,16 +54,13 @@ class NotificationServiceApplicationTests {
         // given
         NotificationRequest request = new NotificationRequest("U12345678", null, UUID.randomUUID(), "테스트 메시지",
             MsgType.ORDER_ALERT);
-        Notification savedNoti = Notification.builder().msgContent("테스트").build();
-        when(notificationRepository.save(any())).thenReturn(savedNoti);
 
+        // resolveTargetSlackId 로직은 내부에서 처리됨
         // when
-        notificationService.createAndSend(request);
+        notificationService.createAndSend(request, null);
 
-        // then
-        // 이벤트 발행 확인
-        long count = applicationEvents.stream(NotificationCreatedEvent.class).count();
-        assertEquals(1, count);
+        // then: Saver가 적절한 인자로 호출되었는지 검증
+        verify(notificationSaver, times(1)).saveAndPublish(eq(request), anyString(), any());
     }
 
     @Test
@@ -79,22 +71,16 @@ class NotificationServiceApplicationTests {
             null, "test@example.com", UUID.randomUUID(), "이메일 기반 조회 테스트", MsgType.ORDER_ALERT
         );
 
-        Notification savedNoti = Notification.builder().msgContent("이메일 테스트").build();
-        when(notificationRepository.save(any())).thenReturn(savedNoti);
-
         // 이메일로 조회 시 가짜 ID 반환 설정
         when(slackClient.findSlackIdByEmail("test@example.com")).thenReturn("U_SEARCHED_ID");
 
         // when
-        notificationService.createAndSend(request);
+        notificationService.createAndSend(request, null);
 
-        // then: 1. 이메일 조회가 발생했는가? 2. 이벤트가 조회된 ID로 발행되었는가?
+        // then: 1. 이메일 조회가 발생했는가? 2. Saver로 올바른 SlackId가 전달로 발행되었는가?
         verify(slackClient, times(1)).findSlackIdByEmail("test@example.com");
 
-        long count = applicationEvents.stream(NotificationCreatedEvent.class)
-            .filter(event -> event.receiverSlackId().equals("U_SEARCHED_ID"))
-            .count();
-        assertEquals(1, count);
+        verify(notificationSaver, times(1)).saveAndPublish(eq(request), eq("U_SEARCHED_ID"), any());
     }
 
     @Test
@@ -169,23 +155,33 @@ class NotificationServiceApplicationTests {
     }
 
     @Test
-    @DisplayName("삭제(Soft Delete) 테스트 및 저장 호출 확인")
-    void deleteNotificationTest() {
+    @DisplayName("삭제 테스트 - 실제 유저 ID가 있을 때 그대로 저장되는지 확인")
+    void deleteNotification_WithActualUser() {
         // given
         UUID id = UUID.randomUUID();
-        // 테스트용 유효한 UUID 문자열 생성
-        String validAdminId = UUID.randomUUID().toString();
-
+        UUID actualAdminId = UUID.randomUUID(); // 실제 유저 UUID
         Notification mockNoti = Notification.builder().msgContent("삭제").build();
         when(notificationRepository.findByIdAndDeletedAtIsNull(id)).thenReturn(Optional.of(mockNoti));
 
         // when
-        // "user-123" 대신 UUID 형식인 validAdminId를 전달
-        notificationService.deleteNotification(id, validAdminId);
+        notificationService.deleteNotification(id, actualAdminId.toString());
 
-        // then
-        assertNotNull(mockNoti.getDeletedAt());
-        assertEquals(validAdminId, mockNoti.getDeletedBy().toString());
-        verify(notificationRepository, times(1)).save(mockNoti);
+        // then: 전달한 actualAdminId가 그대로 박혀야 함
+        assertEquals(actualAdminId, mockNoti.getDeletedBy());
+    }
+
+    @Test
+    @DisplayName("삭제 테스트 - SYSTEM일 때 시스템 기본 ID로 저장되는지 확인")
+    void deleteNotification_WithSystem() {
+        // given
+        UUID id = UUID.randomUUID();
+        Notification mockNoti = Notification.builder().msgContent("삭제").build();
+        when(notificationRepository.findByIdAndDeletedAtIsNull(id)).thenReturn(Optional.of(mockNoti));
+
+        // when
+        notificationService.deleteNotification(id, "SYSTEM");
+
+        // then: 0000... 시스템 ID 확인
+        assertEquals(UUID.fromString("00000000-0000-0000-0000-000000000000"), mockNoti.getDeletedBy());
     }
 }
