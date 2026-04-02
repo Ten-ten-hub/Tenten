@@ -35,11 +35,11 @@ public class NotificationEventListener {
          * ---------------------------------------------------------------------------
          */
 
-        try {
-            // 1. 엔티티 조회 (AFTER_COMMIT 단계이므로 즉시 조회 가능)
-            Notification notification = notificationRepository.findById(event.notificationId())
-                .orElseThrow(() -> new IllegalStateException("알림 엔티티를 찾을 수 없습니다: ID=" + event.notificationId()));
+        // 1. 엔티티 조회 (AFTER_COMMIT 단계이므로 즉시 조회 가능)
+        Notification notification = notificationRepository.findById(event.notificationId())
+            .orElseThrow(() -> new IllegalStateException("알림 엔티티를 찾을 수 없습니다: ID=" + event.notificationId()));
 
+        try {
             // 2. 외부 서비스(슬랙) 호출
             boolean success = slackClient.sendDirectMessage(event.receiverSlackId(), event.message());
 
@@ -48,10 +48,11 @@ public class NotificationEventListener {
             } else {
                 notification.markAsFailed();
             }
-            notificationRepository.save(notification);
-
         } catch (Exception e) {
             log.error("슬랙 전송 처리 중 오류: {}", e.getMessage());
+            notification.markAsFailed();
+        } finally {
+            notificationRepository.save(notification);
         }
     }
 }

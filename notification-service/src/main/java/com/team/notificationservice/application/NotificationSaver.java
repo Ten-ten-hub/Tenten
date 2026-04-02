@@ -3,6 +3,7 @@ package com.team.notificationservice.application;
 import com.team.notificationservice.domain.Notification;
 import com.team.notificationservice.domain.NotificationRepository;
 import com.team.notificationservice.domain.SendStatus;
+import com.team.notificationservice.presentation.common.Constants;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
@@ -29,7 +30,7 @@ public class NotificationSaver {
 
         //TODO: 수신자 ID 연동 완료 시 아래 블록을 삭제하고 에러 처리로 변경할 것
         if (receiverId == null) {
-            receiverId = UUID.fromString("00000000-0000-0000-0000-000000000000");
+            receiverId = Constants.SYSTEM_UUID;
             // 나중에 엄격하게 하려면 여기서 throw new ServiceException(...)을 던지도록 수정해야함
         }
 
