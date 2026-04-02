@@ -15,7 +15,8 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 @Profile("!test")
 public class JpaAuditingConfig {
 
-    private static final UUID ANONYMOUS_UUID = UUID.fromString("00000000-0000-0000-0000-000000000000");
+    private static final UUID ANONYMOUS_USER_ID =
+        UUID.fromString("00000000-0000-0000-0000-000000000000");
 
     @Bean
     public AuditorAware<UUID> auditorProvider() {
@@ -25,15 +26,16 @@ public class JpaAuditingConfig {
                 )
                 .map(attr -> attr.getRequest().getHeader("X-User-Id"))
                 .orElse(null);
-            if (userId == null) {
-                return Optional.of(ANONYMOUS_UUID);
+
+            if (userId == null || userId.isBlank()) {
+                return Optional.of(ANONYMOUS_USER_ID);
             }
+
             try {
                 return Optional.of(UUID.fromString(userId));
             } catch (IllegalArgumentException e) {
-                return Optional.of(ANONYMOUS_UUID);
+                return Optional.of(ANONYMOUS_USER_ID);
             }
         };
     }
-
 }

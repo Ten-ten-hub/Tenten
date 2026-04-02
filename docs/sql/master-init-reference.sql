@@ -156,8 +156,6 @@ CREATE TABLE p_hub_route (
                                  FOREIGN KEY (departure_hub_id) REFERENCES p_hub(id),
                              CONSTRAINT fk_p_hub_route_arrival_hub
                                  FOREIGN KEY (arrival_hub_id) REFERENCES p_hub(id),
-                             CONSTRAINT uk_p_hub_route_departure_arrival
-                                 UNIQUE (departure_hub_id, arrival_hub_id),
                              CONSTRAINT ck_p_hub_route_not_same_hub
                                  CHECK (departure_hub_id <> arrival_hub_id)
 );
@@ -165,6 +163,10 @@ CREATE TABLE p_hub_route (
 CREATE INDEX idx_p_hub_route_departure_hub_id ON p_hub_route (departure_hub_id);
 CREATE INDEX idx_p_hub_route_arrival_hub_id ON p_hub_route (arrival_hub_id);
 CREATE INDEX idx_p_hub_route_deleted_at ON p_hub_route (deleted_at);
+
+CREATE UNIQUE INDEX uk_p_hub_route_active_departure_arrival
+ON p_hub_route (departure_hub_id, arrival_hub_id)
+WHERE deleted_at IS NULL;
 
 
 /* =========================================================

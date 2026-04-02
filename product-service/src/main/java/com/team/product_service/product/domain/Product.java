@@ -3,6 +3,8 @@ package com.team.product_service.product.domain;
 import com.team.common.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcType;
+import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -31,6 +33,7 @@ public class Product extends BaseEntity {
 
     @Builder.Default
     @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(name = "status", nullable = false, length = 20, columnDefinition = "product_status")
     private ProductStatus status = ProductStatus.ON_SALE;
 
