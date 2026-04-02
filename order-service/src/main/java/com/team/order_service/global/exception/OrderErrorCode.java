@@ -21,7 +21,10 @@ public enum OrderErrorCode implements ErrorCode {
     STOCK_DEDUCT_FAILED("STOCK_DEDUCT_FAILED", "재고 차감에 실패했습니다", HttpStatus.INTERNAL_SERVER_ERROR),
     STOCK_RESTORE_FAILED("STOCK_RESTORE_FAILED", "재고 복원에 실패했습니다", HttpStatus.INTERNAL_SERVER_ERROR),
     DELIVERY_CREATE_FAILED("DELIVERY_CREATE_FAILED", "배송 생성에 실패했습니다", HttpStatus.INTERNAL_SERVER_ERROR),
-    DELIVERY_CANCEL_FAILED("DELIVERY_CANCEL_FAILED", "배송 취소에 실패했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+    DELIVERY_CANCEL_FAILED("DELIVERY_CANCEL_FAILED", "배송 취소에 실패했습니다", HttpStatus.INTERNAL_SERVER_ERROR),
+
+    // 503
+    SERVICE_UNAVAILABLE("SERVICE_UNAVAILABLE", "외부 서비스 연동에 실패했습니다", HttpStatus.SERVICE_UNAVAILABLE);
 
 
     private final String code;
