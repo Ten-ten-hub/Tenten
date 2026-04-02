@@ -82,6 +82,10 @@ public class Order extends BaseEntity {
         recalculateTotalPrice();
     }
 
+    public void assignDelivery(UUID deliveryId) {
+        this.deliveryId = deliveryId;
+    }
+
     public void cancel(UUID cancelledBy) {
         this.orderStatus = OrderStatus.CANCELLED;
         this.cancelledAt = LocalDateTime.now();
