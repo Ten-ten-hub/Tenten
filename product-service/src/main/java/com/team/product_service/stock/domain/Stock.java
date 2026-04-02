@@ -5,6 +5,8 @@ import com.team.common.exception.BusinessException;
 import com.team.product_service.global.exception.ProductErrorCode;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcType;
+import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 
 import java.util.UUID;
 
@@ -32,16 +34,17 @@ public class Stock extends BaseEntity {
 
     @Builder.Default
     @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(name = "status", nullable = false, columnDefinition = "stock_status")
     private StockStatus status = StockStatus.SOLD_OUT;
 
     public static Stock create(UUID productId, UUID hubId) {
         return Stock.builder()
-            .productId(productId)
-            .hubId(hubId)
-            .quantity(0)
-            .status(StockStatus.SOLD_OUT)
-            .build();
+                .productId(productId)
+                .hubId(hubId)
+                .quantity(0)
+                .status(StockStatus.SOLD_OUT)
+                .build();
     }
 
     public void increase(int amount) {
