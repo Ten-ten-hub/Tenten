@@ -3,6 +3,7 @@ package com.team.companyservice.application.company;
 import com.team.common.page.PageSizeUtils;
 import com.team.companyservice.domain.company.Company;
 import com.team.companyservice.domain.company.CompanyRepository;
+import com.team.companyservice.domain.company.CompanyType;
 import com.team.companyservice.infrastructure.client.HubClient;
 import com.team.companyservice.presentation.common.CompanyErrorCode;
 import com.team.companyservice.presentation.common.CurrentUser;
@@ -66,9 +67,7 @@ public class CompanyService {
 
         CompanySearchCondition condition = new CompanySearchCondition(
             keyword,
-            companyType == null || companyType.isBlank()
-                ? null
-                : Enum.valueOf(com.team.companyservice.domain.company.CompanyType.class, companyType),
+            parseCompanyType(companyType),
             hubId,
             isActive
         );
@@ -183,5 +182,17 @@ public class CompanyService {
 
     private Sort.Direction normalizeDirection(String direction) {
         return "ASC".equalsIgnoreCase(direction) ? Sort.Direction.ASC : Sort.Direction.DESC;
+    }
+
+    private CompanyType parseCompanyType(String companyType) {
+        if (companyType == null || companyType.isBlank()) {
+            return null;
+        }
+
+        try {
+            return CompanyType.valueOf(companyType.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new ServiceException(CompanyErrorCode.COMMON_INVALID_INPUT);
+        }
     }
 }

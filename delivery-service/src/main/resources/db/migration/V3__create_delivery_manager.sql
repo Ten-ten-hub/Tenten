@@ -16,6 +16,10 @@ CREATE INDEX idx_p_delivery_manager_hub_id ON p_delivery_manager (hub_id);
 CREATE INDEX idx_p_delivery_manager_type ON p_delivery_manager (delivery_manager_type);
 CREATE INDEX idx_p_delivery_manager_deleted_at ON p_delivery_manager (deleted_at);
 
-CREATE UNIQUE INDEX uk_p_delivery_manager_sequence_active
+CREATE UNIQUE INDEX uk_p_delivery_manager_sequence_active_with_hub
     ON p_delivery_manager (delivery_manager_type, hub_id, delivery_sequence)
-    WHERE deleted_at IS NULL;
+    WHERE deleted_at IS NULL AND hub_id IS NOT NULL;
+
+CREATE UNIQUE INDEX uk_p_delivery_manager_sequence_active_without_hub
+    ON p_delivery_manager (delivery_manager_type, delivery_sequence)
+    WHERE deleted_at IS NULL AND hub_id IS NULL;

@@ -1,11 +1,15 @@
 package com.team.deliveryservice.delivery.application.service;
 
 import com.team.common.page.PageSizeUtils;
-import com.team.deliveryservice.delivery.application.search.DeliverySearchCondition;
-import com.team.deliveryservice.delivery.application.dto.request.*;
+import com.team.deliveryservice.delivery.application.dto.request.AssignCompanyDeliveryManagerRequest;
+import com.team.deliveryservice.delivery.application.dto.request.AssignHubDeliveryManagerRequest;
+import com.team.deliveryservice.delivery.application.dto.request.ChangeDeliveryStatusRequest;
+import com.team.deliveryservice.delivery.application.dto.request.CreateDeliveryRequest;
+import com.team.deliveryservice.delivery.application.dto.request.UpdateDeliveryRequest;
 import com.team.deliveryservice.delivery.application.dto.response.DeliveryPageResponse;
 import com.team.deliveryservice.delivery.application.dto.response.DeliveryResponse;
 import com.team.deliveryservice.delivery.application.dto.response.DeliveryRouteLogResponse;
+import com.team.deliveryservice.delivery.application.search.DeliverySearchCondition;
 import com.team.deliveryservice.delivery.domain.Delivery;
 import com.team.deliveryservice.delivery.domain.DeliveryRepository;
 import com.team.deliveryservice.delivery.domain.DeliveryRouteLog;
@@ -31,6 +35,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class DeliveryServiceImpl implements DeliveryService {
 
+    private static final String DELIVERY_ORDER_ID_UNIQUE_CONSTRAINT = "uk_p_delivery_order_id_active";
+
     private final DeliveryRepository deliveryRepository;
     private final DeliveryManagerRepository deliveryManagerRepository;
     private final DeliveryRouteLogRepository deliveryRouteLogRepository;
@@ -51,7 +57,6 @@ public class DeliveryServiceImpl implements DeliveryService {
             request.deliveryAddressDetail(),
             request.recipientName(),
             request.recipientSlackId(),
-            request.companyDeliveryManagerId(),
             request.finalDispatchDeadlineAt()
         );
 
@@ -59,7 +64,10 @@ public class DeliveryServiceImpl implements DeliveryService {
             Delivery savedDelivery = deliveryRepository.save(delivery);
             return DeliveryResponse.from(savedDelivery, List.of());
         } catch (DataIntegrityViolationException e) {
-            throw new ServiceException(DeliveryErrorCode.DELIVERY_ALREADY_EXISTS);
+            if (isOrderIdUniqueViolation(e)) {
+                throw new ServiceException(DeliveryErrorCode.DELIVERY_ALREADY_EXISTS);
+            }
+            throw new ServiceException(DeliveryErrorCode.COMMON_INVALID_INPUT);
         }
     }
 
@@ -113,8 +121,7 @@ public class DeliveryServiceImpl implements DeliveryService {
             request.deliveryAddress(),
             request.deliveryAddressDetail(),
             request.recipientName(),
-            request.recipientSlackId(),
-            request.companyDeliveryManagerId()
+            request.recipientSlackId()
         );
 
         return DeliveryResponse.from(delivery, getRouteLogs(deliveryId));
@@ -241,5 +248,17 @@ public class DeliveryServiceImpl implements DeliveryService {
     private DeliveryRouteLog getRouteLog(UUID routeLogId) {
         return deliveryRouteLogRepository.findByIdAndDeletedAtIsNull(routeLogId)
             .orElseThrow(() -> new ServiceException(DeliveryErrorCode.DELIVERY_ROUTE_LOG_NOT_FOUND));
+    }
+
+    private boolean isOrderIdUniqueViolation(DataIntegrityViolationException e) {
+        Throwable cause = e;
+        while (cause != null) {
+            String message = cause.getMessage();
+            if (message != null && message.contains(DELIVERY_ORDER_ID_UNIQUE_CONSTRAINT)) {
+                return true;
+            }
+            cause = cause.getCause();
+        }
+        return false;
     }
 }

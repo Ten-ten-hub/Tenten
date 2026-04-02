@@ -14,7 +14,6 @@ public record DeliveryCreateCommand(
     String deliveryAddressDetail,
     String recipientName,
     String recipientSlackId,
-    UUID companyDeliveryManagerId,
     LocalDateTime finalDispatchDeadlineAt,
     UUID createdBy
 ) {

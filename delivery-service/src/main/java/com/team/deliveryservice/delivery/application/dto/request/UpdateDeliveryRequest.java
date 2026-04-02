@@ -7,7 +7,6 @@ public record UpdateDeliveryRequest(
     @NotBlank String deliveryAddress,
     String deliveryAddressDetail,
     @NotBlank String recipientName,
-    @NotBlank String recipientSlackId,
-    UUID companyDeliveryManagerId
+    @NotBlank String recipientSlackId
 ) {
 }

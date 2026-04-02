@@ -3,6 +3,8 @@ package com.team.deliveryservice.application.deliverymanager;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.ArgumentMatchers.any;
+import org.springframework.data.domain.PageImpl;
 
 import com.team.deliveryservice.deliverymanager.application.dto.request.CreateDeliveryManagerRequest;
 import com.team.deliveryservice.deliverymanager.application.dto.request.UpdateDeliveryManagerRequest;
@@ -211,8 +213,12 @@ class DeliveryManagerServiceImplTest {
             "ASC"
         );
 
-        given(deliveryManagerRepository.findAllByDeletedAtIsNull())
-            .willReturn(List.of(manager2, otherHubManager, manager1));
+        given(deliveryManagerRepository.search(any(), any(), any()))
+            .willReturn(new PageImpl<>(
+                List.of(manager1, manager2),
+                org.springframework.data.domain.PageRequest.of(0, 10),
+                2
+            ));
 
         DeliveryManagerPageResponse response =
             deliveryManagerService.searchDeliveryManagers(condition, currentUser);
@@ -243,8 +249,12 @@ class DeliveryManagerServiceImplTest {
             "DESC"
         );
 
-        given(deliveryManagerRepository.findAllByDeletedAtIsNull())
-            .willReturn(List.of(manager));
+        given(deliveryManagerRepository.search(any(), any(), any()))
+            .willReturn(new PageImpl<>(
+                List.of(manager),
+                org.springframework.data.domain.PageRequest.of(0, 10),
+                1
+            ));
 
         DeliveryManagerPageResponse response =
             deliveryManagerService.searchDeliveryManagers(condition, currentUser);

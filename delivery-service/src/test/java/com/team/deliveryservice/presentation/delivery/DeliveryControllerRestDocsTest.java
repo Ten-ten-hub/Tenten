@@ -137,7 +137,6 @@ class DeliveryControllerRestDocsTest {
             "101호",
             "홍길동",
             "U12345678",
-            UUID.fromString("50000000-0000-0000-0000-000000000001"),
             LocalDateTime.of(2026, 4, 1, 18, 0)
         );
 
@@ -283,8 +282,7 @@ class DeliveryControllerRestDocsTest {
             "서울시 송파구 올림픽로 35",
             "202호",
             "김민지",
-            "U99999999",
-            UUID.fromString("50000000-0000-0000-0000-000000000002")
+            "U99999999"
         );
 
         when(deliveryService.updateDelivery(eq(deliveryId), any(), any())).thenReturn(mockDeliveryResponse());
@@ -305,8 +303,7 @@ class DeliveryControllerRestDocsTest {
                     fieldWithPath("deliveryAddress").type(JsonFieldType.STRING).description("배송 주소"),
                     fieldWithPath("deliveryAddressDetail").type(JsonFieldType.STRING).optional().description("배송 상세 주소"),
                     fieldWithPath("recipientName").type(JsonFieldType.STRING).description("수령인 이름"),
-                    fieldWithPath("recipientSlackId").type(JsonFieldType.STRING).description("수령인 슬랙 ID"),
-                    fieldWithPath("companyDeliveryManagerId").type(JsonFieldType.STRING).optional().description("업체 배송 담당자 ID")
+                    fieldWithPath("recipientSlackId").type(JsonFieldType.STRING).description("수령인 슬랙 ID")
                 ),
                 commonDeliveryResponseFields()
             ));
