@@ -104,7 +104,10 @@ public class Order extends BaseEntity {
     }
 
     public void updateStatus(OrderStatus status) {
-        if (this.orderStatus == OrderStatus.CANCELLED || this.orderStatus == OrderStatus.COMPLETED) {
+        if (this.orderStatus == OrderStatus.CANCELLED
+            || this.orderStatus == OrderStatus.COMPLETED
+            || this.orderStatus == OrderStatus.DELETED
+        ) {
             throw new BusinessException(OrderErrorCode.ORDER_STATUS_NOT_UPDATABLE);
         }
         this.orderStatus = status;
