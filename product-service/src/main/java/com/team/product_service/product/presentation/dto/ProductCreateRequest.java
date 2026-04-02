@@ -15,7 +15,7 @@ public record ProductCreateRequest(
     @NotNull @Positive BigDecimal unitPrice,
     String description
 ) {
-    public ProductCreateCommand toCommand() {
-        return new ProductCreateCommand(name, companyId, hubId, unitPrice, description);
+    public ProductCreateCommand toCommand(UUID requestedBy) {
+        return new ProductCreateCommand(name, companyId, hubId, unitPrice, description, requestedBy);
     }
 }
