@@ -22,17 +22,19 @@ CREATE TABLE p_notification
     id                UUID PRIMARY KEY,
 
     -- 비즈니스 로직 필드
-    receiver_id       UUID,                              -- logical FK -> p_user.id
-    receiver_slack_id VARCHAR(100)             NOT NULL,
-    order_id          UUID,                              -- logical FK -> p_order.id
-    msg_type          VARCHAR(50)              NOT NULL,
-    msg_content       TEXT                     NOT NULL,
-    send_status       VARCHAR(20)              NOT NULL DEFAULT 'PENDING',
-    ref_id            UUID,                              -- 참조 ID (추가된 필드)
+    receiver_id       UUID, -- logical FK -> p_user.id
+    receiver_slack_id VARCHAR(100) NOT NULL,
+    order_id          UUID, -- logical FK -> p_order.id
+    msg_type          VARCHAR(50)  NOT NULL
+        CHECK (msg_type IN ('ORDER_ALERT', 'DAILY_REPORT')),
+    msg_content       TEXT         NOT NULL,
+    send_status       VARCHAR(20)  NOT NULL DEFAULT 'PENDING'
+        CHECK (send_status IN ('PENDING', 'SUCCESS', 'FAIL')),
+    ref_id            UUID, -- 참조 ID (추가된 필드)
 
     -- common.BaseEntity 상속 필드 (Audit)
-    created_at        TIMESTAMP                NOT NULL DEFAULT NOW(),
-    created_by        UUID                     NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
+    created_at        TIMESTAMP    NOT NULL DEFAULT NOW(),
+    created_by        UUID         NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     updated_at        TIMESTAMP,
     updated_by        UUID,
     deleted_at        TIMESTAMP,
