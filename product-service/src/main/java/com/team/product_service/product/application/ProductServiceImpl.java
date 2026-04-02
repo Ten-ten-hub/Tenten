@@ -45,7 +45,7 @@ public class ProductServiceImpl implements ProductService {
 
         // hubId 존재 여부 확인
         try {
-            hubClient.checkHubExists("true", command.hubId());
+            hubClient.checkHubExists(command.hubId());
         } catch (Exception e) {
             throw new BusinessException(ProductErrorCode.HUB_NOT_FOUND);
         }
