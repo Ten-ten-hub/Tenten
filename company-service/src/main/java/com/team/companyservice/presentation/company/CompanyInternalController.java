@@ -15,7 +15,7 @@ import java.util.UUID;
 @RequestMapping("/internal/v1/companies")
 public class CompanyInternalController {
 
-    private CompanyService companyService;
+    private final CompanyService companyService;
 
     @GetMapping("/{companyId}/exists")
     public ResponseEntity<Void> checkCompanyExists(
