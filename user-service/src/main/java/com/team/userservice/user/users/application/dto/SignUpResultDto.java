@@ -7,22 +7,23 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 public record SignUpResultDto(
-        UUID userId,
-        String loginId,
-        String name,
-        Role role,
-        String email,
-        SignupStatus signupStatus,
-        LocalDateTime createdAt
+    UUID userId,
+    String loginId,
+    String name,
+    Role role,
+    String email,
+    SignupStatus signupStatus,
+    LocalDateTime createdAt
 ) {
     public static SignUpResultDto from(User user) {
         return new SignUpResultDto(
-                user.getId(),
-                user.getLoginId(), user.getName(),
-                user.getRole(),
-                user.getEmail(),
-                user.getSignupStatus(),
-                user.getCreatedAt()
+            user.getId(),
+            user.getLoginId(),
+            user.getName(),
+            user.getRole(),
+            user.getEmail(),
+            user.getSignupStatus(),
+            user.getCreatedAt()
         );
     }
 }

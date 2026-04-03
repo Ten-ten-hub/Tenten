@@ -1,5 +1,7 @@
 package com.team.hubservice.hub.application;
 
+import com.team.common.exception.BusinessException;
+import com.team.hubservice.global.exception.HubErrorCode;
 import com.team.hubservice.hub.domain.Hub;
 import com.team.hubservice.hub.domain.HubRepository;
 import java.util.UUID;
@@ -23,7 +25,7 @@ public class HubService {
     @Transactional
     public HubResult createHub(HubCreateCommand command) {
         if (hubRepository.existsByName(command.name())) {
-            throw new IllegalArgumentException("이미 동일한 이름의 허브가 존재합니다.");
+            throw new BusinessException(HubErrorCode.HUB_ALREADY_EXISTS);
         }
 
         Hub hub = Hub.create(
@@ -70,7 +72,7 @@ public class HubService {
 
     private Hub findHubById(UUID hubId) {
         return hubRepository.findById(hubId)
-                .orElseThrow(() -> new IllegalArgumentException("요청한 허브 정보를 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(HubErrorCode.HUB_NOT_FOUND));
     }
 
     private void checkActiveRoutesAndCompanies(UUID hubId) {
