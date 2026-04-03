@@ -1,5 +1,6 @@
 package com.team.notificationservice.presentation.common;
 
+import com.team.common.ApiResponse;
 import com.team.common.exception.BusinessException;
 import lombok.Getter;
 
