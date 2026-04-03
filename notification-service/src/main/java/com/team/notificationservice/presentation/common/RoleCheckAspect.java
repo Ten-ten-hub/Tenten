@@ -30,7 +30,7 @@ public class RoleCheckAspect {
 
         if (!hasRole) {
             log.warn("권한 부족: 필요 권한 {}, 유저 권한 {}", Arrays.toString(requireRole.value()), userRole);
-            throw new ServiceException(ErrorCode.AUTH_INVALID_TOKEN);
+            throw new ServiceException(ErrorCode.AUTH_FORBIDDEN);
         }
     }
 }

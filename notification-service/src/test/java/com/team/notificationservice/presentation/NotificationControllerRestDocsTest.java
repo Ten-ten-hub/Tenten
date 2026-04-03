@@ -221,13 +221,13 @@ class NotificationControllerRestDocsTest {
 
         mockMvc.perform(delete("/api/v1/notifications/{id}", id)
                 .header("X-User-Id", validUserId)
-                .header("X-User-Role", "MASTER")) // 권한 헤더 추가
+                .header("X-User-Role", "MASTER_ADMIN")) // 권한 헤더 추가
             .andExpect(status().isOk()) // ApiResponse.ok()를 쓰므로 200 OK
             .andDo(document("notifications/delete",
                 pathParameters(parameterWithName("id").description("삭제할 알림 ID")),
                 requestHeaders(
                     headerWithName("X-User-Id").description("사용자 ID"),
-                    headerWithName("X-User-Role").description("사용자 권한")
+                    headerWithName("X-User-Role").description("사용자 권한 (예: MASTER_ADMIN)")
                 ),
                 responseFields(
                     fieldWithPath("success").description("성공 여부"),

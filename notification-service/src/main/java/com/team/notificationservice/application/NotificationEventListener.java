@@ -74,10 +74,23 @@ public class NotificationEventListener {
             notification.markAsFailed();
             redisTemplate.delete(lockKey);
         } finally {
-            try {
-                notificationRepository.saveAndFlush(notification);
-            } catch (Exception saveEx) {
-                log.error("알림 상태 저장 실패: notificationId={}", event.notificationId(), saveEx);
+            // 저장 실패 시 최대 3회 재시도 (간이 백오프)
+            int maxAttempts = 3;
+            for (int i = 0; i < maxAttempts; i++) {
+                try {
+                    notificationRepository.saveAndFlush(notification);
+                    break;
+                } catch (Exception saveEx) {
+                    log.error("알림 상태 저장 실패 (시도 {}/{}): ID={}", i + 1, maxAttempts, event.notificationId(), saveEx);
+                    if (i == maxAttempts - 1) {
+                        log.error("최종 저장 실패 - 수동 조치 필요: ID={}", event.notificationId());
+                    }
+                    try {
+                        Thread.sleep(100 * (i + 1));
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
             }
         }
     }

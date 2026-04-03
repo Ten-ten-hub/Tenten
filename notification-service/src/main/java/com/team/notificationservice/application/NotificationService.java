@@ -66,13 +66,23 @@ public class NotificationService {
         if ((targetSlackId == null || targetSlackId.isBlank()) && dto.email() != null && !dto.email().isBlank()) {
             // Redis 캐시 확인
             String cacheKey = "slack:email:" + dto.email();
-            targetSlackId = redisTemplate.opsForValue().get(cacheKey);
+
+            try {
+                // Redis 조회 실패 시 예외를 잡아서 로그만 남기고 다음 단계(API 호출)로 진행 (Fail-open)
+                targetSlackId = redisTemplate.opsForValue().get(cacheKey);
+            } catch (Exception e) {
+                log.warn("Redis 조회 실패 - Fail-open 전략에 따라 API 호출로 진행합니다: {}", e.getMessage());
+            }
 
             if (targetSlackId == null) {
                 targetSlackId = slackClient.findSlackIdByEmail(dto.email());
                 if (targetSlackId != null) {
-                    // 성공 시 1일간 캐싱
-                    redisTemplate.opsForValue().set(cacheKey, targetSlackId, 1, TimeUnit.DAYS);
+                    try {
+                        // 성공 시 1일간 캐싱, 저장 실패 시에도 로그만 남기고 결과 반환
+                        redisTemplate.opsForValue().set(cacheKey, targetSlackId, 1, TimeUnit.DAYS);
+                    } catch (Exception e) {
+                        log.warn("Redis 저장 실패 - 캐싱 없이 진행합니다: {}", e.getMessage());
+                    }
                 }
             }
         }
