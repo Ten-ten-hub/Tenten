@@ -8,11 +8,15 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import java.util.UUID;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 import org.hibernate.annotations.UuidGenerator;
 
 @Entity
 @Table(name = "p_hub_user")
-public class HubUser extends BaseEntity{
+@Getter
+@NoArgsConstructor
+public class HubUser extends BaseEntity {
     @Id
     @Column(name = "id", updatable = false, nullable = false)
     @UuidGenerator
@@ -20,8 +24,21 @@ public class HubUser extends BaseEntity{
 
     @JoinColumn(name = "user_id", unique = true, nullable = false)
     @OneToOne(fetch = FetchType.LAZY) // 물리 FK
-    private User userId;
+    private User user;
 
     @Column(name = "hub_id", nullable = false) // 논리 FK // 유니크일 필요 없음
     private UUID hubId;
+
+    private HubUser(User user, UUID hubId) {
+        this.user = user;
+        this.hubId = hubId;
+    }
+
+    public static HubUser create(User user, UUID hubId) {
+        return new HubUser(user, hubId);
+    }
+
+    public void updateHubId(UUID hubId) {
+        this.hubId = hubId;
+    }
 }
