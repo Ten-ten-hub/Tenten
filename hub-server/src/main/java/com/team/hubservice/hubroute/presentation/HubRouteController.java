@@ -1,9 +1,11 @@
 package com.team.hubservice.hubroute.presentation;
 
+import com.team.common.page.PageResponse;
 import com.team.hubservice.hubroute.application.HubRouteCreateCommand;
 import com.team.hubservice.hubroute.application.HubRouteResult;
 import com.team.hubservice.hubroute.application.HubRouteService;
 import com.team.hubservice.hubroute.application.HubRouteUpdateCommand;
+import com.team.common.page.PageSizeUtils;
 import com.team.hubservice.hubroute.presentation.dto.HubRouteCreateRequest;
 import com.team.hubservice.hubroute.presentation.dto.HubRouteResponse;
 import com.team.hubservice.hubroute.presentation.dto.HubRouteUpdateRequest;
@@ -55,23 +57,13 @@ public class HubRouteController {
         @RequestParam(defaultValue = "1") int page,
         @RequestParam(defaultValue = "10") int size) {
 
-        int validSize = (size == 10 || size == 30 || size == 50) ? size : 10;
+        int validSize = PageSizeUtils.normalize(size);
         Pageable pageable = PageRequest.of(Math.max(0, page - 1), validSize);
 
         Page<HubRouteResult> resultPage = hubRouteService.getHubRoutes(departureHubId, pageable);
         Page<HubRouteResponse> routePage = resultPage.map(HubRouteResponse::from);
 
-        Map<String, Object> pageInfo = new HashMap<>();
-        pageInfo.put("currentPage", routePage.getNumber() + 1);
-        pageInfo.put("size", routePage.getSize());
-        pageInfo.put("totalElements", routePage.getTotalElements());
-        pageInfo.put("totalPages", routePage.getTotalPages());
-
-        Map<String, Object> data = new HashMap<>();
-        data.put("content", routePage.getContent());
-        data.put("pageInfo", pageInfo);
-
-        return buildResponse(HttpStatus.OK.value(), "허브 이동 경로 목록 조회를 성공했습니다.", data);
+        return buildResponse(HttpStatus.OK.value(), "허브 이동 경로 목록 조회를 성공했습니다.", PageResponse.from(routePage));
     }
 
     @PatchMapping("/{routeId}")
