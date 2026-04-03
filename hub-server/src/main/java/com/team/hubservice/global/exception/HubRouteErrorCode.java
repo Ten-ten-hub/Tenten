@@ -1,4 +1,4 @@
-package com.team.hubservice.hubroute.exception;
+package com.team.hubservice.global.exception;
 
 import com.team.common.exception.ErrorCode;
 import lombok.Getter;

@@ -1,9 +1,11 @@
 package com.team.hubservice.hub.presentation;
 
+import com.team.common.page.PageResponse;
 import com.team.hubservice.hub.application.HubCreateCommand;
 import com.team.hubservice.hub.application.HubResult;
 import com.team.hubservice.hub.application.HubService;
 import com.team.hubservice.hub.application.HubUpdateCommand;
+import com.team.common.page.PageSizeUtils;
 import com.team.hubservice.hub.presentation.dto.HubCreateRequest;
 import com.team.hubservice.hub.presentation.dto.HubResponse;
 import com.team.hubservice.hub.presentation.dto.HubUpdateRequest;
@@ -59,28 +61,18 @@ public class HubController {
     @GetMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Map<String, Object>> getHubs(
-            @RequestParam(required = false) String name,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
+        @RequestParam(required = false) String name,
+        @RequestParam(defaultValue = "1") int page,
+        @RequestParam(defaultValue = "10") int size) {
 
-        int validSize = (size == 10 || size == 30 || size == 50) ? size : 10;
+        int validSize = PageSizeUtils.normalize(size);
 
         Pageable pageable = PageRequest.of(Math.max(0, page - 1), validSize);
         Page<HubResult> resultPage = hubService.getHubs(name, pageable);
 
         Page<HubResponse> hubPage = resultPage.map(HubResponse::from);
 
-        Map<String, Object> pageInfo = new HashMap<>();
-        pageInfo.put("currentPage", hubPage.getNumber() + 1);
-        pageInfo.put("size", hubPage.getSize());
-        pageInfo.put("totalElements", hubPage.getTotalElements());
-        pageInfo.put("totalPages", hubPage.getTotalPages());
-
-        Map<String, Object> data = new HashMap<>();
-        data.put("content", hubPage.getContent());
-        data.put("pageInfo", pageInfo);
-
-        return buildResponse(HttpStatus.OK.value(), "허브 목록 조회를 성공했습니다.", data);
+        return buildResponse(HttpStatus.OK.value(), "허브 목록 조회를 성공했습니다.", PageResponse.from(hubPage));
     }
 
     @GetMapping("/{hubId}")
