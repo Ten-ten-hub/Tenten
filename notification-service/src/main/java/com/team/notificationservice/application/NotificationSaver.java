@@ -1,16 +1,15 @@
 package com.team.notificationservice.application;
 
+import com.team.common.Constants;
 import com.team.notificationservice.domain.Notification;
 import com.team.notificationservice.domain.NotificationRepository;
 import com.team.notificationservice.domain.SendStatus;
-import com.team.notificationservice.presentation.common.Constants;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -21,9 +20,10 @@ public class NotificationSaver {
 
     /**
      * 실제 DB 저장 및 이벤트를 발행하는 로직
-     * @param dto 알림 요청 정보
+     *
+     * @param dto           알림 요청 정보
      * @param targetSlackId 식별된 슬랙 ID
-     * @param receiverId 식별된 수신자 UUID (없을 경우 null 전달)
+     * @param receiverId    식별된 수신자 UUID (없을 경우 null 전달)
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void saveAndPublish(NotificationRequest dto, String targetSlackId, UUID receiverId) {

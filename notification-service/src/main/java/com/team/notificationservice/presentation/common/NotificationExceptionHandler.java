@@ -1,6 +1,6 @@
 package com.team.notificationservice.presentation.common;
 
-import com.team.notificationservice.presentation.common.ApiResponse.ValidationError;
+import com.team.common.ApiResponse;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -39,7 +39,7 @@ public class NotificationExceptionHandler {
             .collect(Collectors.joining(", "));
         log.warn("ValidationException: {} field error(s) in [{}]", e.getBindingResult().getFieldErrorCount(), fields);
 
-        List<ValidationError> errors = e.getBindingResult()
+        List<ApiResponse.ValidationError> errors = e.getBindingResult()
             .getFieldErrors()
             .stream()
             .map(error -> new ApiResponse.ValidationError(

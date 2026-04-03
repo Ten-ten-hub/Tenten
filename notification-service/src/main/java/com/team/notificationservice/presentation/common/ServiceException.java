@@ -1,9 +1,9 @@
 package com.team.notificationservice.presentation.common;
 
+import com.team.common.ApiResponse;
 import com.team.common.exception.BusinessException;
-import lombok.Getter;
-
 import java.util.List;
+import lombok.Getter;
 
 public class ServiceException extends BusinessException {
     private final ErrorCode errorCode;
