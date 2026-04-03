@@ -2,7 +2,7 @@ package com.team.hubservice.hubroute.domain;
 
 import com.team.common.BaseEntity;
 import com.team.common.exception.BusinessException;
-import com.team.hubservice.hubroute.exception.HubRouteErrorCode;
+import com.team.hubservice.global.exception.HubRouteErrorCode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;

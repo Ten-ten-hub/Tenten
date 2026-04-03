@@ -3,7 +3,7 @@ package com.team.hubservice.hubroute.application;
 import com.team.common.exception.BusinessException;
 import com.team.hubservice.hubroute.domain.HubRoute;
 import com.team.hubservice.hubroute.domain.HubRouteRepository;
-import com.team.hubservice.hubroute.exception.HubRouteErrorCode;
+import com.team.hubservice.global.exception.HubRouteErrorCode;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
