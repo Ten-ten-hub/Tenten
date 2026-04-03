@@ -1,9 +1,9 @@
 package com.team.notificationservice.application;
 
+import com.team.common.Constants;
 import com.team.notificationservice.domain.Notification;
 import com.team.notificationservice.domain.NotificationRepository;
 import com.team.notificationservice.domain.SendStatus;
-import com.team.notificationservice.presentation.common.Constants;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
