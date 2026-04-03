@@ -1,5 +1,27 @@
 package com.team.notificationservice.presentation;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doNothing;
+import static org.springframework.restdocs.headers.HeaderDocumentation.headerWithName;
+import static org.springframework.restdocs.headers.HeaderDocumentation.requestHeaders;
+import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
+import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.documentationConfiguration;
+import static org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders.delete;
+import static org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders.get;
+import static org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders.post;
+import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessRequest;
+import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessResponse;
+import static org.springframework.restdocs.operation.preprocess.Preprocessors.prettyPrint;
+import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
+import static org.springframework.restdocs.payload.PayloadDocumentation.relaxedResponseFields;
+import static org.springframework.restdocs.payload.PayloadDocumentation.requestFields;
+import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
+import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
+import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
+import static org.springframework.restdocs.request.RequestDocumentation.queryParameters;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.team.notificationservice.application.NotificationRequest;
@@ -7,6 +29,9 @@ import com.team.notificationservice.application.NotificationService;
 import com.team.notificationservice.domain.MsgType;
 import com.team.notificationservice.domain.SendStatus;
 import com.team.notificationservice.presentation.common.NotificationExceptionHandler;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -23,23 +48,6 @@ import org.springframework.restdocs.payload.JsonFieldType;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.UUID;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.doNothing;
-import static org.springframework.restdocs.headers.HeaderDocumentation.headerWithName;
-import static org.springframework.restdocs.headers.HeaderDocumentation.requestHeaders;
-import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
-import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.documentationConfiguration;
-import static org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders.*;
-import static org.springframework.restdocs.operation.preprocess.Preprocessors.*;
-import static org.springframework.restdocs.payload.PayloadDocumentation.*;
-import static org.springframework.restdocs.request.RequestDocumentation.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith({RestDocumentationExtension.class, MockitoExtension.class})
 class NotificationControllerRestDocsTest {
@@ -73,12 +81,16 @@ class NotificationControllerRestDocsTest {
         doNothing().when(notificationService).createAndSend(any(NotificationRequest.class), any());
 
         mockMvc.perform(post("/api/v1/notifications/slack")
+                .header("X-User-Id", "test-user-id") // 게이트웨이 주입 헤더 추가
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isOk())
             .andDo(document("notifications/create",
                 preprocessRequest(prettyPrint()),
                 preprocessResponse(prettyPrint()),
+                requestHeaders(
+                    headerWithName("X-User-Id").description("사용자 ID (Gateway 주입)")
+                ),
                 requestFields(
                     fieldWithPath("receiverSlackId").description("수신자 슬랙 ID (이메일과 둘 중 하나 필수)").optional(),
                     fieldWithPath("email").description("수신자 이메일 (슬랙 ID와 둘 중 하나 필수)").optional(),
@@ -104,6 +116,7 @@ class NotificationControllerRestDocsTest {
         NotificationRequest invalidRequest = new NotificationRequest(null, null, null, null, null);
 
         mockMvc.perform(post("/api/v1/notifications/slack")
+                .header("X-User-Id", "test-user-id")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(invalidRequest)))
             .andExpect(status().isBadRequest())
@@ -207,10 +220,15 @@ class NotificationControllerRestDocsTest {
         doNothing().when(notificationService).deleteNotification(any(), any());
 
         mockMvc.perform(delete("/api/v1/notifications/{id}", id)
-                .header("X-User-Id", validUserId))
+                .header("X-User-Id", validUserId)
+                .header("X-User-Role", "MASTER_ADMIN")) // 권한 헤더 추가
             .andExpect(status().isOk()) // ApiResponse.ok()를 쓰므로 200 OK
             .andDo(document("notifications/delete",
                 pathParameters(parameterWithName("id").description("삭제할 알림 ID")),
+                requestHeaders(
+                    headerWithName("X-User-Id").description("사용자 ID"),
+                    headerWithName("X-User-Role").description("사용자 권한 (예: MASTER_ADMIN)")
+                ),
                 responseFields(
                     fieldWithPath("success").description("성공 여부"),
                     fieldWithPath("data").description("데이터 (null)").optional(),
