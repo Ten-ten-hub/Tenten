@@ -2,9 +2,8 @@ package com.team.deliveryservice.application.deliverymanager;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.BDDMockito.given;
 import static org.mockito.ArgumentMatchers.any;
-import org.springframework.data.domain.PageImpl;
+import static org.mockito.BDDMockito.given;
 
 import com.team.deliveryservice.deliverymanager.application.dto.request.CreateDeliveryManagerRequest;
 import com.team.deliveryservice.deliverymanager.application.dto.request.UpdateDeliveryManagerRequest;
@@ -18,19 +17,23 @@ import com.team.deliveryservice.deliverymanager.domain.DeliveryManagerType;
 import com.team.deliveryservice.global.common.CurrentUser;
 import com.team.deliveryservice.global.error.DeliveryErrorCode;
 import com.team.deliveryservice.global.error.ServiceException;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 @ExtendWith(MockitoExtension.class)
 class DeliveryManagerServiceImplTest {
+    // 단위 테스트
 
     @Mock
     private DeliveryManagerRepository deliveryManagerRepository;
@@ -41,6 +44,7 @@ class DeliveryManagerServiceImplTest {
     @Test
     @DisplayName("배송담당자 생성 성공 - 마스터 관리자는 허브 배송 담당자 생성 가능")
     void create_delivery_manager_success_by_master() {
+        // given
         UUID userId = UUID.randomUUID();
 
         CreateDeliveryManagerRequest request = new CreateDeliveryManagerRequest(
@@ -56,11 +60,14 @@ class DeliveryManagerServiceImplTest {
             DeliveryManagerType.HUB_DELIVERY_MANAGER
         )).willReturn(Optional.empty());
 
-        given(deliveryManagerRepository.save(org.mockito.ArgumentMatchers.any(DeliveryManager.class)))
+        // createDeliveryManager 내부에서는 saveAndFlush 를 호출하므로 반드시 이 메서드를 mock 해야 함
+        given(deliveryManagerRepository.saveAndFlush(any(DeliveryManager.class)))
             .willAnswer(invocation -> invocation.getArgument(0));
 
+        // when
         DeliveryManagerResponse response = deliveryManagerService.createDeliveryManager(request, currentUser);
 
+        // then
         assertThat(response.deliveryManagerId()).isEqualTo(userId);
         assertThat(response.hubId()).isNull();
         assertThat(response.type()).isEqualTo(DeliveryManagerType.HUB_DELIVERY_MANAGER);
@@ -70,6 +77,7 @@ class DeliveryManagerServiceImplTest {
     @Test
     @DisplayName("배송담당자 생성 성공 - 허브 관리자는 자기 허브의 업체 배송 담당자만 생성 가능")
     void create_company_delivery_manager_success_by_hub_admin() {
+        // given
         UUID hubId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
 
@@ -95,15 +103,118 @@ class DeliveryManagerServiceImplTest {
             hubId
         )).willReturn(Optional.of(lastManager));
 
-        given(deliveryManagerRepository.save(org.mockito.ArgumentMatchers.any(DeliveryManager.class)))
+        // createDeliveryManager 내부에서는 saveAndFlush 를 호출하므로 반드시 이 메서드를 mock 해야 함
+        given(deliveryManagerRepository.saveAndFlush(any(DeliveryManager.class)))
             .willAnswer(invocation -> invocation.getArgument(0));
 
+        // when
         DeliveryManagerResponse response = deliveryManagerService.createDeliveryManager(request, currentUser);
 
+        // then
         assertThat(response.deliveryManagerId()).isEqualTo(userId);
         assertThat(response.hubId()).isEqualTo(hubId);
         assertThat(response.type()).isEqualTo(DeliveryManagerType.COMPANY_DELIVERY_MANAGER);
         assertThat(response.deliverySequence()).isEqualTo(5);
+    }
+
+    @Test
+    @DisplayName("배송담당자 생성 성공 - sequence 충돌 발생 시 재시도 후 저장 성공")
+    void create_delivery_manager_success_after_retry_on_sequence_conflict() {
+        // given
+        UUID hubId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+
+        CreateDeliveryManagerRequest request = new CreateDeliveryManagerRequest(
+            userId,
+            hubId,
+            "U123COMPANY",
+            DeliveryManagerType.COMPANY_DELIVERY_MANAGER
+        );
+
+        CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), "MASTER_ADMIN", null, null);
+
+        // 첫 번째 조회에서는 sequence 4, 두 번째 재시도에서는 sequence 5를 읽었다고 가정
+        DeliveryManager firstLastManager = DeliveryManager.create(
+            UUID.randomUUID(),
+            hubId,
+            "U0001",
+            DeliveryManagerType.COMPANY_DELIVERY_MANAGER,
+            4
+        );
+
+        DeliveryManager secondLastManager = DeliveryManager.create(
+            UUID.randomUUID(),
+            hubId,
+            "U0002",
+            DeliveryManagerType.COMPANY_DELIVERY_MANAGER,
+            5
+        );
+
+        given(deliveryManagerRepository.findTopByTypeAndHubIdAndDeletedAtIsNullOrderByDeliverySequenceDesc(
+            DeliveryManagerType.COMPANY_DELIVERY_MANAGER,
+            hubId
+        )).willReturn(Optional.of(firstLastManager), Optional.of(secondLastManager));
+
+        AtomicInteger saveCallCount = new AtomicInteger();
+
+        // 첫 저장은 unique 충돌, 두 번째 저장은 성공하도록 구성
+        given(deliveryManagerRepository.saveAndFlush(any(DeliveryManager.class)))
+            .willAnswer(invocation -> {
+                if (saveCallCount.getAndIncrement() == 0) {
+                    throw new DataIntegrityViolationException("duplicate key value violates unique constraint uk_p_delivery_manager");
+                }
+                return invocation.getArgument(0);
+            });
+
+        // when
+        DeliveryManagerResponse response = deliveryManagerService.createDeliveryManager(request, currentUser);
+
+        // then
+        assertThat(response.deliveryManagerId()).isEqualTo(userId);
+        assertThat(response.hubId()).isEqualTo(hubId);
+        assertThat(response.type()).isEqualTo(DeliveryManagerType.COMPANY_DELIVERY_MANAGER);
+        // 첫 시도는 5, 재시도 시 새 마지막 값 5를 읽어서 6으로 생성
+        assertThat(response.deliverySequence()).isEqualTo(6);
+        assertThat(saveCallCount.get()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("배송담당자 생성 실패 - sequence 충돌이 최대 재시도 횟수를 초과하면 예외 발생")
+    void create_delivery_manager_fail_when_sequence_conflict_exceeds_retry_limit() {
+        // given
+        UUID hubId = UUID.randomUUID();
+
+        CreateDeliveryManagerRequest request = new CreateDeliveryManagerRequest(
+            UUID.randomUUID(),
+            hubId,
+            "U123COMPANY",
+            DeliveryManagerType.COMPANY_DELIVERY_MANAGER
+        );
+
+        CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), "MASTER_ADMIN", null, null);
+
+        DeliveryManager lastManager = DeliveryManager.create(
+            UUID.randomUUID(),
+            hubId,
+            "U99999999",
+            DeliveryManagerType.COMPANY_DELIVERY_MANAGER,
+            4
+        );
+
+        // 매 재시도마다 마지막 sequence를 다시 읽는다고 가정
+        given(deliveryManagerRepository.findTopByTypeAndHubIdAndDeletedAtIsNullOrderByDeliverySequenceDesc(
+            DeliveryManagerType.COMPANY_DELIVERY_MANAGER,
+            hubId
+        )).willReturn(Optional.of(lastManager));
+
+        // 3번 모두 unique 충돌 발생
+        given(deliveryManagerRepository.saveAndFlush(any(DeliveryManager.class)))
+            .willThrow(new DataIntegrityViolationException("duplicate key value violates unique constraint uk_p_delivery_manager"));
+
+        // when & then
+        assertThatThrownBy(() -> deliveryManagerService.createDeliveryManager(request, currentUser))
+            .isInstanceOf(ServiceException.class)
+            .hasMessage(DeliveryErrorCode.DELIVERY_MANAGER_SEQUENCE_CONFLICT.getMessage());
     }
 
     @Test
@@ -200,7 +311,6 @@ class DeliveryManagerServiceImplTest {
         UUID hubId = UUID.randomUUID();
         DeliveryManager manager1 = createCompanyDeliveryManager(UUID.randomUUID(), hubId, 0);
         DeliveryManager manager2 = createCompanyDeliveryManager(UUID.randomUUID(), hubId, 1);
-        DeliveryManager otherHubManager = createCompanyDeliveryManager(UUID.randomUUID(), UUID.randomUUID(), 2);
 
         CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), "HUB_ADMIN", hubId, null);
 
@@ -216,7 +326,7 @@ class DeliveryManagerServiceImplTest {
         given(deliveryManagerRepository.search(any(), any(), any()))
             .willReturn(new PageImpl<>(
                 List.of(manager1, manager2),
-                org.springframework.data.domain.PageRequest.of(0, 10),
+                PageRequest.of(0, 10),
                 2
             ));
 
@@ -252,7 +362,7 @@ class DeliveryManagerServiceImplTest {
         given(deliveryManagerRepository.search(any(), any(), any()))
             .willReturn(new PageImpl<>(
                 List.of(manager),
-                org.springframework.data.domain.PageRequest.of(0, 10),
+                PageRequest.of(0, 10),
                 1
             ));
 
@@ -406,13 +516,12 @@ class DeliveryManagerServiceImplTest {
     }
 
     private DeliveryManager createHubDeliveryManager(UUID id, int sequence) {
-        DeliveryManager manager = DeliveryManager.create(
+        return DeliveryManager.create(
             id,
             null,
             "U123HUB",
             DeliveryManagerType.HUB_DELIVERY_MANAGER,
             sequence
         );
-        return manager;
     }
 }
