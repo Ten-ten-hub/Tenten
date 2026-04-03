@@ -20,16 +20,17 @@ public class RoleCheckAspect {
 
         // 게이트웨이가 JWT를 파싱해 넣어준 헤더를 읽음
         String userRole = request.getHeader("X-User-Role");
-
-        if (userRole == null || userRole.isBlank()) {
-            log.warn("권한 체크 실패: 헤더에 X-User-Role이 없음");
+        if (userRole == null) {
             throw new ServiceException(ErrorCode.AUTH_INVALID_TOKEN);
         }
 
-        boolean hasRole = Arrays.asList(requireRole.value()).contains(userRole);
+        String normalizedUserRole = userRole.trim().toUpperCase();
+        boolean hasRole = Arrays.stream(requireRole.value())
+            .map(String::toUpperCase)
+            .anyMatch(role -> role.equals(normalizedUserRole));
 
         if (!hasRole) {
-            log.warn("권한 부족: 필요 권한 {}, 유저 권한 {}", Arrays.toString(requireRole.value()), userRole);
+            log.warn("권한 부족: 필요 {}, 입력 {}", Arrays.toString(requireRole.value()), userRole);
             throw new ServiceException(ErrorCode.AUTH_FORBIDDEN);
         }
     }
