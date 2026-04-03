@@ -7,6 +7,7 @@ import com.slack.api.methods.response.users.UsersLookupByEmailResponse;
 import com.team.notificationservice.presentation.common.ErrorCode;
 import com.team.notificationservice.presentation.common.ServiceException;
 import jakarta.annotation.PostConstruct;
+import java.io.IOException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -48,27 +49,36 @@ public class SlackClient {
     }
 
     // 2. 메시지 전송 (최종 타겟 ID 사용)
-    public boolean sendDirectMessage(String targetId, String text) {
+    public SlackSendResult sendDirectMessage(String targetId, String text) {
         try {
             ChatPostMessageResponse response = methodsClient.chatPostMessage(r -> r
                 .channel(targetId)
                 .text(text)
             );
-            return response.isOk();
+            return response.isOk() ? SlackSendResult.SUCCESS : SlackSendResult.RETRYABLE_FAILURE;
+        } catch (IOException e) {
+            log.error("슬랙 통신 오류 (재시도 가능): {}", e.getMessage());
+            return SlackSendResult.RETRYABLE_FAILURE;
         } catch (Exception e) {
-            log.error("슬랙 발송 오류", e);
-            return false;
+            log.error("슬랙 발송 결과 불분명 (타임아웃 등): ", e);
+            return SlackSendResult.UNKNOWN; // 결과 확인 불가 시 UNKNOWN 반환
         }
     }
 
     private String maskEmail(String email) {
-        if (email == null || !email.contains("@")) return "UNKNOWN";
+        if (email == null || !email.contains("@")) {
+            return "UNKNOWN";
+        }
         String[] parts = email.split("@", 2);
         String local = parts[0];
         String domain = parts[1];
 
-        if (local.isEmpty()) return "UNKNOWN";
-        if (local.length() == 1) return "*" + "@" + domain;
+        if (local.isEmpty()) {
+            return "UNKNOWN";
+        }
+        if (local.length() == 1) {
+            return "*" + "@" + domain;
+        }
 
         return local.charAt(0) + "*".repeat(local.length() - 1) + "@" + domain;
     }

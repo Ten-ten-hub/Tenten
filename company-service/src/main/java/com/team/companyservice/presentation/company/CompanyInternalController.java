@@ -1,5 +1,6 @@
 package com.team.companyservice.presentation.company;
 
+import com.team.companyservice.application.company.CompanyResponse;
 import com.team.companyservice.application.company.CompanyService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -25,4 +26,9 @@ public class CompanyInternalController {
         return ResponseEntity.ok().build();
     }
 
+    // 내부 서비스에서 업체 단건 정보를 조회할 때 사용
+    @GetMapping("/{companyId}")
+    public ResponseEntity<CompanyResponse> getCompany(@PathVariable UUID companyId) {
+        return ResponseEntity.ok(companyService.get(companyId));
+    }
 }
