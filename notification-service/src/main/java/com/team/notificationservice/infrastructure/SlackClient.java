@@ -62,13 +62,19 @@ public class SlackClient {
     }
 
     private String maskEmail(String email) {
-        if (email == null || !email.contains("@")) return "UNKNOWN";
+        if (email == null || !email.contains("@")) {
+            return "UNKNOWN";
+        }
         String[] parts = email.split("@", 2);
         String local = parts[0];
         String domain = parts[1];
 
-        if (local.isEmpty()) return "UNKNOWN";
-        if (local.length() == 1) return "*" + "@" + domain;
+        if (local.isEmpty()) {
+            return "UNKNOWN";
+        }
+        if (local.length() == 1) {
+            return "*" + "@" + domain;
+        }
 
         return local.charAt(0) + "*".repeat(local.length() - 1) + "@" + domain;
     }
