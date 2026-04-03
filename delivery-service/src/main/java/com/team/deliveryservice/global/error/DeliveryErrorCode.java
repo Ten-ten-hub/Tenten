@@ -27,6 +27,24 @@ public enum DeliveryErrorCode implements com.team.common.exception.ErrorCode {
         "배송 담당자를 찾을 수 없습니다."
     ),
 
+    HUB_NOT_FOUND(
+        HttpStatus.NOT_FOUND,
+        "HUB_NOT_FOUND",
+        "허브 정보를 찾을 수 없습니다."
+    ),
+
+    COMPANY_NOT_FOUND(
+        HttpStatus.NOT_FOUND,
+        "COMPANY_NOT_FOUND",
+        "업체 정보를 찾을 수 없습니다."
+    ),
+
+    ORDER_NOT_FOUND(
+        HttpStatus.NOT_FOUND,
+        "ORDER_NOT_FOUND",
+        "주문 정보를 찾을 수 없습니다."
+    ),
+
 
     /*
      * =========================================================
@@ -39,7 +57,6 @@ public enum DeliveryErrorCode implements com.team.common.exception.ErrorCode {
         "이미 배송이 생성된 주문입니다."
     ),
 
-    // 배송담당자 시퀀스 할당 중 동시성 충돌이 발생한 경우
     DELIVERY_MANAGER_SEQUENCE_CONFLICT(
         HttpStatus.CONFLICT,
         "DELIVERY_MANAGER_SEQUENCE_CONFLICT",
@@ -100,6 +117,12 @@ public enum DeliveryErrorCode implements com.team.common.exception.ErrorCode {
         "허브 배송 담당자를 배정할 수 없습니다."
     ),
 
+    DELIVERY_CREATE_NOT_ALLOWED(
+        HttpStatus.BAD_REQUEST,
+        "DELIVERY_CREATE_NOT_ALLOWED",
+        "현재 주문 상태에서는 배송을 생성할 수 없습니다."
+    ),
+
     COMMON_INVALID_INPUT(
         HttpStatus.BAD_REQUEST,
         "COMMON_INVALID_INPUT",
@@ -116,6 +139,30 @@ public enum DeliveryErrorCode implements com.team.common.exception.ErrorCode {
         HttpStatus.FORBIDDEN,
         "COMMON_ACCESS_DENIED",
         "접근 권한이 없습니다."
+    ),
+
+
+    /*
+     * =========================================================
+     * 502 BAD_GATEWAY
+     * =========================================================
+     */
+    HUB_SERVICE_UNAVAILABLE(
+        HttpStatus.BAD_GATEWAY,
+        "HUB_SERVICE_UNAVAILABLE",
+        "허브 서비스와 통신할 수 없습니다."
+    ),
+
+    COMPANY_SERVICE_UNAVAILABLE(
+        HttpStatus.BAD_GATEWAY,
+        "COMPANY_SERVICE_UNAVAILABLE",
+        "업체 서비스와 통신할 수 없습니다."
+    ),
+
+    ORDER_SERVICE_UNAVAILABLE(
+        HttpStatus.BAD_GATEWAY,
+        "ORDER_SERVICE_UNAVAILABLE",
+        "주문 서비스와 통신할 수 없습니다."
     ),
 
 

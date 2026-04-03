@@ -2,9 +2,8 @@ package com.team.deliveryservice.application.deliverymanager;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.BDDMockito.given;
 import static org.mockito.ArgumentMatchers.any;
-import org.springframework.data.domain.PageImpl;
+import static org.mockito.BDDMockito.given;
 
 import com.team.deliveryservice.deliverymanager.application.dto.request.CreateDeliveryManagerRequest;
 import com.team.deliveryservice.deliverymanager.application.dto.request.UpdateDeliveryManagerRequest;
@@ -18,7 +17,6 @@ import com.team.deliveryservice.deliverymanager.domain.DeliveryManagerType;
 import com.team.deliveryservice.global.common.CurrentUser;
 import com.team.deliveryservice.global.error.DeliveryErrorCode;
 import com.team.deliveryservice.global.error.ServiceException;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -28,6 +26,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 @ExtendWith(MockitoExtension.class)
 class DeliveryManagerServiceImplTest {
@@ -41,6 +41,7 @@ class DeliveryManagerServiceImplTest {
     @Test
     @DisplayName("배송담당자 생성 성공 - 마스터 관리자는 허브 배송 담당자 생성 가능")
     void create_delivery_manager_success_by_master() {
+        // given
         UUID userId = UUID.randomUUID();
 
         CreateDeliveryManagerRequest request = new CreateDeliveryManagerRequest(
@@ -56,11 +57,14 @@ class DeliveryManagerServiceImplTest {
             DeliveryManagerType.HUB_DELIVERY_MANAGER
         )).willReturn(Optional.empty());
 
-        given(deliveryManagerRepository.save(org.mockito.ArgumentMatchers.any(DeliveryManager.class)))
+        // createDeliveryManager 내부에서는 saveAndFlush 를 호출하므로 반드시 이 메서드를 mock 해야 함
+        given(deliveryManagerRepository.saveAndFlush(any(DeliveryManager.class)))
             .willAnswer(invocation -> invocation.getArgument(0));
 
+        // when
         DeliveryManagerResponse response = deliveryManagerService.createDeliveryManager(request, currentUser);
 
+        // then
         assertThat(response.deliveryManagerId()).isEqualTo(userId);
         assertThat(response.hubId()).isNull();
         assertThat(response.type()).isEqualTo(DeliveryManagerType.HUB_DELIVERY_MANAGER);
@@ -70,6 +74,7 @@ class DeliveryManagerServiceImplTest {
     @Test
     @DisplayName("배송담당자 생성 성공 - 허브 관리자는 자기 허브의 업체 배송 담당자만 생성 가능")
     void create_company_delivery_manager_success_by_hub_admin() {
+        // given
         UUID hubId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
 
@@ -95,11 +100,14 @@ class DeliveryManagerServiceImplTest {
             hubId
         )).willReturn(Optional.of(lastManager));
 
-        given(deliveryManagerRepository.save(org.mockito.ArgumentMatchers.any(DeliveryManager.class)))
+        // createDeliveryManager 내부에서는 saveAndFlush 를 호출하므로 반드시 이 메서드를 mock 해야 함
+        given(deliveryManagerRepository.saveAndFlush(any(DeliveryManager.class)))
             .willAnswer(invocation -> invocation.getArgument(0));
 
+        // when
         DeliveryManagerResponse response = deliveryManagerService.createDeliveryManager(request, currentUser);
 
+        // then
         assertThat(response.deliveryManagerId()).isEqualTo(userId);
         assertThat(response.hubId()).isEqualTo(hubId);
         assertThat(response.type()).isEqualTo(DeliveryManagerType.COMPANY_DELIVERY_MANAGER);
@@ -200,7 +208,6 @@ class DeliveryManagerServiceImplTest {
         UUID hubId = UUID.randomUUID();
         DeliveryManager manager1 = createCompanyDeliveryManager(UUID.randomUUID(), hubId, 0);
         DeliveryManager manager2 = createCompanyDeliveryManager(UUID.randomUUID(), hubId, 1);
-        DeliveryManager otherHubManager = createCompanyDeliveryManager(UUID.randomUUID(), UUID.randomUUID(), 2);
 
         CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), "HUB_ADMIN", hubId, null);
 
@@ -216,7 +223,7 @@ class DeliveryManagerServiceImplTest {
         given(deliveryManagerRepository.search(any(), any(), any()))
             .willReturn(new PageImpl<>(
                 List.of(manager1, manager2),
-                org.springframework.data.domain.PageRequest.of(0, 10),
+                PageRequest.of(0, 10),
                 2
             ));
 
@@ -252,7 +259,7 @@ class DeliveryManagerServiceImplTest {
         given(deliveryManagerRepository.search(any(), any(), any()))
             .willReturn(new PageImpl<>(
                 List.of(manager),
-                org.springframework.data.domain.PageRequest.of(0, 10),
+                PageRequest.of(0, 10),
                 1
             ));
 
@@ -406,13 +413,12 @@ class DeliveryManagerServiceImplTest {
     }
 
     private DeliveryManager createHubDeliveryManager(UUID id, int sequence) {
-        DeliveryManager manager = DeliveryManager.create(
+        return DeliveryManager.create(
             id,
             null,
             "U123HUB",
             DeliveryManagerType.HUB_DELIVERY_MANAGER,
             sequence
         );
-        return manager;
     }
 }

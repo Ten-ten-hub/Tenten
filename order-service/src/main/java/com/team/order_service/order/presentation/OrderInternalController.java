@@ -1,13 +1,13 @@
 package com.team.order_service.order.presentation;
 
 import com.team.order_service.order.application.OrderService;
+import com.team.order_service.order.application.dto.OrderResult;
 import com.team.order_service.order.presentation.dto.OrderStatusUpdateRequest;
 import jakarta.validation.Valid;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
@@ -15,6 +15,11 @@ import java.util.UUID;
 public class OrderInternalController {
 
     private final OrderService orderService;
+
+    @GetMapping("/{orderId}")
+    public ResponseEntity<OrderResult> getOrder(@PathVariable UUID orderId) {
+        return ResponseEntity.ok(orderService.getOrder(orderId));
+    }
 
     @PatchMapping("/{orderId}/status")
     public ResponseEntity<Void> updateOrderStatus(
