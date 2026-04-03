@@ -1,7 +1,10 @@
 package com.team.notificationservice;
 
+import static org.hibernate.validator.internal.util.Contracts.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -61,5 +64,36 @@ class NotificationControllerSecurityTest {
                 .header("X-User-Role", "MASTER_ADMIN")
                 .header("X-User-Id", UUID.randomUUID().toString()))
             .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("MASTER_ADMIN 권한 삭제 시 실제 DB 반영 여부를 검증한다")
+    void delete_VerifyExecution_WhenMasterAdmin() throws Exception {
+        // given
+        UUID notificationId = UUID.randomUUID();
+        Notification mockNoti = spy(Notification.builder().msgContent("삭제").build());
+
+        given(notificationRepository.findByIdAndDeletedAtIsNull(notificationId))
+            .willReturn(Optional.of(mockNoti));
+        given(notificationRepository.save(any(Notification.class)))
+            .willAnswer(inv -> inv.getArgument(0));
+
+        // when
+        mockMvc.perform(delete("/api/v1/notifications/{id}", notificationId)
+                .header("X-User-Role", "MASTER_ADMIN")
+                .header("X-User-Id", UUID.randomUUID().toString()))
+            .andExpect(status().isOk());
+
+        // then
+        verify(notificationRepository).save(any());
+        assertNotNull(mockNoti.getDeletedAt());
+    }
+
+    @Test
+    @DisplayName("X-User-Role 헤더가 없으면 401 에러를 반환한다")
+    void delete_Unauthorized_WhenRoleHeaderMissing() throws Exception {
+        mockMvc.perform(delete("/api/v1/notifications/{id}", UUID.randomUUID())
+                .header("X-User-Id", UUID.randomUUID().toString()))
+            .andExpect(status().isUnauthorized());
     }
 }
