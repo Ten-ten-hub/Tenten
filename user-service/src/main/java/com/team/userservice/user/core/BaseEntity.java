@@ -22,7 +22,7 @@ public class BaseEntity {
     private LocalDateTime createdAt; // 레코드 생성 시간
 
     @CreatedBy
-    @Column(name = "created_by", nullable = false, updatable = false)
+    @Column(name = "created_by", updatable = false)
     private UUID createdBy; // 레코드 생성자
 
     @LastModifiedDate
