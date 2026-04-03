@@ -1,10 +1,10 @@
 package com.team.notificationservice.application;
 
+import com.team.common.Constants;
 import com.team.notificationservice.domain.Notification;
 import com.team.notificationservice.domain.NotificationRepository;
 import com.team.notificationservice.infrastructure.SlackClient;
 import com.team.notificationservice.presentation.NotificationResponse;
-import com.team.notificationservice.presentation.common.Constants;
 import com.team.notificationservice.presentation.common.ErrorCode;
 import com.team.notificationservice.presentation.common.ServiceException;
 import lombok.RequiredArgsConstructor;
