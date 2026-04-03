@@ -370,8 +370,8 @@ public class DeliveryServiceImpl implements DeliveryService {
                     path.sequence(),
                     path.departureHubId(),
                     path.arrivalHubId(),
-                    BigDecimal.valueOf(path.distanceKm()),
-                    path.durationMinutes(),
+                    BigDecimal.valueOf(path.distance()),
+                    path.duration(),
                     null
                 ))
                 .toList();

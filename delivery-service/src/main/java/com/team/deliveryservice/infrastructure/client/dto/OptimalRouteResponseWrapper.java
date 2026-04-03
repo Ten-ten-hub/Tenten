@@ -21,8 +21,8 @@ public record OptimalRouteResponseWrapper(
         Integer sequence,
         UUID departureHubId,
         UUID arrivalHubId,
-        Integer durationMinutes,
-        Double distanceKm
+        Integer duration,
+        Double distance
     ) {
     }
 }
