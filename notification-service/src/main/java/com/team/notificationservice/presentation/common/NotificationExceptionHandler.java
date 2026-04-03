@@ -1,6 +1,8 @@
 package com.team.notificationservice.presentation.common;
 
 import com.team.common.ApiResponse;
+import java.util.List;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -10,9 +12,6 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Slf4j
 @RestControllerAdvice
