@@ -8,7 +8,7 @@ import org.springframework.http.HttpStatus;
 @RequiredArgsConstructor
 public enum ErrorCode implements com.team.common.exception.ErrorCode {
 
-    AUTH_INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH_INVALID_TOKEN", "인증 토큰이 유효하지 않습니다"),
+    AUTH_INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH_INVALID_TOKEN", "인증 토큰이 유효하지 않습니다."),
     AUTH_FORBIDDEN(HttpStatus.FORBIDDEN, "AUTH_FORBIDDEN", "해당 리소스에 대한 접근 권한이 없습니다."),
     SERVER_CONFIG_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "SERVER_CONFIG_MISSING", "서버 설정 정보가 누락되었습니다."),
 
