@@ -36,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class DeliveryServiceImpl implements DeliveryService {
 
     private static final String DELIVERY_ORDER_ID_UNIQUE_CONSTRAINT = "uk_p_delivery_order_id_active";
+    private static final UUID SYSTEM_ACTOR_ID = UUID.fromString("00000000-0000-0000-0000-000000000000");
 
     private final DeliveryRepository deliveryRepository;
     private final DeliveryManagerRepository deliveryManagerRepository;
@@ -43,7 +44,7 @@ public class DeliveryServiceImpl implements DeliveryService {
 
     @Override
     @Transactional
-    public DeliveryResponse createDelivery(CreateDeliveryRequest request, CurrentUser currentUser) {
+    public DeliveryResponse createDelivery(CreateDeliveryRequest request) {
         if (deliveryRepository.existsByOrderIdAndDeletedAtIsNull(request.orderId())) {
             throw new ServiceException(DeliveryErrorCode.DELIVERY_ALREADY_EXISTS);
         }
@@ -72,10 +73,14 @@ public class DeliveryServiceImpl implements DeliveryService {
     }
 
     @Override
-    public DeliveryResponse getDelivery(UUID deliveryId, CurrentUser currentUser) {
-        Delivery delivery = deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)
-            .orElseThrow(() -> new ServiceException(DeliveryErrorCode.DELIVERY_NOT_FOUND));
+    public DeliveryResponse getDelivery(UUID deliveryId) {
+        Delivery delivery = getDeliveryEntity(deliveryId);
+        return DeliveryResponse.from(delivery, getRouteLogs(deliveryId));
+    }
 
+    @Override
+    public DeliveryResponse getDelivery(UUID deliveryId, CurrentUser currentUser) {
+        Delivery delivery = getDeliveryEntity(deliveryId);
         return DeliveryResponse.from(delivery, getRouteLogs(deliveryId));
     }
 
@@ -114,8 +119,7 @@ public class DeliveryServiceImpl implements DeliveryService {
     @Override
     @Transactional
     public DeliveryResponse updateDelivery(UUID deliveryId, UpdateDeliveryRequest request, CurrentUser currentUser) {
-        Delivery delivery = deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)
-            .orElseThrow(() -> new ServiceException(DeliveryErrorCode.DELIVERY_NOT_FOUND));
+        Delivery delivery = getDeliveryEntity(deliveryId);
 
         delivery.updateInfo(
             request.deliveryAddress(),
@@ -129,13 +133,8 @@ public class DeliveryServiceImpl implements DeliveryService {
 
     @Override
     @Transactional
-    public DeliveryResponse changeDeliveryStatus(
-        UUID deliveryId,
-        ChangeDeliveryStatusRequest request,
-        CurrentUser currentUser
-    ) {
-        Delivery delivery = deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)
-            .orElseThrow(() -> new ServiceException(DeliveryErrorCode.DELIVERY_NOT_FOUND));
+    public DeliveryResponse changeDeliveryStatus(UUID deliveryId, ChangeDeliveryStatusRequest request) {
+        Delivery delivery = getDeliveryEntity(deliveryId);
 
         try {
             delivery.updateStatus(request.deliveryStatus());
@@ -148,9 +147,8 @@ public class DeliveryServiceImpl implements DeliveryService {
 
     @Override
     @Transactional
-    public DeliveryResponse cancelDelivery(UUID deliveryId, CurrentUser currentUser) {
-        Delivery delivery = deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)
-            .orElseThrow(() -> new ServiceException(DeliveryErrorCode.DELIVERY_NOT_FOUND));
+    public DeliveryResponse cancelDelivery(UUID deliveryId) {
+        Delivery delivery = getDeliveryEntity(deliveryId);
 
         try {
             delivery.cancel();
@@ -168,8 +166,7 @@ public class DeliveryServiceImpl implements DeliveryService {
         AssignCompanyDeliveryManagerRequest request,
         CurrentUser currentUser
     ) {
-        Delivery delivery = deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)
-            .orElseThrow(() -> new ServiceException(DeliveryErrorCode.DELIVERY_NOT_FOUND));
+        Delivery delivery = getDeliveryEntity(deliveryId);
 
         DeliveryManager manager = deliveryManagerRepository.findByIdAndDeletedAtIsNull(request.deliveryManagerId())
             .orElseThrow(() -> new ServiceException(DeliveryErrorCode.DELIVERY_MANAGER_NOT_FOUND));
@@ -198,8 +195,7 @@ public class DeliveryServiceImpl implements DeliveryService {
         AssignHubDeliveryManagerRequest request,
         CurrentUser currentUser
     ) {
-        Delivery delivery = deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)
-            .orElseThrow(() -> new ServiceException(DeliveryErrorCode.DELIVERY_NOT_FOUND));
+        Delivery delivery = getDeliveryEntity(deliveryId);
 
         DeliveryRouteLog routeLog = getRouteLog(request.routeLogId());
 
@@ -225,16 +221,19 @@ public class DeliveryServiceImpl implements DeliveryService {
 
     @Override
     @Transactional
-    public void deleteDelivery(UUID deliveryId, CurrentUser currentUser) {
-        Delivery delivery = deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)
-            .orElseThrow(() -> new ServiceException(DeliveryErrorCode.DELIVERY_NOT_FOUND));
-
-        delivery.softDelete(currentUser.userId());
+    public void deleteDelivery(UUID deliveryId) {
+        Delivery delivery = getDeliveryEntity(deliveryId);
+        delivery.softDelete(SYSTEM_ACTOR_ID);
 
         List<DeliveryRouteLog> routeLogs =
             deliveryRouteLogRepository.findAllByDeliveryIdAndDeletedAtIsNullOrderBySequenceNoAsc(deliveryId);
 
-        routeLogs.forEach(routeLog -> routeLog.softDelete(currentUser.userId()));
+        routeLogs.forEach(routeLog -> routeLog.softDelete(SYSTEM_ACTOR_ID));
+    }
+
+    private Delivery getDeliveryEntity(UUID deliveryId) {
+        return deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)
+            .orElseThrow(() -> new ServiceException(DeliveryErrorCode.DELIVERY_NOT_FOUND));
     }
 
     private List<DeliveryRouteLogResponse> getRouteLogs(UUID deliveryId) {
