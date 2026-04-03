@@ -7,14 +7,15 @@ import com.team.notificationservice.infrastructure.SlackClient;
 import com.team.notificationservice.presentation.NotificationResponse;
 import com.team.notificationservice.presentation.common.ErrorCode;
 import com.team.notificationservice.presentation.common.ServiceException;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.UUID;
 
 @Slf4j
 @Service
@@ -25,6 +26,7 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final SlackClient slackClient;// Listener로 옮길 예정이지만, ID 조회 로직 때문에 유지
     private final NotificationSaver notificationSaver;
+    private final StringRedisTemplate redisTemplate; // Redis 추가
 
     /**
      * 알림 생성 및 전송 엔트리 포인트 네트워크 호출(Slack API)을 포함하므로 @Transactional을 붙이지 않음!
@@ -62,7 +64,17 @@ public class NotificationService {
 
         // targetSlackId가 없거나 공백인 경우, 이메일이 유효하다면 Slack API 호출
         if ((targetSlackId == null || targetSlackId.isBlank()) && dto.email() != null && !dto.email().isBlank()) {
-            targetSlackId = slackClient.findSlackIdByEmail(dto.email());
+            // Redis 캐시 확인
+            String cacheKey = "slack:email:" + dto.email();
+            targetSlackId = redisTemplate.opsForValue().get(cacheKey);
+
+            if (targetSlackId == null) {
+                targetSlackId = slackClient.findSlackIdByEmail(dto.email());
+                if (targetSlackId != null) {
+                    // 성공 시 1일간 캐싱
+                    redisTemplate.opsForValue().set(cacheKey, targetSlackId, 1, TimeUnit.DAYS);
+                }
+            }
         }
 
         // 최종 결과가 여전히 비어있거나 공백이면 예외 발생
@@ -73,7 +85,9 @@ public class NotificationService {
     }
 
     private UUID parseUserId(String userId) {
-        if (userId == null || userId.isBlank()) return null;
+        if (userId == null || userId.isBlank()) {
+            return null;
+        }
         try {
             return UUID.fromString(userId);
         } catch (IllegalArgumentException e) {

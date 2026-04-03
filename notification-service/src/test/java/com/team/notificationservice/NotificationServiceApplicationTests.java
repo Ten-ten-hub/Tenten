@@ -1,5 +1,18 @@
 package com.team.notificationservice;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import com.team.common.page.PageResponse;
 import com.team.notificationservice.application.NotificationRequest;
 import com.team.notificationservice.application.NotificationSaver;
@@ -11,6 +24,9 @@ import com.team.notificationservice.domain.NotificationRepository;
 import com.team.notificationservice.domain.SendStatus;
 import com.team.notificationservice.infrastructure.SlackClient;
 import com.team.notificationservice.presentation.NotificationResponse;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,17 +35,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
-
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
 
 @SpringBootTest(properties = {
     "spring.config.import=optional:file:../application-common.properties,optional:file:../application-secret.properties"
@@ -49,8 +58,18 @@ class NotificationServiceApplicationTests {
     @MockitoBean
     private NotificationSaver notificationSaver;
 
+    @MockitoBean // Redis 템플릿 모킹
+    private StringRedisTemplate redisTemplate;
+
     @Autowired
     private ApplicationEvents applicationEvents;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setupRedisMock() {
+        org.springframework.data.redis.core.ValueOperations<String, String> valueOps = mock(
+            org.springframework.data.redis.core.ValueOperations.class);
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+    }
 
     @Test
     @DisplayName("슬랙 알림 생성 및 이벤트 발행 검증")
@@ -194,7 +213,8 @@ class NotificationServiceApplicationTests {
     void checkPageResponseMapping() {
         // given
         Notification mockNoti = Notification.builder().msgContent("테스트").receiverSlackId("U1").build();
-        Page<NotificationResponse> resultPage = new PageImpl<>(List.of(NotificationResponse.from(mockNoti)), PageRequest.of(0, 10), 1);
+        Page<NotificationResponse> resultPage = new PageImpl<>(List.of(NotificationResponse.from(mockNoti)),
+            PageRequest.of(0, 10), 1);
 
         // when
         PageResponse<NotificationResponse> response = PageResponse.from(resultPage);
@@ -225,5 +245,32 @@ class NotificationServiceApplicationTests {
             eq(slackId),
             argThat(p -> p.getPageNumber() == 0)
         );
+    }
+
+    @Test
+    @DisplayName("Redis에 슬랙 ID가 캐싱되어 있다면 외부 API를 호출하지 않는다")
+    void notificationSendWithRedisCacheTest() {
+        // given
+        String email = "cached@example.com";
+        String cachedId = "U_CACHED_123";
+        NotificationRequest request = new NotificationRequest(
+            null, email, UUID.randomUUID(), "캐시 테스트", MsgType.ORDER_ALERT
+        );
+
+        // ValueOperations 모킹
+        org.springframework.data.redis.core.ValueOperations<String, String> valueOps = mock(
+            org.springframework.data.redis.core.ValueOperations.class);
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+
+        // Redis에 이미 값이 있는 상황 설정
+        when(valueOps.get("slack:email:" + email)).thenReturn(cachedId);
+
+        // when
+        notificationService.createAndSend(request, null);
+
+        // then: 1. Redis에서 값을 조회했는가? 2. SlackClient(외부API)는 호출되지 않았는가?
+        verify(valueOps).get("slack:email:" + email);
+        verify(slackClient, never()).findSlackIdByEmail(anyString()); // 호출되지 않아야 함
+        verify(notificationSaver, times(1)).saveAndPublish(eq(request), eq(cachedId), any());
     }
 }
