@@ -1,6 +1,7 @@
 package com.team.notificationservice;
 
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -48,9 +49,12 @@ class NotificationControllerSecurityTest {
         UUID notificationId = UUID.randomUUID();
         Notification mockNoti = Notification.builder().msgContent("삭제 테스트").build();
 
-        // ID 조회가 성공하도록 설정
-        when(notificationRepository.findByIdAndDeletedAtIsNull(notificationId))
-            .thenReturn(Optional.of(mockNoti));
+        given(notificationRepository.findByIdAndDeletedAtIsNull(notificationId))
+            .willReturn(Optional.of(mockNoti));
+
+        // [추가] save 호출 시의 Stubbing 추가
+        given(notificationRepository.save(any(Notification.class)))
+            .willAnswer(invocation -> invocation.getArgument(0));
 
         // when & then
         mockMvc.perform(delete("/api/v1/notifications/{id}", notificationId)

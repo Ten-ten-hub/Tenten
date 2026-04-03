@@ -21,21 +21,35 @@ public class NotificationPersistenceService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void saveWithRetry(Notification notification) {
         int maxAttempts = 3;
+        Exception lastException = null;
+
         for (int i = 0; i < maxAttempts; i++) {
             try {
-                notificationRepository.saveAndFlush(notification);
+                saveOnce(notification); // 개별 트랜잭션에서 실행
                 return; // 저장 성공 시 즉시 종료
             } catch (Exception e) {
+                lastException = e;
                 log.error("알림 상태 저장 실패 (시도 {}/{}): ID={}", i + 1, maxAttempts, notification.getId(), e);
-                if (i == maxAttempts - 1) {
-                    log.error("최종 저장 실패 - 수동 조치 필요: ID={}", notification.getId());
-                }
-                try {
-                    Thread.sleep(100 * (i + 1)); // 지수 백오프
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
+                if (i < maxAttempts - 1) {
+                    performBackoff(i); // 지수 백오프 적용
                 }
             }
+        }
+        throw new RuntimeException("최종 저장 실패: ID=" + notification.getId(), lastException);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW) // 각 시도를 새 트랜잭션으로 격리
+    public void saveOnce(Notification notification) {
+        notificationRepository.saveAndFlush(notification);
+    }
+
+    private void performBackoff(int attempt) {
+        try {
+            // 지수 백오프: 100ms * 2^attempt (최대 1초 제한)
+            long delay = Math.min(1000L, (long) (100 * Math.pow(2, attempt)));
+            Thread.sleep(delay);
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
         }
     }
 }

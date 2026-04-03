@@ -82,10 +82,10 @@ public class NotificationEventListener {
 
             if (result == SlackSendResult.SUCCESS) {
                 notification.markAsSuccess();
-                redisTemplate.delete(lockKey); // 성공 시 락 해제 (또는 중복방지 위해 유지 가능)
+                safeDeleteLock(lockKey); // 성공 시 락 해제 (또는 중복방지 위해 유지 가능)
             } else if (result == SlackSendResult.RETRYABLE_FAILURE) {
                 notification.markAsFailed();
-                redisTemplate.delete(lockKey); // 명확한 실패 시 재시도를 위해 락 해제
+                safeDeleteLock(lockKey); // 명확한 실패 시 재시도를 위해 락 해제
             } else {
                 // UNKNOWN(타임아웃 등): 결과가 불분명하므로 락을 유지하여 자동 재시도로 인한 중복 발송 방지
                 log.warn("전송 결과 불분명(타임아웃 등) - 중복 방지를 위해 락을 유지합니다: ID={}", event.notificationId());
@@ -94,11 +94,20 @@ public class NotificationEventListener {
         } catch (Exception e) {
             log.error("슬랙 전송 처리 중 오류: notificationId={}", event.notificationId(), e);
             notification.markAsFailed();
-            redisTemplate.delete(lockKey);
+            safeDeleteLock(lockKey);
         } finally {
             // 기존의 루프 대신, 새 트랜잭션(REQUIRES_NEW)을 사용하는 별도 서비스에서 저장을 시도함
             // 루프 안에서 saveAndFlush 실패 시 해당 트랜잭션이 Rollback-only가 되는 문제를 해결
             notificationPersistenceService.saveWithRetry(notification);
+        }
+    }
+
+    // Redis 삭제 실패가 비즈니스 로직에 영향을 주지 않도록 하는 헬퍼 메서드
+    private void safeDeleteLock(String lockKey) {
+        try {
+            redisTemplate.delete(lockKey);
+        } catch (Exception e) {
+            log.warn("Redis 락 해제 실패 (Fail-open): {}", e.getMessage());
         }
     }
 }
