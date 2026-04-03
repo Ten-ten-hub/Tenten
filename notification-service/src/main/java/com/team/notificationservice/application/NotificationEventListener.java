@@ -60,6 +60,7 @@ public class NotificationEventListener {
 
         // 1. 엔티티 조회 (AFTER_COMMIT 단계이므로 즉시 조회 가능)
         Notification notification;
+        boolean shouldReleaseLock = false;
         try {
             notification = notificationRepository.findById(event.notificationId())
                 .orElseThrow(() -> new IllegalStateException("알림 엔티티를 찾을 수 없습니다: ID=" + event.notificationId()));
@@ -82,23 +83,28 @@ public class NotificationEventListener {
 
             if (result == SlackSendResult.SUCCESS) {
                 notification.markAsSuccess();
-                safeDeleteLock(lockKey); // 성공 시 락 해제 (또는 중복방지 위해 유지 가능)
+                shouldReleaseLock = true;
             } else if (result == SlackSendResult.RETRYABLE_FAILURE) {
                 notification.markAsFailed();
-                safeDeleteLock(lockKey); // 명확한 실패 시 재시도를 위해 락 해제
+                shouldReleaseLock = true;
             } else {
-                // UNKNOWN(타임아웃 등): 결과가 불분명하므로 락을 유지하여 자동 재시도로 인한 중복 발송 방지
-                log.warn("전송 결과 불분명(타임아웃 등) - 중복 방지를 위해 락을 유지합니다: ID={}", event.notificationId());
-                notification.markAsFailed(); // 상태는 실패로 기록하되 락은 삭제하지 않음
+                // TODO: 브로커 도입 시 UNKNOWN 메시지를 큐에 남겨두거나 별도 검수 큐로 보낼 수 있음
+                log.warn("전송 결과 불분명 - 상태를 유지하고 락을 보존: ID={}", event.notificationId());
+                shouldReleaseLock = false;
             }
-        } catch (Exception e) {
-            log.error("슬랙 전송 처리 중 오류: notificationId={}", event.notificationId(), e);
-            notification.markAsFailed();
-            safeDeleteLock(lockKey);
-        } finally {
-            // 기존의 루프 대신, 새 트랜잭션(REQUIRES_NEW)을 사용하는 별도 서비스에서 저장을 시도함
-            // 루프 안에서 saveAndFlush 실패 시 해당 트랜잭션이 Rollback-only가 되는 문제를 해결
+
+            // 상태 저장 실행
             notificationPersistenceService.saveWithRetry(notification);
+
+            // DB 저장이 성공한 경우에만 락 해제
+            if (shouldReleaseLock) {
+                safeDeleteLock(lockKey);
+            }
+
+        } catch (Exception e) {
+            log.error("이벤트 처리 중 예외 발생: ID={}", event.notificationId(), e);
+            // TODO: 브로커 도입 시 예외 발생 시 메시지 승인(Ack)을 하지 않음으로써 자동 재시도를 유도함
+            safeDeleteLock(lockKey);
         }
     }
 
@@ -107,6 +113,7 @@ public class NotificationEventListener {
         try {
             redisTemplate.delete(lockKey);
         } catch (Exception e) {
+            // TODO: 브로커 도입 시 수동 Redis 락 관리 로직이 제거되거나 대폭 단순화될 예정
             log.warn("Redis 락 해제 실패 (Fail-open): {}", e.getMessage());
         }
     }
