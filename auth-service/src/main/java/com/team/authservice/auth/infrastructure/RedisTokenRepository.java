@@ -19,4 +19,10 @@ public class RedisTokenRepository {
     public void delete(UUID userId) {
         redisTemplate.delete("refresh_token:" + userId);
     }
+
+    public String findByUserId(UUID userId) {
+        //값을 가져와서 비교하기위해
+        return redisTemplate.opsForValue().get("refresh_token:" + userId);
+
+    }
 }

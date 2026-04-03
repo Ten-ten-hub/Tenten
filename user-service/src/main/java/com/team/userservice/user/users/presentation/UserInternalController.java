@@ -6,6 +6,7 @@ import com.team.userservice.user.core.enums.Role;
 import com.team.userservice.user.users.application.UserService;
 import com.team.userservice.user.users.presentation.dto.request.LoginReq;
 import com.team.userservice.user.users.presentation.dto.response.GetAllUserInfoRes;
+import com.team.userservice.user.users.presentation.dto.response.GetRoleRes;
 import com.team.userservice.user.users.presentation.dto.response.GetUserInfoRes;
 import com.team.userservice.user.users.presentation.dto.response.LoginRes;
 import jakarta.validation.Valid;
@@ -56,6 +57,11 @@ public class UserInternalController {
     public CommonResponse<Void> updateLastLoginAt(@PathVariable UUID userId) {
         userService.updateLastLoginAt(userId);
         return CommonResponse.onSuccess();
+    }
+
+    @GetMapping("/v1/users/{userId}/role")
+    public CommonResponse<GetRoleRes> getUserRoleInternal(@PathVariable("userId") UUID userId) {
+        return CommonResponse.onSuccess(new GetRoleRes(userService.getUserRole(userId)));
     }
 
 

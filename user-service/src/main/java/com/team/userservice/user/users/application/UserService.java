@@ -45,4 +45,6 @@ public interface UserService {
     void deleteUser(UUID targetId, UUID deletedBy);
 
     void updateLastLoginAt(UUID userId);
+
+    Role getUserRole(UUID userId);
 }

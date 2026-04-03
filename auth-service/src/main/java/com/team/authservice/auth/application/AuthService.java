@@ -7,4 +7,6 @@ public interface AuthService {
     TokenDto login(String loginId, String password);
 
     void logout(UUID userId);
+
+    TokenDto refresh(String refreshToken);
 }

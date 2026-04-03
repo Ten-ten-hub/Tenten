@@ -216,4 +216,9 @@ public class UserServiceImpl implements UserService {
             }
         );
     }
+
+    @Override
+    public Role getUserRole(UUID userId) {
+        return userRepository.findById(userId).orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND)).getRole();
+    }
 }
