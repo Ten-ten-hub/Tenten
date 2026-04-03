@@ -28,6 +28,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.validation.annotation.Validated;
 
 @Service
 @RequiredArgsConstructor
@@ -111,6 +112,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    @Validated
     public void updateUserAffiliation(UUID userId, Affiliation affiliation, UUID affiliationId) {
         User user = userRepository.findById(userId).orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
         Role role = user.getRole();
