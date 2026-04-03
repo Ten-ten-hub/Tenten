@@ -38,6 +38,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class DeliveryServiceImplTest {
 
+    private static final UUID SYSTEM_ACTOR_ID = UUID.fromString("00000000-0000-0000-0000-000000000000");
+
     @Mock
     private DeliveryRepository deliveryRepository;
 
@@ -65,12 +67,10 @@ class DeliveryServiceImplTest {
             LocalDateTime.of(2026, 4, 1, 18, 0)
         );
 
-        CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), "MASTER_ADMIN", null, null);
-
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(request.orderId())).willReturn(false);
         given(deliveryRepository.save(any(Delivery.class))).willAnswer(invocation -> invocation.getArgument(0));
 
-        DeliveryResponse response = deliveryService.createDelivery(request, currentUser);
+        DeliveryResponse response = deliveryService.createDelivery(request);
 
         assertThat(response.orderId()).isEqualTo(request.orderId());
         assertThat(response.deliveryAddress()).isEqualTo(request.deliveryAddress());
@@ -95,11 +95,9 @@ class DeliveryServiceImplTest {
             LocalDateTime.of(2026, 4, 1, 18, 0)
         );
 
-        CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), "MASTER_ADMIN", null, null);
-
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(true);
 
-        assertThatThrownBy(() -> deliveryService.createDelivery(request, currentUser))
+        assertThatThrownBy(() -> deliveryService.createDelivery(request))
             .isInstanceOf(ServiceException.class)
             .hasMessage(DeliveryErrorCode.DELIVERY_ALREADY_EXISTS.getMessage());
     }
@@ -108,7 +106,6 @@ class DeliveryServiceImplTest {
     @DisplayName("배송 상태 변경 성공 - WAITING_AT_HUB 에서 MOVING_BETWEEN_HUBS 로 변경")
     void change_delivery_status_success() {
         UUID deliveryId = UUID.randomUUID();
-        CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), "MASTER_ADMIN", null, null);
 
         Delivery delivery = createDelivery();
         ChangeDeliveryStatusRequest request = new ChangeDeliveryStatusRequest(
@@ -119,7 +116,7 @@ class DeliveryServiceImplTest {
         given(deliveryRouteLogRepository.findAllByDeliveryIdAndDeletedAtIsNullOrderBySequenceNoAsc(deliveryId))
             .willReturn(List.of());
 
-        DeliveryResponse response = deliveryService.changeDeliveryStatus(deliveryId, request, currentUser);
+        DeliveryResponse response = deliveryService.changeDeliveryStatus(deliveryId, request);
 
         assertThat(response.deliveryStatus()).isEqualTo(DeliveryStatus.MOVING_BETWEEN_HUBS);
         assertThat(delivery.getStartedAt()).isNotNull();
@@ -129,7 +126,6 @@ class DeliveryServiceImplTest {
     @DisplayName("배송 상태 변경 실패 - 허용되지 않은 상태 전이")
     void change_delivery_status_fail_invalid_transition() {
         UUID deliveryId = UUID.randomUUID();
-        CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), "MASTER_ADMIN", null, null);
 
         Delivery delivery = createDelivery();
         ChangeDeliveryStatusRequest request = new ChangeDeliveryStatusRequest(
@@ -138,7 +134,7 @@ class DeliveryServiceImplTest {
 
         given(deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)).willReturn(Optional.of(delivery));
 
-        assertThatThrownBy(() -> deliveryService.changeDeliveryStatus(deliveryId, request, currentUser))
+        assertThatThrownBy(() -> deliveryService.changeDeliveryStatus(deliveryId, request))
             .isInstanceOf(ServiceException.class)
             .hasMessage(DeliveryErrorCode.DELIVERY_STATUS_CHANGE_NOT_ALLOWED.getMessage());
     }
@@ -147,7 +143,6 @@ class DeliveryServiceImplTest {
     @DisplayName("배송 취소 성공 - WAITING_AT_HUB 상태에서만 가능")
     void cancel_delivery_success() {
         UUID deliveryId = UUID.randomUUID();
-        CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), "COMPANY_MANAGER", null, null);
 
         Delivery delivery = createDelivery();
 
@@ -155,7 +150,7 @@ class DeliveryServiceImplTest {
         given(deliveryRouteLogRepository.findAllByDeliveryIdAndDeletedAtIsNullOrderBySequenceNoAsc(deliveryId))
             .willReturn(List.of());
 
-        DeliveryResponse response = deliveryService.cancelDelivery(deliveryId, currentUser);
+        DeliveryResponse response = deliveryService.cancelDelivery(deliveryId);
 
         assertThat(response.deliveryStatus()).isEqualTo(DeliveryStatus.CANCELLED);
     }
@@ -164,14 +159,13 @@ class DeliveryServiceImplTest {
     @DisplayName("배송 취소 실패 - WAITING_AT_HUB 이외 상태에서는 불가")
     void cancel_delivery_fail_when_not_waiting() {
         UUID deliveryId = UUID.randomUUID();
-        CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), "COMPANY_MANAGER", null, null);
 
         Delivery delivery = createDelivery();
         delivery.updateStatus(DeliveryStatus.MOVING_BETWEEN_HUBS);
 
         given(deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)).willReturn(Optional.of(delivery));
 
-        assertThatThrownBy(() -> deliveryService.cancelDelivery(deliveryId, currentUser))
+        assertThatThrownBy(() -> deliveryService.cancelDelivery(deliveryId))
             .isInstanceOf(ServiceException.class)
             .hasMessage(DeliveryErrorCode.DELIVERY_CANCEL_NOT_ALLOWED.getMessage());
     }
@@ -468,9 +462,6 @@ class DeliveryServiceImplTest {
     @DisplayName("배송 삭제 시 배송 경로 로그도 함께 soft delete")
     void delete_delivery_soft_delete_route_logs() {
         UUID deliveryId = UUID.randomUUID();
-        UUID userId = UUID.randomUUID();
-
-        CurrentUser currentUser = new CurrentUser(userId, "MASTER_ADMIN", null, null);
 
         Delivery delivery = createDelivery();
 
@@ -488,12 +479,12 @@ class DeliveryServiceImplTest {
         given(deliveryRouteLogRepository.findAllByDeliveryIdAndDeletedAtIsNullOrderBySequenceNoAsc(deliveryId))
             .willReturn(List.of(routeLog));
 
-        deliveryService.deleteDelivery(deliveryId, currentUser);
+        deliveryService.deleteDelivery(deliveryId);
 
         assertThat(delivery.getDeletedAt()).isNotNull();
-        assertThat(delivery.getDeletedBy()).isEqualTo(userId);
+        assertThat(delivery.getDeletedBy()).isEqualTo(SYSTEM_ACTOR_ID);
         assertThat(routeLog.getDeletedAt()).isNotNull();
-        assertThat(routeLog.getDeletedBy()).isEqualTo(userId);
+        assertThat(routeLog.getDeletedBy()).isEqualTo(SYSTEM_ACTOR_ID);
     }
 
     private Delivery createDelivery() {
