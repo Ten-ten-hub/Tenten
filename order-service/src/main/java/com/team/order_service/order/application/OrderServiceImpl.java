@@ -10,21 +10,31 @@ import com.team.order_service.order.domain.Order;
 import com.team.order_service.order.domain.OrderItem;
 import com.team.order_service.order.domain.OrderRepository;
 import com.team.order_service.order.domain.OrderStatus;
+import com.team.order_service.order.infrastructure.client.DeliveryClient;
+import com.team.order_service.order.infrastructure.client.ProductClient;
+import com.team.order_service.order.infrastructure.client.dto.ProductResponse;
+import com.team.order_service.order.infrastructure.client.dto.StockDeductRequest;
+import com.team.order_service.order.infrastructure.client.dto.StockRestoreRequest;
+import feign.FeignException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
+    private final ProductClient productClient;
+    private final DeliveryClient deliveryClient;
 
     @Override
     @Transactional
@@ -40,21 +50,66 @@ public class OrderServiceImpl implements OrderService {
         );
         Order saved = orderRepository.save(order);
 
-        // 2. 주문 아이템 추가 (TODO: Feign Client 연동 후 실제 상품 정보로 교체)
-        command.orderItems().forEach(itemCommand -> {
+        // 2. 주문 아이템 추가
+        command.orderItems().forEach(orderItemCommand -> {
+            ProductResponse product = getProductWithFallback(command.orderedBy(), orderItemCommand.productId());
             OrderItem orderItem = OrderItem.create(
                 saved,
-                itemCommand.productId(),
-                "상품명 임시",               // TODO: productClient.getProduct()로 교체
-                BigDecimal.ZERO,             // TODO: 실제 단가로 교체
-                itemCommand.quantity()
+                orderItemCommand.productId(),
+                product.name(),
+                product.unitPrice(),
+                orderItemCommand.quantity()
             );
             saved.addOrderItem(orderItem);
         });
 
-        // TODO: 재고 차감 (Feign Client 연동 후 추가)
+        // 3. 재고 차감 (실패 시 이미 차감된 항목 복원 - 보상 트랜잭션)
+        // TODO: [사가 패턴 도입 시 개선 필요]
+        //   - 현재 REST 기반 보상 트랜잭션은 멱등성 보장 불가
+        //   - 보상 후 재시도 시 동일 orderId로 중복 차감 발생 가능
+        //   - 사가 패턴 도입 시 이벤트 ID 기반 중복 처리 방지로 해결 예정
+        int deductedCount = 0;
+        var items = command.orderItems();
+        try {
+            for (var orderItemCommand : command.orderItems()) {
+                deductStockWithFallback(
+                    command.orderedBy(),
+                    orderItemCommand.productId(),
+                    orderItemCommand.quantity(),
+                    saved.getId()
+                );
+                deductedCount++;
+            }
+        } catch (BusinessException e) {
+            // 이미 차감된 항목 복원
+            for (int i = 0; i < deductedCount; i++) {
+                try {
+                    productClient.restoreStock(
+                        command.orderedBy(),
+                        items.get(i).productId(),
+                        new StockRestoreRequest(items.get(i).quantity(), saved.getId())
+                    );
+                } catch (Exception compensationEx) {
+                    log.error("[주문생성 보상 트랜잭션 실패] orderId={}, productId={}, error={}",
+                        saved.getId(), items.get(i).productId(), compensationEx.getMessage());
+                }
+            }
+            throw e;
+        }
 
-        // TODO: 배송 생성 및 배송 ID 저장 (Feign Client 연동 후 추가)
+
+//        // 4. 배송 생성 (TODO: 배송 서비스 API 확정 후 주석 해제)
+//        DeliveryResponse delivery;
+//        try {
+//            delivery = deliveryClient.createDelivery(
+//                command.orderedBy(),
+//                new DeliveryCreateRequest(saved.getId(), command.supplierCompanyId(), command.receiverCompanyId())
+//            );
+//        } catch (Exception e) {
+//            throw new BusinessException(OrderErrorCode.DELIVERY_CREATE_FAILED);
+//        }
+//
+//        saved.assignDelivery(delivery.id());
 
         return OrderResult.from(saved);
     }
@@ -101,12 +156,117 @@ public class OrderServiceImpl implements OrderService {
             throw new BusinessException(OrderErrorCode.ORDER_NOT_CANCELLABLE);
         }
 
-        // TODO: 재고 복원 (Feign Client 연동 후 추가)
+        // 1. 재고 복원 (실패 시 이미 복원된 항목 다시 차감 - 보상 트랜잭션)
+        // TODO: [사가 패턴 도입 시 개선 필요]
+        //   - 현재 REST 기반 보상 트랜잭션은 멱등성 보장 불가
+        //   - 보상 후 재시도 시 동일 orderId로 중복 복원 발생 가능
+        //   - 사가 패턴 도입 시 이벤트 ID 기반 중복 처리 방지로 해결 예정
+        int restoredCount = 0;
+        List<OrderItem> orderItems = order.getOrderItems();
+        try {
+            for (var orderItem : orderItems) {
+                restoreStockWithFallback(
+                    cancelledBy,
+                    orderItem.getProductId(),
+                    orderItem.getQuantity(),
+                    orderId
+                );
+                restoredCount++;
+            }
+        } catch (BusinessException e) {
+            // 이미 복원된 항목 다시 차감 (보상)
+            for (int i = 0; i < restoredCount; i++) {
+                try {
+                    productClient.deductStock(
+                        cancelledBy,
+                        orderItems.get(i).getProductId(),
+                        new StockDeductRequest(orderItems.get(i).getQuantity(), orderId)
+                    );
+                } catch (Exception compensationEx) {
+                    log.error("[주문취소 보상 트랜잭션 실패] orderId={}, productId={}, error={}",
+                        orderId, orderItems.get(i).getProductId(), compensationEx.getMessage());
+                }
+            }
+            throw e;
+        }
 
-        // TODO: 배송 취소 (Feign Client 연동 후 추가)
+//        // 2. 배송 취소 (배송 연동 후 주석 해제)
+//        if (order.getDeliveryId() != null) {
+//            try {
+//                deliveryClient.cancelDelivery(cancelledBy, order.getDeliveryId());
+//            } catch (Exception e) {
+//                throw new BusinessException(OrderErrorCode.DELIVERY_CANCEL_FAILED);
+//            }
+//        }
 
         // 3. 주문 취소
         order.cancel(cancelledBy);
+    }
+
+    @Override
+    @Transactional
+    public void deleteOrder(UUID orderId, UUID deletedBy) {
+        Order order = findActiveOrderById(orderId);
+
+        // 취소되지 않은 주문은 삭제 전 취소 처리 (재고 복원 포함)
+        if (order.isCancellable()) {
+            cancelOrder(orderId, deletedBy);
+        }
+
+        order.softDelete(deletedBy);
+
+//         // 배송 삭제 (TODO: 배송 서비스 API 확정 후 주석 해제)
+//         if (order.getDeliveryId() != null) {
+//             deleteDeliveryWithFallback(order.getDeliveryId());
+//         }
+    }
+
+    // -------------------------------------------------------
+    // private helpers - Feign 예외 타입별 분기 처리
+    // -------------------------------------------------------
+
+    private ProductResponse getProductWithFallback(UUID requestUserId, UUID productId) {
+        try {
+            return productClient.getProduct(requestUserId, productId);
+        } catch (FeignException.NotFound e) {
+            throw new BusinessException(OrderErrorCode.PRODUCT_NOT_FOUND);
+        } catch (Exception e) {
+            throw new BusinessException(OrderErrorCode.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    private void deductStockWithFallback(UUID requestUserId, UUID productId, int quantity, UUID orderId) {
+        try {
+            productClient.deductStock(requestUserId, productId, new StockDeductRequest(quantity, orderId));
+        } catch (FeignException.NotFound e) {
+            throw new BusinessException(OrderErrorCode.PRODUCT_NOT_FOUND);
+        } catch (FeignException e) {
+            throw new BusinessException(OrderErrorCode.STOCK_DEDUCT_FAILED);
+        } catch (Exception e) {
+            throw new BusinessException(OrderErrorCode.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    private void restoreStockWithFallback(UUID requestUserId, UUID productId, int quantity, UUID orderId) {
+        try {
+            productClient.restoreStock(requestUserId, productId, new StockRestoreRequest(quantity, orderId));
+        } catch (FeignException.NotFound e) {
+            throw new BusinessException(OrderErrorCode.PRODUCT_NOT_FOUND);
+        } catch (FeignException e) {
+            throw new BusinessException(OrderErrorCode.STOCK_RESTORE_FAILED);
+        } catch (Exception e) {
+            throw new BusinessException(OrderErrorCode.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    private void deleteDeliveryWithFallback(UUID deliveryId) {
+        try {
+            deliveryClient.deleteDelivery(deliveryId);
+        } catch (FeignException.NotFound e) {
+            // 이미 삭제된 배송은 무시
+        } catch (Exception e) {
+            throw new BusinessException(OrderErrorCode.SERVICE_UNAVAILABLE);
+        }
     }
 
     private Order findActiveOrderById(UUID orderId) {
