@@ -6,6 +6,7 @@ import com.team.authservice.auth.infrastructure.feign.UserInternalClient;
 import com.team.authservice.auth.infrastructure.feign.dto.UserVerifyReqDto;
 import com.team.authservice.auth.infrastructure.feign.dto.UserVerifyResDto;
 import com.team.authservice.auth.security.jwt.JwtProvider;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -26,5 +27,10 @@ public class AuthServiceImpl implements AuthService {
         redisTokenRepository.save(userInfo.userId(), refreshToken);
 
         return new TokenDto(accessToken, refreshToken);
+    }
+
+    @Override
+    public void logout(UUID userId){
+        redisTokenRepository.delete(userId);
     }
 }

@@ -15,4 +15,8 @@ public class RedisTokenRepository {
     public void save(UUID userId, String refreshToken) {
         redisTemplate.opsForValue().set("refresh_token:" + userId, refreshToken, jwtProperties.refreshTokenValidity());
     }
+
+    public void delete(UUID userId) {
+        redisTemplate.delete("refresh_token:" + userId);
+    }
 }
