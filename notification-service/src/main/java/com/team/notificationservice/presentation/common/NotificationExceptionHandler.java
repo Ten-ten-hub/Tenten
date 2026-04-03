@@ -1,8 +1,6 @@
 package com.team.notificationservice.presentation.common;
 
-import com.team.notificationservice.presentation.common.ApiResponse.ValidationError;
-import java.util.List;
-import java.util.stream.Collectors;
+import com.team.common.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -12,6 +10,9 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RestControllerAdvice
@@ -39,7 +40,7 @@ public class NotificationExceptionHandler {
             .collect(Collectors.joining(", "));
         log.warn("ValidationException: {} field error(s) in [{}]", e.getBindingResult().getFieldErrorCount(), fields);
 
-        List<ValidationError> errors = e.getBindingResult()
+        List<ApiResponse.ValidationError> errors = e.getBindingResult()
             .getFieldErrors()
             .stream()
             .map(error -> new ApiResponse.ValidationError(

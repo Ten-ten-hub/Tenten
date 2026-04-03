@@ -140,7 +140,7 @@ class NotificationControllerRestDocsTest {
         mockMvc.perform(get("/api/v1/notifications")
                 .param("slackId", "U12345678")
                 .param("keyword", "배송")
-                .param("page", "0")
+                .param("page", "1")
                 .param("size", "10"))
             .andExpect(status().isOk())
             .andDo(document("notifications/list",
@@ -148,7 +148,7 @@ class NotificationControllerRestDocsTest {
                 queryParameters(
                     parameterWithName("slackId").description("수신자 슬랙 ID"),
                     parameterWithName("keyword").description("메시지 본문 검색 키워드").optional(),
-                    parameterWithName("page").description("페이지 번호 (0부터 시작)").optional(),
+                    parameterWithName("page").description("페이지 번호 (1부터 시작)").optional(),
                     parameterWithName("size").description("페이지당 항목 수").optional()
                 ),
                 // responseFields 대신 relaxedResponseFields 사용
@@ -164,13 +164,10 @@ class NotificationControllerRestDocsTest {
                     fieldWithPath("data.content[].createdAt").description("생성 일시"),
 
                     // 페이징 관련 주요 정보 (필요한 것만 선택 기록)
-                    fieldWithPath("data.totalElements").description("전체 데이터 개수"),
-                    fieldWithPath("data.totalPages").description("전체 페이지 수"),
-                    fieldWithPath("data.size").description("페이지 크기"),
-                    fieldWithPath("data.number").description("현재 페이지 번호"),
-                    fieldWithPath("data.first").description("첫 페이지 여부"),
-                    fieldWithPath("data.last").description("마지막 페이지 여부"),
-                    fieldWithPath("data.empty").description("결과 비어있음 여부")
+                    fieldWithPath("data.pageInfo.currentPage").description("현재 페이지 번호"),
+                    fieldWithPath("data.pageInfo.size").description("페이지당 크기"),
+                    fieldWithPath("data.pageInfo.totalElements").description("전체 데이터 개수"),
+                    fieldWithPath("data.pageInfo.totalPages").description("전체 페이지 수")
 
                     // pageable.sort, pageable.offset 등은 적지 않아도 에러가 나지 않음!
                 )
@@ -269,10 +266,10 @@ class NotificationControllerRestDocsTest {
                     fieldWithPath("code").description("응답 코드"),
                     fieldWithPath("message").description("응답 메시지"),
                     fieldWithPath("data.content").description("빈 결과 리스트"),
-                    fieldWithPath("data.totalElements").description("전체 요소 개수"),
-                    fieldWithPath("data.totalPages").description("전체 페이지 수"),
-                    fieldWithPath("data.number").description("현재 페이지 번호"),
-                    fieldWithPath("data.empty").description("비어있음 여부")
+                    fieldWithPath("data.pageInfo.totalElements").description("전체 요소 개수"),
+                    fieldWithPath("data.pageInfo.totalPages").description("전체 페이지 수"),
+                    fieldWithPath("data.pageInfo.currentPage").description("현재 페이지 번호"),
+                    fieldWithPath("data.pageInfo.size").description("페이지 크기")
                 )
             ));
     }

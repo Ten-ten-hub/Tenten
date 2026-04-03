@@ -1,4 +1,4 @@
-package com.team.notificationservice.presentation.common;
+package com.team.common;
 
 import java.util.UUID;
 

@@ -1,6 +1,6 @@
 package com.team.notificationservice.infrastructure.config;
 
-import com.team.notificationservice.presentation.common.Constants;
+import com.team.common.Constants;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;

@@ -1,10 +1,10 @@
 package com.team.notificationservice.application;
 
+import com.team.common.Constants;
 import com.team.notificationservice.domain.Notification;
 import com.team.notificationservice.domain.NotificationRepository;
 import com.team.notificationservice.infrastructure.SlackClient;
 import com.team.notificationservice.presentation.NotificationResponse;
-import com.team.notificationservice.presentation.common.Constants;
 import com.team.notificationservice.presentation.common.ErrorCode;
 import com.team.notificationservice.presentation.common.ServiceException;
 import lombok.RequiredArgsConstructor;
@@ -34,9 +34,9 @@ public class NotificationService {
         String targetSlackId = resolveTargetSlackId(dto);
 
         // 2. 수신자 UUID 결정
-        UUID receiverUuid = null;
+        UUID receiverUuid = parseUserId(userIdFromHeader);
 
-          //TODO 헤더 작업 완료 시 주석 해제
+        //TODO 헤더 작업 완료 시 주석 해제
 //        if (userIdFromHeader != null && !userIdFromHeader.isBlank()) {
 //            try {
 //                receiverUuid = UUID.fromString(userIdFromHeader);
@@ -72,6 +72,16 @@ public class NotificationService {
         return targetSlackId;
     }
 
+    private UUID parseUserId(String userId) {
+        if (userId == null || userId.isBlank()) return null;
+        try {
+            return UUID.fromString(userId);
+        } catch (IllegalArgumentException e) {
+            log.warn("Invalid UUID format: {}", userId);
+            return null;
+        }
+    }
+
     public Page<NotificationResponse> searchNotifications(NotificationSearchCondition condition, Pageable pageable) {
         Page<Notification> result;
 
@@ -99,19 +109,20 @@ public class NotificationService {
             .orElseThrow(() -> new ServiceException(ErrorCode.NOTI_NOTIFICATION_NOT_FOUND));
 
         // deletedBy가 null/blank/SYSTEM인 경우 조건문으로 처리하고, 그 외의 경우 try-catch를 통해 UUID 파싱 실패 시 시스템 ID로 대체
-        UUID adminUuid;
-        if (deletedBy == null || deletedBy.isBlank() || Constants.SYSTEM_USER_ID.equals(deletedBy)) {
-            adminUuid = Constants.SYSTEM_UUID;
-        } else {
-            try {
-                adminUuid = UUID.fromString(deletedBy);
-            } catch (IllegalArgumentException e) {
-                log.debug("deletedBy UUID 파싱 실패, 시스템 ID로 대체: {}", deletedBy);
-                adminUuid = Constants.SYSTEM_UUID;
-            }
-        }
-
+        UUID adminUuid = parseAdminId(deletedBy);
         notification.delete(adminUuid);
         notificationRepository.save(notification);
+    }
+
+    private UUID parseAdminId(String deletedBy) {
+        if (deletedBy == null || deletedBy.isBlank() || Constants.SYSTEM_USER_ID.equals(deletedBy)) {
+            return Constants.SYSTEM_UUID;
+        }
+        try {
+            return UUID.fromString(deletedBy);
+        } catch (IllegalArgumentException e) {
+            log.debug("deletedBy UUID 파싱 실패, 시스템 ID로 대체: {}", deletedBy);
+            return Constants.SYSTEM_UUID;
+        }
     }
 }
