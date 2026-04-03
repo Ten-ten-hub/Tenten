@@ -2,15 +2,29 @@ package com.team.userservice.user.users.application;
 
 import com.team.userservice.global.domain.error.UserErrorCode;
 import com.team.userservice.global.exception.UserException;
+import com.team.userservice.user.company.domain.CompanyRepository;
+import com.team.userservice.user.core.CompanyUser;
+import com.team.userservice.user.core.HubUser;
 import com.team.userservice.user.core.User;
+import com.team.userservice.user.core.enums.AffiliatedStatus;
+import com.team.userservice.user.core.enums.Affiliation;
 import com.team.userservice.user.core.enums.Role;
+import com.team.userservice.user.core.enums.SignupStatus;
+import com.team.userservice.user.core.vo.UserUpdateInfo;
+import com.team.userservice.user.hub.domain.HubRepository;
 import com.team.userservice.user.users.application.dto.LoginServiceDto;
 import com.team.userservice.user.users.application.dto.SignUpResultDto;
 import com.team.userservice.user.users.application.dto.SignUpServiceDto;
+import com.team.userservice.user.users.application.dto.UpdateUserServiceDto;
+import com.team.userservice.user.users.application.dto.UserDataDto;
 import com.team.userservice.user.users.domain.UserRepository;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +35,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final HubRepository hubRepository;
+    private final CompanyRepository companyRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -38,7 +54,6 @@ public class UserServiceImpl implements UserService {
                 .loginId(serviceDto.loginId())
                 .password(passwordEncoder.encode(serviceDto.password()))
                 .name(serviceDto.name())
-                .role(serviceDto.role())
                 .slackId(serviceDto.slackId())
                 .email(serviceDto.email())
                 .phoneNumber(serviceDto.phoneNumber())
@@ -54,8 +69,10 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public void register(UUID userId, Role giveRole) {
-        userRepository.register(userId, giveRole);
+    public void register(UUID userId) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
+        user.register();
     }
 
     @Override
@@ -65,5 +82,138 @@ public class UserServiceImpl implements UserService {
             throw new UserException(UserErrorCode.INVALID_CREDENTIALS);
         }
         return LoginServiceDto.from(user.getId(), user.getRole());
+    }
+
+    @Override
+    @Transactional
+    public void updateUserRole(UUID userId, Role role) {
+        userRepository.findById(userId)
+            .ifPresentOrElse(
+                user -> userRepository.updateUserRole(user, role),
+                () -> {
+                    throw new UserException(UserErrorCode.USER_NOT_FOUND);
+                }
+            );
+    }
+
+    @Override
+    @Transactional
+    public void userUpdate(UUID userId, UpdateUserServiceDto serviceDto) {
+        UserUpdateInfo info = serviceDto.toEntityDto();
+        userRepository.findById(userId)
+            .ifPresentOrElse(
+                user -> user.userUpdate(info),
+                () -> {
+                    throw new UserException(UserErrorCode.USER_NOT_FOUND);
+                }
+            );
+    }
+
+    @Override
+    @Transactional
+    public void updateUserAffiliation(UUID userId, Affiliation affiliation, UUID affiliationId) {
+        User user = userRepository.findById(userId).orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
+        Role role = user.getRole();
+        AffiliatedStatus affiliatedStatus = user.getAffiliatedStatus();
+
+        if(affiliatedStatus == AffiliatedStatus.NOT_APPLICABLE) {
+            throw new UserException(UserErrorCode.NOT_APPLICABLE);
+        }
+
+        if (affiliation == Affiliation.HUB) {
+            if(role == Role.COMPANY_MANAGER || role == Role.COM_DELIVERY_MANAGER) {
+                throw new UserException(UserErrorCode.ROLE_AFFILIATION_CONFLICT);
+            }
+
+            if(affiliatedStatus == AffiliatedStatus.HUB_AFFILIATED){
+                hubRepository.findByUser(user).updateHubId(affiliationId);
+            }else if(affiliatedStatus == AffiliatedStatus.UNAFFILIATED){
+                hubRepository.save(user, affiliationId);
+                user.updateUserAffiliation(AffiliatedStatus.HUB_AFFILIATED);
+            }
+
+        }
+
+        if (affiliation == Affiliation.COMPANY){
+            if(role == Role.HUB_ADMIN || role == Role.HUB_DELIVERY_MANAGER){
+                throw new UserException(UserErrorCode.ROLE_AFFILIATION_CONFLICT);
+            }
+
+            if(affiliatedStatus == AffiliatedStatus.COM_AFFILIATED){
+                companyRepository.findByUser(user).updateCompanyId(affiliationId);
+            }else if(affiliatedStatus == AffiliatedStatus.UNAFFILIATED){
+                companyRepository.save(user, affiliationId);
+                user.updateUserAffiliation(AffiliatedStatus.COM_AFFILIATED);
+            }
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public UserDataDto getUserInfo(UUID userId) {
+
+        User user = userRepository.findById(userId).orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
+        if (user.getAffiliatedStatus() == AffiliatedStatus.HUB_AFFILIATED) {
+            return UserDataDto.fromUserInfo(user, hubRepository.findByUser(user).getHubId());
+        } else if (user.getAffiliatedStatus() == AffiliatedStatus.COM_AFFILIATED) {
+            return UserDataDto.fromUserInfo(user, companyRepository.findByUser(user).getCompanyId());
+        } else if (user.getAffiliatedStatus() == AffiliatedStatus.UNAFFILIATED
+            || user.getAffiliatedStatus() == AffiliatedStatus.NOT_APPLICABLE) {
+            return UserDataDto.fromUserInfo(user);
+        } else{
+            throw new IllegalStateException("Unexpected affiliatedStatus: " + user.getAffiliatedStatus());
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<User> getAllUserInfo(Pageable pageable) {
+        return userRepository.findAll(pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<User> getAllUserInfo(List<Role> roles, AffiliatedStatus affiliatedStatus, Pageable pageable) {
+        return userRepository.findAll(roles, affiliatedStatus, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<User> getAllUserInfoInternal() {
+        return userRepository.findAll();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<User> getAllUserInfoInternal(List<Role> roles, AffiliatedStatus affiliatedStatus) {
+        return userRepository.findAll(roles, affiliatedStatus);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<User> getAllUserInfoBySignUpStatus(SignupStatus signupStatus, Pageable pageable) {
+        return userRepository.findAllBySignupStatus(signupStatus, pageable);
+    }
+
+    @Override
+    @Transactional
+    public void deleteUser(UUID targetId, UUID deletedBy) {
+        userRepository.findById(targetId).ifPresentOrElse(
+            user -> user.deleteUser(deletedBy),
+            () -> {
+                throw new UserException(UserErrorCode.USER_NOT_FOUND);
+            }
+        );
+    }
+
+    @Override
+    @Transactional
+    public void updateLastLoginAt(UUID userId) {
+        userRepository.findById(userId).ifPresentOrElse(
+            user -> user.updateLastLoginAt(LocalDateTime.now()),
+            () -> {
+                throw new UserException(UserErrorCode.USER_NOT_FOUND);
+            }
+        );
     }
 }
