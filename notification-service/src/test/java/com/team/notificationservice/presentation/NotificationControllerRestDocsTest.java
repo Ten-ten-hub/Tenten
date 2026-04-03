@@ -73,12 +73,16 @@ class NotificationControllerRestDocsTest {
         doNothing().when(notificationService).createAndSend(any(NotificationRequest.class), any());
 
         mockMvc.perform(post("/api/v1/notifications/slack")
+                .header("X-User-Id", "test-user-id") // 게이트웨이 주입 헤더 추가
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isOk())
             .andDo(document("notifications/create",
                 preprocessRequest(prettyPrint()),
                 preprocessResponse(prettyPrint()),
+                requestHeaders(
+                    headerWithName("X-User-Id").description("사용자 ID (Gateway 주입)")
+                ),
                 requestFields(
                     fieldWithPath("receiverSlackId").description("수신자 슬랙 ID (이메일과 둘 중 하나 필수)").optional(),
                     fieldWithPath("email").description("수신자 이메일 (슬랙 ID와 둘 중 하나 필수)").optional(),
@@ -104,6 +108,7 @@ class NotificationControllerRestDocsTest {
         NotificationRequest invalidRequest = new NotificationRequest(null, null, null, null, null);
 
         mockMvc.perform(post("/api/v1/notifications/slack")
+                .header("X-User-Id", "test-user-id")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(invalidRequest)))
             .andExpect(status().isBadRequest())
@@ -207,10 +212,15 @@ class NotificationControllerRestDocsTest {
         doNothing().when(notificationService).deleteNotification(any(), any());
 
         mockMvc.perform(delete("/api/v1/notifications/{id}", id)
-                .header("X-User-Id", validUserId))
+                .header("X-User-Id", validUserId)
+                .header("X-User-Role", "MASTER")) // 권한 헤더 추가
             .andExpect(status().isOk()) // ApiResponse.ok()를 쓰므로 200 OK
             .andDo(document("notifications/delete",
                 pathParameters(parameterWithName("id").description("삭제할 알림 ID")),
+                requestHeaders(
+                    headerWithName("X-User-Id").description("사용자 ID"),
+                    headerWithName("X-User-Role").description("사용자 권한")
+                ),
                 responseFields(
                     fieldWithPath("success").description("성공 여부"),
                     fieldWithPath("data").description("데이터 (null)").optional(),

@@ -7,6 +7,7 @@ import com.team.notificationservice.application.NotificationRequest;
 import com.team.notificationservice.application.NotificationSearchCondition;
 import com.team.notificationservice.application.NotificationService;
 import com.team.notificationservice.presentation.common.ErrorCode;
+import com.team.notificationservice.presentation.common.RequireRole;
 import com.team.notificationservice.presentation.common.ServiceException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -34,9 +35,9 @@ public class NotificationController {
     @Value("${internal.auth.token:}") // application.yml 미설정 시 빈 값 주입
     private String internalAuthToken;
 
-    // 외부용 API
+    // 외부용 API (게이트웨이 통과)
     @PostMapping("/api/v1/notifications/slack")
-    public ApiResponse<String> send(@RequestHeader(value = "X-User-Id", required = false) String userId, // 헤더 추가
+    public ApiResponse<String> send(@RequestHeader(value = "X-User-Id", required = false) String userId, // 게이트웨이 전달 헤더
                                     @RequestBody @Valid NotificationRequest request) {
         notificationService.createAndSend(request, userId);
         return ApiResponse.success("OK");
@@ -94,6 +95,7 @@ public class NotificationController {
     }
 
     @DeleteMapping("/api/v1/notifications/{id}")
+    @RequireRole({"MASTER_ADMIN"}) //TODO
     public ApiResponse<Void> delete(
         @PathVariable UUID id,
         @RequestHeader(value = "X-User-Id", required = false) String userId) {
