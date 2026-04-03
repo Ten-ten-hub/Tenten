@@ -2,15 +2,14 @@ package com.team.notificationservice.infrastructure.config;
 
 import com.team.common.Constants;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.Optional;
+import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
-
-import java.util.Optional;
-import java.util.UUID;
 
 @Slf4j
 @Configuration
