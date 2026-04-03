@@ -7,14 +7,10 @@ import lombok.Builder;
 @Builder
 public record DeliveryCreateCommand(
     UUID orderId,
-    UUID originHubId,
-    UUID destinationHubId,
+    UUID orderedBy,
+    UUID supplierCompanyId,
     UUID receiverCompanyId,
-    String deliveryAddress,
-    String deliveryAddressDetail,
-    String recipientName,
-    String recipientSlackId,
-    LocalDateTime finalDispatchDeadlineAt,
-    UUID createdBy
+    LocalDateTime deadlineAt,
+    String requestNote
 ) {
 }

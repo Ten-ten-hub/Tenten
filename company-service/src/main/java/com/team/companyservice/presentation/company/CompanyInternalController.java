@@ -2,14 +2,14 @@ package com.team.companyservice.presentation.company;
 
 import com.team.companyservice.application.company.CompanyResponse;
 import com.team.companyservice.application.company.CompanyService;
+import com.team.companyservice.presentation.company.dto.CompanyInternalResponse;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
@@ -19,16 +19,14 @@ public class CompanyInternalController {
     private final CompanyService companyService;
 
     @GetMapping("/{companyId}/exists")
-    public ResponseEntity<Void> checkCompanyExists(
-        @PathVariable UUID companyId
-    ) {
+    public ResponseEntity<Void> checkCompanyExists(@PathVariable UUID companyId) {
         companyService.get(companyId);
         return ResponseEntity.ok().build();
     }
 
-    // 내부 서비스에서 업체 단건 정보를 조회할 때 사용
     @GetMapping("/{companyId}")
-    public ResponseEntity<CompanyResponse> getCompany(@PathVariable UUID companyId) {
-        return ResponseEntity.ok(companyService.get(companyId));
+    public ResponseEntity<CompanyInternalResponse> getCompany(@PathVariable UUID companyId) {
+        CompanyResponse company = companyService.get(companyId);
+        return ResponseEntity.ok(CompanyInternalResponse.from(company));
     }
 }

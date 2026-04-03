@@ -12,9 +12,7 @@ import com.team.order_service.order.domain.OrderRepository;
 import com.team.order_service.order.domain.OrderStatus;
 import com.team.order_service.order.infrastructure.client.DeliveryClient;
 import com.team.order_service.order.infrastructure.client.ProductClient;
-import com.team.order_service.order.infrastructure.client.dto.ProductResponse;
-import com.team.order_service.order.infrastructure.client.dto.StockDeductRequest;
-import com.team.order_service.order.infrastructure.client.dto.StockRestoreRequest;
+import com.team.order_service.order.infrastructure.client.dto.*;
 import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -110,6 +108,27 @@ public class OrderServiceImpl implements OrderService {
 //        }
 //
 //        saved.assignDelivery(delivery.id());
+
+
+        // TODO: 배송 생성 (민지) request 수정 맞춤용 예시 -> 추후 삭제 요망
+        DeliveryResponse delivery;
+        try {
+            delivery = deliveryClient.createDelivery(
+                command.orderedBy(),
+                new DeliveryCreateRequest(
+                    saved.getId(),
+                    command.orderedBy(),
+                    command.supplierCompanyId(),
+                    command.receiverCompanyId(),
+                    command.deadlineAt(),
+                    command.requestNote()
+                )
+            );
+        } catch (Exception e) {
+            throw new BusinessException(OrderErrorCode.DELIVERY_CREATE_FAILED);
+        }
+
+        saved.assignDelivery(delivery.deliveryId());
 
         return OrderResult.from(saved);
     }
