@@ -1,9 +1,11 @@
 package com.team.notificationservice;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
@@ -14,6 +16,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.team.common.page.PageResponse;
+import com.team.notificationservice.application.NotificationCreatedEvent;
+import com.team.notificationservice.application.NotificationEventListener;
+import com.team.notificationservice.application.NotificationPersistenceService;
 import com.team.notificationservice.application.NotificationRequest;
 import com.team.notificationservice.application.NotificationSaver;
 import com.team.notificationservice.application.NotificationSearchCondition;
@@ -27,6 +32,7 @@ import com.team.notificationservice.presentation.NotificationResponse;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,6 +42,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
@@ -61,10 +68,16 @@ class NotificationServiceApplicationTests {
     @MockitoBean // Redis 템플릿 모킹
     private StringRedisTemplate redisTemplate;
 
+    @MockitoBean
+    private NotificationPersistenceService notificationPersistenceService;
+
     @Autowired
     private ApplicationEvents applicationEvents;
 
-    @org.junit.jupiter.api.BeforeEach
+    @Autowired
+    private NotificationEventListener notificationEventListener;
+
+    @BeforeEach
     void setupRedisMock() {
         org.springframework.data.redis.core.ValueOperations<String, String> valueOps = mock(
             org.springframework.data.redis.core.ValueOperations.class);
@@ -272,5 +285,60 @@ class NotificationServiceApplicationTests {
         verify(valueOps).get("slack:email:" + email);
         verify(slackClient, never()).findSlackIdByEmail(anyString()); // 호출되지 않아야 함
         verify(notificationSaver, times(1)).saveAndPublish(eq(request), eq(cachedId), any());
+    }
+
+    @Test
+    @DisplayName("Redis가 다운되어도 알림 생성이 중단되지 않는다 (Fail-open 검증)")
+    void createNotification_FailOpen_WhenRedisDown() {
+        // given
+        NotificationRequest request = new NotificationRequest(
+            "U123", null, UUID.randomUUID(), "메시지", MsgType.ORDER_ALERT
+        );
+
+        // Redis 호출 시 예외 발생 시뮬레이션
+        when(redisTemplate.opsForValue().get(anyString())).thenThrow(new RuntimeException("Redis Down"));
+
+        // when & then: 예외 없이 실행되어야 함
+        assertDoesNotThrow(() -> notificationService.createAndSend(request, null));
+    }
+
+    @Test
+    @DisplayName("이벤트 리스너가 새로운 지속성 서비스를 통해 저장을 수행하는지 검증")
+    void eventListener_CallsPersistenceService() {
+        // 1. 데이터 준비
+        UUID notificationId = UUID.randomUUID();
+        NotificationCreatedEvent event = new NotificationCreatedEvent(notificationId, "U123", "메시지");
+
+        // 2. 의존성 Mock 준비
+        SlackClient mockSlackClient = mock(SlackClient.class);
+        NotificationRepository mockNotiRepo = mock(NotificationRepository.class);
+        StringRedisTemplate mockRedisTemplate = mock(StringRedisTemplate.class);
+        NotificationPersistenceService mockPersistenceService = mock(NotificationPersistenceService.class);
+        ValueOperations<String, String> valueOps = mock(ValueOperations.class);
+
+        // 3. 리스너 수동 생성 및 Mock 주입 (Spring 컨텍스트 간섭 차단)
+        NotificationEventListener manualListener = new NotificationEventListener(
+            mockSlackClient, mockNotiRepo, mockRedisTemplate, mockPersistenceService
+        );
+
+        // 4. 동작 정의 (Stubbing)
+        when(mockRedisTemplate.opsForValue()).thenReturn(valueOps);
+        when(valueOps.setIfAbsent(anyString(), anyString(), anyLong(), any(java.util.concurrent.TimeUnit.class)))
+            .thenReturn(Boolean.TRUE);
+
+        Notification mockNoti = Notification.builder()
+            .sendStatus(com.team.notificationservice.domain.SendStatus.PENDING)
+            .build();
+        org.springframework.test.util.ReflectionTestUtils.setField(mockNoti, "id", notificationId);
+
+        when(mockNotiRepo.findById(notificationId)).thenReturn(Optional.of(mockNoti));
+        when(mockSlackClient.sendDirectMessage(anyString(), anyString()))
+            .thenReturn(com.team.notificationservice.infrastructure.SlackSendResult.SUCCESS);
+
+        // 5. 실행
+        manualListener.handleNotificationCreatedEvent(event);
+
+        // 6. 검증
+        verify(mockPersistenceService, times(1)).saveWithRetry(any(Notification.class));
     }
 }
