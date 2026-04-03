@@ -1,5 +1,7 @@
 package com.team.notificationservice.presentation;
 
+import com.team.common.page.PageResponse;
+import com.team.common.page.PageSizeUtils;
 import com.team.notificationservice.application.NotificationRequest;
 import com.team.notificationservice.application.NotificationSearchCondition;
 import com.team.notificationservice.application.NotificationService;
@@ -11,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -67,11 +70,19 @@ public class NotificationController {
     }
 
     @GetMapping("/api/v1/notifications")
-    public ApiResponse<Page<NotificationResponse>> getNotifications(
+    public ApiResponse<PageResponse<NotificationResponse>> getNotifications(
         @Valid NotificationSearchCondition condition,
         @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 
-        return ApiResponse.success(notificationService.searchNotifications(condition, pageable));
+        int normalizedSize = PageSizeUtils.normalize(pageable.getPageSize());
+        Pageable normalizedPageable = PageRequest.of(
+            pageable.getPageNumber(),
+            normalizedSize,
+            pageable.getSort()
+        );
+
+        Page<NotificationResponse> resultPage = notificationService.searchNotifications(condition, normalizedPageable);
+        return ApiResponse.success(PageResponse.from(resultPage));
     }
 
     @DeleteMapping("/api/v1/notifications/{id}")

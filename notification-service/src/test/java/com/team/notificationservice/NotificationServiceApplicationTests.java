@@ -1,6 +1,10 @@
 package com.team.notificationservice;
 
-import com.team.notificationservice.application.*;
+import com.team.common.page.PageResponse;
+import com.team.notificationservice.application.NotificationRequest;
+import com.team.notificationservice.application.NotificationSaver;
+import com.team.notificationservice.application.NotificationSearchCondition;
+import com.team.notificationservice.application.NotificationService;
 import com.team.notificationservice.domain.MsgType;
 import com.team.notificationservice.domain.Notification;
 import com.team.notificationservice.domain.NotificationRepository;
@@ -183,5 +187,20 @@ class NotificationServiceApplicationTests {
 
         // then: 0000... 시스템 ID 확인
         assertEquals(UUID.fromString("00000000-0000-0000-0000-000000000000"), mockNoti.getDeletedBy());
+    }
+
+    @Test
+    @DisplayName("common 규격 PageResponse 변환 검증")
+    void checkPageResponseMapping() {
+        // given
+        Notification mockNoti = Notification.builder().msgContent("테스트").receiverSlackId("U1").build();
+        Page<NotificationResponse> resultPage = new PageImpl<>(List.of(NotificationResponse.from(mockNoti)), PageRequest.of(0, 10), 1);
+
+        // when
+        PageResponse<NotificationResponse> response = PageResponse.from(resultPage);
+
+        // then
+        assertEquals(1, response.content().size());
+        assertEquals(1, response.pageInfo().currentPage());
     }
 }
