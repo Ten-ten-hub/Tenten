@@ -33,7 +33,7 @@ import com.team.deliveryservice.delivery.application.service.DeliveryService;
 import com.team.deliveryservice.delivery.application.dto.request.UpdateDeliveryRequest;
 import com.team.deliveryservice.delivery.domain.DeliveryRouteStatus;
 import com.team.deliveryservice.delivery.domain.DeliveryStatus;
-import com.team.deliveryservice.delivery.presentation.DeliveryController;
+import com.team.deliveryservice.delivery.presentation.ExternalDeliveryController;
 import com.team.deliveryservice.global.config.CurrentUserArgumentResolver;
 import com.team.deliveryservice.global.config.CurrentUserResolverConfig;
 import java.math.BigDecimal;
@@ -55,7 +55,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
-@WebMvcTest(DeliveryController.class)
+@WebMvcTest(ExternalDeliveryController.class)
 @AutoConfigureMockMvc(addFilters = false)
 @AutoConfigureRestDocs(outputDir = "build/generated-snippets")
 @AutoConfigureObservability
@@ -69,7 +69,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
     "spring.docker.compose.enabled=false",
     "management.tracing.enabled=false"
 })
-class DeliveryControllerRestDocsTest {
+class ExternalDeliveryControllerRestDocsTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -123,48 +123,6 @@ class DeliveryControllerRestDocsTest {
             .updatedAt(null)
             .routeLogs(List.of(mockRouteLogResponse()))
             .build();
-    }
-
-    @Test
-    @DisplayName("배송 생성 API 문서화")
-    void createDeliveryDocs() throws Exception {
-        CreateDeliveryRequest request = new CreateDeliveryRequest(
-            UUID.fromString("20000000-0000-0000-0000-000000000001"),
-            UUID.fromString("40000000-0000-0000-0000-000000000001"),
-            UUID.fromString("40000000-0000-0000-0000-000000000002"),
-            UUID.fromString("60000000-0000-0000-0000-000000000001"),
-            "서울시 강남구 테헤란로 123",
-            "101호",
-            "홍길동",
-            "U12345678",
-            LocalDateTime.of(2026, 4, 1, 18, 0)
-        );
-
-        when(deliveryService.createDelivery(any(), any())).thenReturn(mockDeliveryResponse());
-
-        mockMvc.perform(withCurrentUser(
-                post("/api/v1/deliveries")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(request))
-            ))
-            .andExpect(status().isCreated())
-            .andDo(document("deliveries/create",
-                preprocessRequest(prettyPrint()),
-                preprocessResponse(prettyPrint()),
-                requestFields(
-                    fieldWithPath("orderId").type(JsonFieldType.STRING).description("주문 ID"),
-                    fieldWithPath("originHubId").type(JsonFieldType.STRING).description("출발 허브 ID"),
-                    fieldWithPath("destinationHubId").type(JsonFieldType.STRING).description("도착 허브 ID"),
-                    fieldWithPath("receiverCompanyId").type(JsonFieldType.STRING).description("수령 업체 ID"),
-                    fieldWithPath("deliveryAddress").type(JsonFieldType.STRING).description("배송 주소"),
-                    fieldWithPath("deliveryAddressDetail").type(JsonFieldType.STRING).optional().description("배송 상세 주소"),
-                    fieldWithPath("recipientName").type(JsonFieldType.STRING).description("수령인 이름"),
-                    fieldWithPath("recipientSlackId").type(JsonFieldType.STRING).description("수령인 슬랙 ID"),
-                    fieldWithPath("companyDeliveryManagerId").type(JsonFieldType.STRING).optional().description("업체 배송 담당자 ID"),
-                    fieldWithPath("finalDispatchDeadlineAt").type(JsonFieldType.STRING).optional().description("최종 출고 마감 시각")
-                ),
-                commonDeliveryResponseFields()
-            ));
     }
 
     @Test
@@ -310,54 +268,6 @@ class DeliveryControllerRestDocsTest {
     }
 
     @Test
-    @DisplayName("배송 상태 변경 API 문서화")
-    void changeStatusDocs() throws Exception {
-        UUID deliveryId = UUID.fromString("10000000-0000-0000-0000-000000000001");
-        ChangeDeliveryStatusRequest request = new ChangeDeliveryStatusRequest(DeliveryStatus.MOVING_BETWEEN_HUBS);
-
-        when(deliveryService.changeDeliveryStatus(eq(deliveryId), any(), any())).thenReturn(mockDeliveryResponse());
-
-        mockMvc.perform(withCurrentUser(
-                patch("/api/v1/deliveries/{deliveryId}/status", deliveryId)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(request))
-            ))
-            .andExpect(status().isOk())
-            .andDo(document("deliveries/change-status",
-                preprocessRequest(prettyPrint()),
-                preprocessResponse(prettyPrint()),
-                pathParameters(
-                    parameterWithName("deliveryId").description("배송 ID")
-                ),
-                requestFields(
-                    fieldWithPath("deliveryStatus").type(JsonFieldType.STRING).description("변경할 배송 상태")
-                ),
-                commonDeliveryResponseFields()
-            ));
-    }
-
-    @Test
-    @DisplayName("배송 취소 API 문서화")
-    void cancelDeliveryDocs() throws Exception {
-        UUID deliveryId = UUID.fromString("10000000-0000-0000-0000-000000000001");
-
-        when(deliveryService.cancelDelivery(eq(deliveryId), any())).thenReturn(mockDeliveryResponse());
-
-        mockMvc.perform(withCurrentUser(
-                patch("/api/v1/deliveries/{deliveryId}/cancel", deliveryId)
-            ))
-            .andExpect(status().isOk())
-            .andDo(document("deliveries/cancel",
-                preprocessRequest(prettyPrint()),
-                preprocessResponse(prettyPrint()),
-                pathParameters(
-                    parameterWithName("deliveryId").description("배송 ID")
-                ),
-                commonDeliveryResponseFields()
-            ));
-    }
-
-    @Test
     @DisplayName("업체 배송 담당자 배정 API 문서화")
     void assignCompanyManagerDocs() throws Exception {
         UUID deliveryId = UUID.fromString("10000000-0000-0000-0000-000000000001");
@@ -419,31 +329,6 @@ class DeliveryControllerRestDocsTest {
             ));
     }
 
-    @Test
-    @DisplayName("배송 삭제 API 문서화")
-    void deleteDeliveryDocs() throws Exception {
-        UUID deliveryId = UUID.fromString("10000000-0000-0000-0000-000000000001");
-
-        doNothing().when(deliveryService).deleteDelivery(eq(deliveryId), any());
-
-        mockMvc.perform(withCurrentUser(
-                delete("/api/v1/deliveries/{deliveryId}", deliveryId)
-            ))
-            .andExpect(status().isOk())
-            .andDo(document("deliveries/delete",
-                preprocessRequest(prettyPrint()),
-                preprocessResponse(prettyPrint()),
-                pathParameters(
-                    parameterWithName("deliveryId").description("배송 ID")
-                ),
-                responseFields(
-                    fieldWithPath("success").type(JsonFieldType.BOOLEAN).description("요청 성공 여부"),
-                    fieldWithPath("data").type(JsonFieldType.NULL).description("응답 데이터"),
-                    fieldWithPath("code").type(JsonFieldType.STRING).description("응답 코드"),
-                    fieldWithPath("message").type(JsonFieldType.STRING).description("응답 메시지")
-                )
-            ));
-    }
 
     private org.springframework.restdocs.payload.ResponseFieldsSnippet commonDeliveryResponseFields() {
         return responseFields(

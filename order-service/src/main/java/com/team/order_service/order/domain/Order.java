@@ -77,9 +77,19 @@ public class Order extends BaseEntity {
             .build();
     }
 
+    @Override
+    public void softDelete(UUID deletedBy) {
+        super.softDelete(deletedBy);
+        this.orderStatus = OrderStatus.DELETED;
+    }
+
     public void addOrderItem(OrderItem orderItem) {
         this.orderItems.add(orderItem);
         recalculateTotalPrice();
+    }
+
+    public void assignDelivery(UUID deliveryId) {
+        this.deliveryId = deliveryId;
     }
 
     public void cancel(UUID cancelledBy) {
@@ -94,7 +104,10 @@ public class Order extends BaseEntity {
     }
 
     public void updateStatus(OrderStatus status) {
-        if (this.orderStatus == OrderStatus.CANCELLED || this.orderStatus == OrderStatus.COMPLETED) {
+        if (this.orderStatus == OrderStatus.CANCELLED
+            || this.orderStatus == OrderStatus.COMPLETED
+            || this.orderStatus == OrderStatus.DELETED
+        ) {
             throw new BusinessException(OrderErrorCode.ORDER_STATUS_NOT_UPDATABLE);
         }
         this.orderStatus = status;

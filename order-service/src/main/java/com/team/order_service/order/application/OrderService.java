@@ -23,4 +23,6 @@ public interface OrderService {
     void updateOrderStatus(UUID orderId, OrderStatus status);
 
     void cancelOrder(UUID orderId, UUID cancelledBy);
+
+    void deleteOrder(UUID orderId, UUID deletedBy);
 }
