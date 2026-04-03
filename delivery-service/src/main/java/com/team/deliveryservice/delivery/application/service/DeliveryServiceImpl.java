@@ -24,7 +24,9 @@ import com.team.deliveryservice.infrastructure.client.CompanyClient;
 import com.team.deliveryservice.infrastructure.client.HubClient;
 import com.team.deliveryservice.infrastructure.client.OrderClient;
 import com.team.deliveryservice.infrastructure.client.dto.CompanyInternalResponse;
+import com.team.deliveryservice.infrastructure.client.dto.HubExistsResponse;
 import com.team.deliveryservice.infrastructure.client.dto.OrderInternalResponse;
+import com.team.deliveryservice.infrastructure.client.dto.OptimalRouteResponseWrapper;
 import feign.FeignException;
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
@@ -293,8 +295,10 @@ public class DeliveryServiceImpl implements DeliveryService {
     // 허브 서비스에 내부 요청 헤더를 넣어 존재 여부 확인
     private void validateHubExists(UUID hubId) {
         try {
-            boolean exists = hubClient.existsHub(hubId, INTERNAL_REQUEST_HEADER).exists();
-            if (!exists) {
+            HubExistsResponse response = hubClient.existsHub(hubId, INTERNAL_REQUEST_HEADER);
+
+            // 응답 자체가 null 이거나 exists=false 이면 허브가 없는 것으로 처리
+            if (response == null || !response.exists()) {
                 throw new ServiceException(DeliveryErrorCode.HUB_NOT_FOUND);
             }
         } catch (FeignException.NotFound e) {
@@ -351,7 +355,7 @@ public class DeliveryServiceImpl implements DeliveryService {
     // 허브 최적 경로를 조회해 배송 경로 로그를 생성
     private void createRouteLogs(Delivery delivery) {
         try {
-            var routeResponse = hubClient.getOptimalRoute(
+            OptimalRouteResponseWrapper routeResponse = hubClient.getOptimalRoute(
                 delivery.getOriginHubId(),
                 delivery.getDestinationHubId(),
                 INTERNAL_REQUEST_HEADER
@@ -365,15 +369,22 @@ public class DeliveryServiceImpl implements DeliveryService {
             }
 
             List<DeliveryRouteLog> routeLogs = routeResponse.data().routePathList().stream()
-                .map(path -> DeliveryRouteLog.create(
-                    delivery.getId(),
-                    path.sequence(),
-                    path.departureHubId(),
-                    path.arrivalHubId(),
-                    BigDecimal.valueOf(path.distance()),
-                    path.duration(),
-                    null
-                ))
+                .map(path -> {
+                    // hub-service 응답값이 비정상(null)인 경우 방어 처리
+                    if (path.distance() == null || path.duration() == null) {
+                        throw new ServiceException(DeliveryErrorCode.HUB_SERVICE_UNAVAILABLE);
+                    }
+
+                    return DeliveryRouteLog.create(
+                        delivery.getId(),
+                        path.sequence(),
+                        path.departureHubId(),
+                        path.arrivalHubId(),
+                        BigDecimal.valueOf(path.distance()),
+                        path.duration(),
+                        null
+                    );
+                })
                 .toList();
 
             deliveryRouteLogRepository.saveAll(routeLogs);

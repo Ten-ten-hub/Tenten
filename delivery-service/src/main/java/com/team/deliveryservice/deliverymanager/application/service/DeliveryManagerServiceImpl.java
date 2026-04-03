@@ -14,7 +14,6 @@ import com.team.deliveryservice.global.error.DeliveryErrorCode;
 import com.team.deliveryservice.global.error.ServiceException;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
