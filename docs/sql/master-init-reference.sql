@@ -121,7 +121,7 @@ CREATE INDEX idx_p_company_user_deleted_at ON p_company_user (deleted_at);
 -- =========================================================
 CREATE TABLE p_hub (
                        id UUID PRIMARY KEY,
-                       hub_name VARCHAR(50) NOT NULL UNIQUE,
+                       name VARCHAR(50) NOT NULL UNIQUE,
                        address VARCHAR(200) NOT NULL,
                        latitude DOUBLE PRECISION NOT NULL,
                        longitude DOUBLE PRECISION NOT NULL,
