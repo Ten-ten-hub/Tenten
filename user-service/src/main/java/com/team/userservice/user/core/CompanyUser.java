@@ -7,6 +7,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
+import java.time.LocalDateTime;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -28,6 +29,12 @@ public class CompanyUser extends BaseEntity {
 
     @Column(name = "company_id", nullable = false) //논리 FK // 유니크일 필요 없음
     private UUID companyId;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt; // 레코드 삭제 시간
+
+    @Column(name = "deleted_by", length = 100)
+    private UUID deletedBy; // 레코드 삭제자
 
     private CompanyUser(User user, UUID companyId) {
         this.user = user;
