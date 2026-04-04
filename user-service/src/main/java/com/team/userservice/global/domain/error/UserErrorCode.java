@@ -6,7 +6,7 @@ import org.springframework.http.HttpStatus;
 
 @RequiredArgsConstructor
 @Getter
-public enum UserErrorCode implements ErrorCode {
+public enum UserErrorCode implements com.team.common.exception.ErrorCode {
 
     FORBIDDEN(HttpStatus.FORBIDDEN, "USER_403", "접근 권한이 없습니다."),
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER_404", "존재하지 않는 유저입니다."),
