@@ -52,19 +52,18 @@ public class AuthServiceImpl implements AuthService {
         }catch (Exception e){
             throw new AuthException(AuthErrorCode.INVALID_TOKEN);
         }
-        String newAccessToken = null;
-        String newRefreshToken = null;
+        String newAccessToken = jwtProvider.generateAccessToken(userId, role);
+        String newRefreshToken = jwtProvider.generateRefreshToken(userId);
 
-        //rt 에서 userId 추출하여 레디스에서 찾기
-        String redisRt = redisTokenRepository.findByUserId(userId);
-        if(refreshToken.equals(redisRt)){
-            newAccessToken = jwtProvider.generateAccessToken(userId, role);
-            newRefreshToken = jwtProvider.generateRefreshToken(userId);
-            redisTokenRepository.save(userId, newRefreshToken); // 새 RT Redis에 저장
-        }else{
+        // compareAndReplace: 원자적으로 "기존 RT == Redis RT"이면 새 RT로 교체
+        if (!redisTokenRepository.compareAndReplace(userId, refreshToken, newRefreshToken)) {
             throw new AuthException(AuthErrorCode.INVALID_TOKEN);
+            // -> 이미 다른 요청이 RT를 교체했거나, RT가 일치하지 않는 경우
         }
+
         return new TokenDto(newAccessToken, newRefreshToken); // 새 토큰 반환
 
     }
+
+
 }
