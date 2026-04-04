@@ -3,10 +3,9 @@ package com.team.order_service.order.infrastructure.client;
 import com.team.order_service.order.infrastructure.client.dto.DeliveryCreateRequest;
 import com.team.order_service.order.infrastructure.client.dto.DeliveryResponse;
 import com.team.order_service.order.infrastructure.client.dto.DeliveryStatusRequest;
+import java.util.UUID;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.UUID;
 
 @FeignClient(name = "delivery-service")
 public interface DeliveryClient {

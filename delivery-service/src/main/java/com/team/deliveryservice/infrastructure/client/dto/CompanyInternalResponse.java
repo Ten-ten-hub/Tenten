@@ -7,6 +7,10 @@ public record CompanyInternalResponse(
     String name,
     String companyType,
     UUID hubId,
+    String address,
+    String addressDetail,
+    String contactName,
+    String contactSlackId,
     boolean isActive
 ) {
 }

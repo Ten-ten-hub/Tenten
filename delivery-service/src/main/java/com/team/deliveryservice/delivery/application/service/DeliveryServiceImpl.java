@@ -63,34 +63,49 @@ public class DeliveryServiceImpl implements DeliveryService {
             throw new ServiceException(DeliveryErrorCode.DELIVERY_ALREADY_EXISTS);
         }
 
-        // 배송 생성 전에 외부 서비스 기준 유효성 검증
-        validateHubExists(request.originHubId());
-        validateHubExists(request.destinationHubId());
-        validateReceiverCompanyExists(request.receiverCompanyId());
-        validateOrderExistsAndStatus(request.orderId(), request.receiverCompanyId());
+        // 주문 존재 여부 / 주문 상태 / 공급업체 / 수령업체 일치 여부 검증
+        validateOrderExistsAndStatus(
+            request.orderId(),
+            request.supplierCompanyId(),
+            request.receiverCompanyId()
+        );
 
-        // 검증 완료 후 배송 엔티티 생성
+        // 공급 업체 / 수령 업체 조회
+        CompanyInternalResponse supplierCompany = getActiveCompany(request.supplierCompanyId());
+        CompanyInternalResponse receiverCompany = getActiveCompany(request.receiverCompanyId());
+
+        // 배송 생성에 필요한 업체 정보 검증
+        validateCompanyDeliveryInfo(supplierCompany, receiverCompany);
+
+        // 업체 소속 허브 조회
+        UUID originHubId = supplierCompany.hubId();
+        UUID destinationHubId = receiverCompany.hubId();
+
+        // 허브 존재 여부 검증
+        validateHubExists(originHubId);
+        validateHubExists(destinationHubId);
+
+        // 수령 업체 정보 기준으로 배송 생성
         Delivery delivery = Delivery.create(
             request.orderId(),
-            request.originHubId(),
-            request.destinationHubId(),
+            originHubId,
+            destinationHubId,
             request.receiverCompanyId(),
-            request.deliveryAddress(),
-            request.deliveryAddressDetail(),
-            request.recipientName(),
-            request.recipientSlackId(),
-            request.finalDispatchDeadlineAt()
+            receiverCompany.address(),
+            receiverCompany.addressDetail(),
+            receiverCompany.contactName(),
+            receiverCompany.contactSlackId(),
+            request.deadlineAt()
         );
 
         try {
             Delivery savedDelivery = deliveryRepository.save(delivery);
 
-            // 배송 생성 직후 허브 최적 경로를 조회해 route log를 함께 생성
+            // 허브 최적 경로 조회 후 route log 생성
             createRouteLogs(savedDelivery);
 
             return DeliveryResponse.from(savedDelivery, getRouteLogs(savedDelivery.getId()));
         } catch (DataIntegrityViolationException e) {
-            // 동시 요청으로 orderId unique 제약이 깨진 경우 중복 생성으로 처리
             if (isOrderIdUniqueViolation(e)) {
                 throw new ServiceException(DeliveryErrorCode.DELIVERY_ALREADY_EXISTS);
             }
@@ -297,7 +312,6 @@ public class DeliveryServiceImpl implements DeliveryService {
         try {
             HubExistsResponse response = hubClient.existsHub(hubId, INTERNAL_REQUEST_HEADER);
 
-            // 응답 자체가 null 이거나 exists=false 이면 허브가 없는 것으로 처리
             if (response == null || !response.exists()) {
                 throw new ServiceException(DeliveryErrorCode.HUB_NOT_FOUND);
             }
@@ -309,12 +323,15 @@ public class DeliveryServiceImpl implements DeliveryService {
     }
 
     // 업체가 존재하고 활성 상태인지 확인
-    private void validateReceiverCompanyExists(UUID companyId) {
+    private CompanyInternalResponse getActiveCompany(UUID companyId) {
         try {
             CompanyInternalResponse company = companyClient.getCompany(companyId);
+
             if (company == null || company.id() == null || !company.isActive()) {
                 throw new ServiceException(DeliveryErrorCode.COMPANY_NOT_FOUND);
             }
+
+            return company;
         } catch (FeignException.NotFound e) {
             throw new ServiceException(DeliveryErrorCode.COMPANY_NOT_FOUND);
         } catch (FeignException e) {
@@ -322,8 +339,34 @@ public class DeliveryServiceImpl implements DeliveryService {
         }
     }
 
-    // 주문 존재 여부, 배송 생성 가능 상태, 수령 업체 일치 여부 검증
-    private void validateOrderExistsAndStatus(UUID orderId, UUID receiverCompanyId) {
+    // 배송 생성에 필요한 업체 정보 검증
+    private void validateCompanyDeliveryInfo(
+        CompanyInternalResponse supplierCompany,
+        CompanyInternalResponse receiverCompany
+    ) {
+        if (supplierCompany.hubId() == null || receiverCompany.hubId() == null) {
+            throw new ServiceException(DeliveryErrorCode.COMMON_INVALID_INPUT);
+        }
+
+        if (receiverCompany.address() == null || receiverCompany.address().isBlank()) {
+            throw new ServiceException(DeliveryErrorCode.COMMON_INVALID_INPUT);
+        }
+
+        if (receiverCompany.contactName() == null || receiverCompany.contactName().isBlank()) {
+            throw new ServiceException(DeliveryErrorCode.COMMON_INVALID_INPUT);
+        }
+
+        if (receiverCompany.contactSlackId() == null || receiverCompany.contactSlackId().isBlank()) {
+            throw new ServiceException(DeliveryErrorCode.COMMON_INVALID_INPUT);
+        }
+    }
+
+    // 주문 존재 여부, 배송 생성 가능 상태, 공급 업체 / 수령 업체 일치 여부 검증
+    private void validateOrderExistsAndStatus(
+        UUID orderId,
+        UUID supplierCompanyId,
+        UUID receiverCompanyId
+    ) {
         try {
             OrderInternalResponse order = orderClient.getOrder(orderId);
 
@@ -331,17 +374,18 @@ public class DeliveryServiceImpl implements DeliveryService {
                 throw new ServiceException(DeliveryErrorCode.ORDER_NOT_FOUND);
             }
 
-            // 이미 deliveryId가 연결된 주문이면 배송 중복 생성 불가
             if (order.deliveryId() != null) {
                 throw new ServiceException(DeliveryErrorCode.DELIVERY_ALREADY_EXISTS);
             }
 
-            // 요청의 수령 업체와 주문의 수령 업체가 다르면 잘못된 요청
+            if (!supplierCompanyId.equals(order.supplierCompanyId())) {
+                throw new ServiceException(DeliveryErrorCode.COMMON_INVALID_INPUT);
+            }
+
             if (!receiverCompanyId.equals(order.receiverCompanyId())) {
                 throw new ServiceException(DeliveryErrorCode.COMMON_INVALID_INPUT);
             }
 
-            // 배송 생성은 READY_FOR_DELIVERY 상태에서만 허용
             if (!"READY_FOR_DELIVERY".equals(order.orderStatus())) {
                 throw new ServiceException(DeliveryErrorCode.DELIVERY_CREATE_NOT_ALLOWED);
             }
@@ -370,8 +414,11 @@ public class DeliveryServiceImpl implements DeliveryService {
 
             List<DeliveryRouteLog> routeLogs = routeResponse.data().routePathList().stream()
                 .map(path -> {
-                    // hub-service 응답값이 비정상(null)인 경우 방어 처리
-                    if (path.distance() == null || path.duration() == null) {
+                    if (path.sequence() == null
+                        || path.departureHubId() == null
+                        || path.arrivalHubId() == null
+                        || path.distance() == null
+                        || path.duration() == null) {
                         throw new ServiceException(DeliveryErrorCode.HUB_SERVICE_UNAVAILABLE);
                     }
 

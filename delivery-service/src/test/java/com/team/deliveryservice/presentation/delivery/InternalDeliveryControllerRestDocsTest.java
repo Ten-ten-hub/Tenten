@@ -41,6 +41,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.restdocs.payload.JsonFieldType;
+import org.springframework.restdocs.payload.ResponseFieldsSnippet;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -107,15 +108,12 @@ class InternalDeliveryControllerRestDocsTest {
     @DisplayName("내부 배송 생성 API 문서화")
     void createDeliveryDocs() throws Exception {
         CreateDeliveryRequest request = new CreateDeliveryRequest(
-            UUID.fromString("20000000-0000-0000-0000-000000000001"),
-            UUID.fromString("40000000-0000-0000-0000-000000000001"),
-            UUID.fromString("40000000-0000-0000-0000-000000000002"),
-            UUID.fromString("60000000-0000-0000-0000-000000000001"),
-            "서울시 강남구 테헤란로 123",
-            "101호",
-            "홍길동",
-            "U12345678",
-            LocalDateTime.of(2026, 4, 1, 18, 0)
+            UUID.randomUUID(), // orderId
+            UUID.randomUUID(), // orderedBy
+            UUID.randomUUID(), // supplierCompanyId
+            UUID.randomUUID(), // receiverCompanyId
+            LocalDateTime.of(2026, 4, 1, 18, 0), // deadlineAt
+            "문 앞에 놓아주세요" // requestNote
         );
 
         when(deliveryService.createDelivery(any())).thenReturn(mockDeliveryResponse());
@@ -131,14 +129,11 @@ class InternalDeliveryControllerRestDocsTest {
                 preprocessResponse(prettyPrint()),
                 requestFields(
                     fieldWithPath("orderId").type(JsonFieldType.STRING).description("주문 ID"),
-                    fieldWithPath("originHubId").type(JsonFieldType.STRING).description("출발 허브 ID"),
-                    fieldWithPath("destinationHubId").type(JsonFieldType.STRING).description("도착 허브 ID"),
+                    fieldWithPath("orderedBy").type(JsonFieldType.STRING).description("주문자 ID"),
+                    fieldWithPath("supplierCompanyId").type(JsonFieldType.STRING).description("공급 업체 ID"),
                     fieldWithPath("receiverCompanyId").type(JsonFieldType.STRING).description("수령 업체 ID"),
-                    fieldWithPath("deliveryAddress").type(JsonFieldType.STRING).description("배송 주소"),
-                    fieldWithPath("deliveryAddressDetail").type(JsonFieldType.STRING).optional().description("배송 상세 주소"),
-                    fieldWithPath("recipientName").type(JsonFieldType.STRING).description("수령인 이름"),
-                    fieldWithPath("recipientSlackId").type(JsonFieldType.STRING).description("수령인 슬랙 ID"),
-                    fieldWithPath("finalDispatchDeadlineAt").type(JsonFieldType.STRING).optional().description("최종 출고 마감 시각")
+                    fieldWithPath("deadlineAt").type(JsonFieldType.STRING).description("납기 일시"),
+                    fieldWithPath("requestNote").type(JsonFieldType.STRING).optional().description("요청사항")
                 ),
                 commonDeliveryResponseFields()
             ));
@@ -233,7 +228,7 @@ class InternalDeliveryControllerRestDocsTest {
             ));
     }
 
-    private org.springframework.restdocs.payload.ResponseFieldsSnippet commonDeliveryResponseFields() {
+    private ResponseFieldsSnippet commonDeliveryResponseFields() {
         return responseFields(
             fieldWithPath("success").type(JsonFieldType.BOOLEAN).description("요청 성공 여부"),
             fieldWithPath("data").type(JsonFieldType.OBJECT).description("응답 데이터"),
