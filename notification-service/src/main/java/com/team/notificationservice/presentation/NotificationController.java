@@ -3,6 +3,7 @@ package com.team.notificationservice.presentation;
 import com.team.common.ApiResponse;
 import com.team.common.page.PageResponse;
 import com.team.common.page.PageSizeUtils;
+import com.team.notificationservice.application.AiNotificationRequest;
 import com.team.notificationservice.application.NotificationRequest;
 import com.team.notificationservice.application.NotificationSearchCondition;
 import com.team.notificationservice.application.NotificationService;
@@ -27,6 +28,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Slf4j
@@ -46,6 +48,18 @@ public class NotificationController {
                                     @RequestBody @Valid NotificationRequest request) {
         notificationService.createAndSend(request, userId);
         return ApiResponse.success("OK");
+    }
+
+    /**
+     * 배송 서비스가 호출할 AI 연동 알림 API
+     */
+    @PostMapping("/api/v1/notifications/ai-slack")
+    public ApiResponse<String> sendWithAi(
+        @RequestBody @Valid AiNotificationRequest aiRequest,
+        @RequestParam(defaultValue = "DEADLINE") String analysisType) {
+
+        notificationService.createWithAiAnalysis(aiRequest, analysisType);
+        return ApiResponse.success("AI 분석 알림 생성 요청 완료");
     }
 
     // 내부 시스템 호출용 (게이트웨이 설정 없이 서비스명:8085/internal/v1/... 으로 직접 호출)

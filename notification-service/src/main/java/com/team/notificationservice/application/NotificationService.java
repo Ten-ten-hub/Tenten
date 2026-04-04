@@ -1,8 +1,10 @@
 package com.team.notificationservice.application;
 
 import com.team.common.Constants;
+import com.team.notificationservice.domain.MsgType;
 import com.team.notificationservice.domain.Notification;
 import com.team.notificationservice.domain.NotificationRepository;
+import com.team.notificationservice.infrastructure.AiClient;
 import com.team.notificationservice.infrastructure.SlackClient;
 import com.team.notificationservice.presentation.NotificationResponse;
 import com.team.notificationservice.presentation.common.ErrorCode;
@@ -27,6 +29,7 @@ public class NotificationService {
     private final SlackClient slackClient;// Listener로 옮길 예정이지만, ID 조회 로직 때문에 유지
     private final NotificationSaver notificationSaver;
     private final StringRedisTemplate redisTemplate; // Redis 추가
+    private final AiClient aiClient;
 
     /**
      * 알림 생성 및 전송 엔트리 포인트 네트워크 호출(Slack API)을 포함하므로 @Transactional을 붙이지 않음!
@@ -54,6 +57,57 @@ public class NotificationService {
 
         // 3. 별도 트랜잭션 컴포넌트(Saver)를 통해 저장 및 이벤트 발행
         notificationSaver.saveAndPublish(dto, targetSlackId, receiverUuid);
+    }
+
+    /**
+     * AI 연동을 통해 허브 담당자에게 상세 알림을 생성하는 로직
+     */
+    public void createWithAiAnalysis(AiNotificationRequest aiRequest, String analysisType) {
+        // 1. AI 서비스 호출 (상세 데이터 전달)
+        AiClient.AiAnalysisResponse aiResponse;
+        try {
+            aiResponse = aiClient.getAnalysis(analysisType, aiRequest);
+        } catch (Exception e) {
+            log.error("AI 분석 호출 실패: orderId={}", aiRequest.orderId(), e);
+            throw new ServiceException(ErrorCode.NOTI_SLACK_API_ERROR);
+        }
+
+        // 2. 슬랙 메시지 예시 포맷에 맞게 본문 조립
+        String formattedMessage = String.format(
+            "주문 번호 : %s\n" +
+                "상품 정보 : %s\n" +
+                "요청 사항 : %s\n" +
+                "발송지 : %s\n" +
+                "경유지 : %s\n" +
+                "도착지 : %s\n" +
+                "배송담당자 : %s\n" +
+                "위 내용을 기반으로 도출된 %s",
+            aiRequest.orderId(),
+            aiRequest.productName(),
+            aiRequest.orderRequestDetails(),
+            aiRequest.originAddress(),
+            String.join(", ", aiRequest.waypoints()),
+            aiRequest.destinationAddress(),
+            aiRequest.deliveryManagerName(),
+            aiResponse.aiResult() // AI가 도출한 "최종 발송 시한은..." 문구
+        );
+
+        // 3. NotificationRequest 생성
+        NotificationRequest request = new NotificationRequest(
+            aiRequest.receiverSlackId(),
+            null,
+            aiRequest.orderId(),
+            formattedMessage,
+            MsgType.ORDER_ALERT
+        );
+
+        // 4. 저장 및 발송 이벤트 발행
+        notificationSaver.saveWithAiRef(
+            request,
+            aiRequest.receiverSlackId(),
+            parseUserId(aiRequest.receiverId()),
+            aiResponse.aiAnalysisId()
+        );
     }
 
     /**
