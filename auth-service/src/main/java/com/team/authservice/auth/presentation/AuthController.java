@@ -54,7 +54,12 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
         }
 
-        UUID userId = UUID.fromString(userIdHeader);
+        UUID userId;
+        try{
+            userId = UUID.fromString(userIdHeader);
+        }catch (IllegalArgumentException e){
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
+        }
         authService.logout(userId);
 
         ResponseCookie expiredCookie = ResponseCookie.from("refreshToken", "")

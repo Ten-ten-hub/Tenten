@@ -45,7 +45,13 @@ public class AuthServiceImpl implements AuthService {
         }catch (Exception e){
             throw new AuthException(AuthErrorCode.INVALID_TOKEN);
         }
-        Role role = userInternalClient.getUserRole(userId).role();
+
+        Role role;
+        try{
+            role = userInternalClient.getUserRole(userId).role();
+        }catch (Exception e){
+            throw new AuthException(AuthErrorCode.INVALID_TOKEN);
+        }
         String newAccessToken = null;
         String newRefreshToken = null;
 
