@@ -1,4 +1,4 @@
-package com.team.userservice.user.company.domain;
+package com.team.userservice.user.companies.domain;
 
 import com.team.userservice.user.core.CompanyUser;
 import com.team.userservice.user.core.User;

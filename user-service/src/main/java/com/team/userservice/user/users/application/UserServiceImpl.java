@@ -2,16 +2,14 @@ package com.team.userservice.user.users.application;
 
 import com.team.userservice.global.domain.error.UserErrorCode;
 import com.team.userservice.global.exception.UserException;
-import com.team.userservice.user.company.domain.CompanyRepository;
-import com.team.userservice.user.core.CompanyUser;
-import com.team.userservice.user.core.HubUser;
+import com.team.userservice.user.companies.domain.CompanyRepository;
 import com.team.userservice.user.core.User;
 import com.team.userservice.user.core.enums.AffiliatedStatus;
 import com.team.userservice.user.core.enums.Affiliation;
 import com.team.userservice.user.core.enums.Role;
 import com.team.userservice.user.core.enums.SignupStatus;
 import com.team.userservice.user.core.vo.UserUpdateInfo;
-import com.team.userservice.user.hub.domain.HubRepository;
+import com.team.userservice.user.hubs.domain.HubRepository;
 import com.team.userservice.user.users.application.dto.LoginServiceDto;
 import com.team.userservice.user.users.application.dto.SignUpResultDto;
 import com.team.userservice.user.users.application.dto.SignUpServiceDto;
@@ -199,7 +197,7 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public void deleteUser(UUID targetId, UUID deletedBy) {
         userRepository.findById(targetId).ifPresentOrElse(
-            user -> user.deleteUser(deletedBy),
+            user -> user.softDelete(deletedBy),
             () -> {
                 throw new UserException(UserErrorCode.USER_NOT_FOUND);
             }

@@ -1,10 +1,10 @@
-package com.team.userservice.user.hub.infrastructure;
+package com.team.userservice.user.hubs.infrastructure;
 
 import com.team.userservice.global.domain.error.UserErrorCode;
 import com.team.userservice.global.exception.UserException;
 import com.team.userservice.user.core.HubUser;
 import com.team.userservice.user.core.User;
-import com.team.userservice.user.hub.domain.HubRepository;
+import com.team.userservice.user.hubs.domain.HubRepository;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;

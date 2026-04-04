@@ -2,7 +2,7 @@ package com.team.userservice.user.users.infrastructure;
 
 import com.team.userservice.global.domain.error.UserErrorCode;
 import com.team.userservice.global.exception.UserException;
-import com.team.userservice.user.company.domain.CompanyRepository;
+import com.team.userservice.user.companies.domain.CompanyRepository;
 import com.team.userservice.user.core.CompanyUser;
 import com.team.userservice.user.core.HubUser;
 import com.team.userservice.user.core.User;
@@ -10,7 +10,7 @@ import com.team.userservice.user.core.enums.AffiliatedStatus;
 import com.team.userservice.user.core.enums.Role;
 import com.team.userservice.user.core.enums.SignupStatus;
 import org.springframework.data.jpa.domain.Specification;
-import com.team.userservice.user.hub.domain.HubRepository;
+import com.team.userservice.user.hubs.domain.HubRepository;
 import com.team.userservice.user.users.domain.UserRepository;
 import java.util.List;
 import java.util.Optional;
