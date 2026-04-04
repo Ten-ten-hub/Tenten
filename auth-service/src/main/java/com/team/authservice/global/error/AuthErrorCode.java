@@ -7,7 +7,7 @@ import org.springframework.http.HttpStatus;
 @RequiredArgsConstructor
 @Getter
 public enum AuthErrorCode implements ErrorCode {
-    ;
+    INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH_401", "유효하지 않은 토큰입니다.");
 
     private final HttpStatus status;
     private final String code;
