@@ -2,6 +2,7 @@ package com.team.userservice.user.users.infrastructure;
 
 import com.team.userservice.global.domain.error.UserErrorCode;
 import com.team.userservice.global.exception.UserException;
+import com.team.userservice.user.companies.application.CompanyService;
 import com.team.userservice.user.companies.domain.CompanyRepository;
 import com.team.userservice.user.core.CompanyUser;
 import com.team.userservice.user.core.HubUser;
@@ -9,6 +10,7 @@ import com.team.userservice.user.core.User;
 import com.team.userservice.user.core.enums.AffiliatedStatus;
 import com.team.userservice.user.core.enums.Role;
 import com.team.userservice.user.core.enums.SignupStatus;
+import com.team.userservice.user.hubs.application.HubService;
 import org.springframework.data.jpa.domain.Specification;
 import com.team.userservice.user.hubs.domain.HubRepository;
 import com.team.userservice.user.users.domain.UserRepository;
@@ -26,21 +28,13 @@ public class UserRepositoryImpl implements UserRepository {
 
 
     private final UserJpaRepository userJpaRepository;
-    private final HubRepository hubRepository;
-    private final CompanyRepository companyRepository;
+    private final HubService hubService;
+    private final CompanyService companyService;
 
     @Override
     public User save(User user) {
         return userJpaRepository.save(user);
     }
-
-//    @Override
-//    public void register(UUID userId, Role giveRole) {
-//        User user = userJpaRepository.findById(userId).orElseThrow(
-//            () -> new UserException(UserErrorCode.USER_NOT_FOUND));
-//        user.register(giveRole);
-//        if()
-//    }
 
     @Override
     public boolean existsByLoginId(String loginId) {
@@ -75,22 +69,22 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public void updateHubUser(User user, UUID affiliationId) {
-        hubRepository.save(user, affiliationId);
+        hubService.save(user,affiliationId);
     }
 
     @Override
     public void updateCompanyUser(User user, UUID affiliationId) {
-        companyRepository.save(user, affiliationId);
+        companyService.save(user,affiliationId);
     }
 
     @Override
     public HubUser findHubUser(User user) {
-        return hubRepository.findByUser(user);
+        return hubService.findByUser(user);
     }
 
     @Override
     public CompanyUser findCompanyUser(User user) {
-        return companyRepository.findByUser(user);
+        return companyService.findByUser(user);
     }
 
     @Override
