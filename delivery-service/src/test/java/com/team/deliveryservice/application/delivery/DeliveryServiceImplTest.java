@@ -72,50 +72,48 @@ class DeliveryServiceImplTest {
     private DeliveryServiceImpl deliveryService;
 
     @Test
-    @DisplayName("배송 생성 성공 - 허브/업체/주문 검증과 경로 로그 생성까지 수행")
+    @DisplayName("배송 생성 성공 - 주문/업체/허브 검증 후 배송 및 경로 로그 생성")
     void create_delivery_success() {
-        // given
         UUID orderId = UUID.randomUUID();
+        UUID orderedBy = UUID.randomUUID();
+        UUID supplierCompanyId = UUID.randomUUID();
+        UUID receiverCompanyId = UUID.randomUUID();
+
         UUID originHubId = UUID.randomUUID();
         UUID destinationHubId = UUID.randomUUID();
-        UUID receiverCompanyId = UUID.randomUUID();
 
         CreateDeliveryRequest request = new CreateDeliveryRequest(
             orderId,
-            originHubId,
-            destinationHubId,
+            orderedBy,
+            supplierCompanyId,
             receiverCompanyId,
-            "서울시 강남구 테헤란로 123",
-            "101호",
-            "홍길동",
-            "U12345678",
-            LocalDateTime.of(2026, 4, 1, 18, 0)
+            LocalDateTime.of(2026, 4, 1, 18, 0),
+            "문 앞에 놓아주세요"
         );
 
-        // 주문 중복 여부 검증
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
 
-        // 허브 존재 검증
+        given(orderClient.getOrder(orderId))
+            .willReturn(readyForDeliveryOrderResponse(orderId, supplierCompanyId, receiverCompanyId));
+
+        given(companyClient.getCompany(supplierCompanyId))
+            .willReturn(activeSupplierCompanyResponse(supplierCompanyId, originHubId));
+
+        given(companyClient.getCompany(receiverCompanyId))
+            .willReturn(activeReceiverCompanyResponse(receiverCompanyId, destinationHubId));
+
         given(hubClient.existsHub(eq(originHubId), any())).willReturn(hubExistsResponse(originHubId, true));
         given(hubClient.existsHub(eq(destinationHubId), any())).willReturn(hubExistsResponse(destinationHubId, true));
 
-        // 업체 / 주문 검증
-        given(companyClient.getCompany(receiverCompanyId)).willReturn(activeCompanyResponse(receiverCompanyId));
-        given(orderClient.getOrder(orderId)).willReturn(readyForDeliveryOrderResponse(orderId, receiverCompanyId));
-
-        // 배송 저장
         given(deliveryRepository.save(any(Delivery.class)))
             .willAnswer(invocation -> invocation.getArgument(0));
 
-        // 최적 경로 조회
         given(hubClient.getOptimalRoute(eq(originHubId), eq(destinationHubId), any()))
             .willReturn(optimalRouteResponse(originHubId, destinationHubId));
 
-        // route log 저장
         given(deliveryRouteLogRepository.saveAll(any()))
             .willAnswer(invocation -> invocation.getArgument(0));
 
-        // 응답 반환용 route log 조회
         given(deliveryRouteLogRepository.findAllByDeliveryIdAndDeletedAtIsNullOrderBySequenceNoAsc(any()))
             .willAnswer(invocation -> {
                 UUID deliveryId = invocation.getArgument(0);
@@ -132,13 +130,13 @@ class DeliveryServiceImplTest {
                 );
             });
 
-        // when
         DeliveryResponse response = deliveryService.createDelivery(request);
 
-        // then
         assertThat(response.orderId()).isEqualTo(orderId);
-        assertThat(response.deliveryAddress()).isEqualTo(request.deliveryAddress());
-        assertThat(response.recipientName()).isEqualTo(request.recipientName());
+        assertThat(response.deliveryAddress()).isEqualTo("서울시 강남구 테헤란로 123");
+        assertThat(response.deliveryAddressDetail()).isEqualTo("101호");
+        assertThat(response.recipientName()).isEqualTo("홍길동");
+        assertThat(response.recipientSlackId()).isEqualTo("U12345678");
         assertThat(response.deliveryStatus()).isEqualTo(DeliveryStatus.WAITING_AT_HUB);
         assertThat(response.routeLogs()).hasSize(1);
         assertThat(response.routeLogs().get(0).sequenceNo()).isEqualTo(1);
@@ -147,7 +145,6 @@ class DeliveryServiceImplTest {
     @Test
     @DisplayName("배송 생성 실패 - 이미 배송이 존재하는 주문")
     void create_delivery_fail_duplicate() {
-        // given
         UUID orderId = UUID.randomUUID();
 
         CreateDeliveryRequest request = new CreateDeliveryRequest(
@@ -155,85 +152,92 @@ class DeliveryServiceImplTest {
             UUID.randomUUID(),
             UUID.randomUUID(),
             UUID.randomUUID(),
-            "서울시 강남구 테헤란로 123",
-            "101호",
-            "홍길동",
-            "U12345678",
-            LocalDateTime.of(2026, 4, 1, 18, 0)
+            LocalDateTime.of(2026, 4, 1, 18, 0),
+            "요청사항"
         );
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(true);
 
-        // when & then
         assertThatThrownBy(() -> deliveryService.createDelivery(request))
             .isInstanceOf(ServiceException.class)
             .hasMessage(DeliveryErrorCode.DELIVERY_ALREADY_EXISTS.getMessage());
     }
 
     @Test
-    @DisplayName("배송 생성 실패 - 출발 허브가 존재하지 않음")
-    void create_delivery_fail_origin_hub_not_found() {
-        // given
+    @DisplayName("배송 생성 실패 - 공급 업체가 비활성 상태")
+    void create_delivery_fail_supplier_company_inactive() {
         UUID orderId = UUID.randomUUID();
-        UUID originHubId = UUID.randomUUID();
-        UUID destinationHubId = UUID.randomUUID();
+        UUID supplierCompanyId = UUID.randomUUID();
         UUID receiverCompanyId = UUID.randomUUID();
 
         CreateDeliveryRequest request = new CreateDeliveryRequest(
             orderId,
-            originHubId,
-            destinationHubId,
+            UUID.randomUUID(),
+            supplierCompanyId,
             receiverCompanyId,
-            "서울시 강남구 테헤란로 123",
-            "101호",
-            "홍길동",
-            "U12345678",
-            LocalDateTime.of(2026, 4, 1, 18, 0)
+            LocalDateTime.of(2026, 4, 1, 18, 0),
+            "요청사항"
         );
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
-        given(hubClient.existsHub(eq(originHubId), any())).willReturn(hubExistsResponse(originHubId, false));
+        given(orderClient.getOrder(orderId))
+            .willReturn(readyForDeliveryOrderResponse(orderId, supplierCompanyId, receiverCompanyId));
 
-        // when & then
+        given(companyClient.getCompany(supplierCompanyId))
+            .willReturn(new CompanyInternalResponse(
+                supplierCompanyId,
+                "비활성 공급업체",
+                "PRODUCER",
+                UUID.randomUUID(),
+                "서울시 송파구 올림픽로 1",
+                "201호",
+                "공급담당자",
+                "U_SUPPLIER",
+                false
+            ));
+
         assertThatThrownBy(() -> deliveryService.createDelivery(request))
             .isInstanceOf(ServiceException.class)
-            .hasMessage(DeliveryErrorCode.HUB_NOT_FOUND.getMessage());
+            .hasMessage(DeliveryErrorCode.COMPANY_NOT_FOUND.getMessage());
     }
 
     @Test
     @DisplayName("배송 생성 실패 - 수령 업체가 비활성 상태")
-    void create_delivery_fail_company_inactive() {
-        // given
+    void create_delivery_fail_receiver_company_inactive() {
         UUID orderId = UUID.randomUUID();
-        UUID originHubId = UUID.randomUUID();
-        UUID destinationHubId = UUID.randomUUID();
+        UUID supplierCompanyId = UUID.randomUUID();
         UUID receiverCompanyId = UUID.randomUUID();
+        UUID originHubId = UUID.randomUUID();
 
         CreateDeliveryRequest request = new CreateDeliveryRequest(
             orderId,
-            originHubId,
-            destinationHubId,
+            UUID.randomUUID(),
+            supplierCompanyId,
             receiverCompanyId,
-            "서울시 강남구 테헤란로 123",
-            "101호",
-            "홍길동",
-            "U12345678",
-            LocalDateTime.of(2026, 4, 1, 18, 0)
+            LocalDateTime.of(2026, 4, 1, 18, 0),
+            "요청사항"
         );
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
-        given(hubClient.existsHub(eq(originHubId), any())).willReturn(hubExistsResponse(originHubId, true));
-        given(hubClient.existsHub(eq(destinationHubId), any())).willReturn(hubExistsResponse(destinationHubId, true));
+        given(orderClient.getOrder(orderId))
+            .willReturn(readyForDeliveryOrderResponse(orderId, supplierCompanyId, receiverCompanyId));
+
+        given(companyClient.getCompany(supplierCompanyId))
+            .willReturn(activeSupplierCompanyResponse(supplierCompanyId, originHubId));
+
         given(companyClient.getCompany(receiverCompanyId))
             .willReturn(new CompanyInternalResponse(
                 receiverCompanyId,
-                "비활성 업체",
+                "비활성 수령업체",
                 "RECEIVER",
-                destinationHubId,
+                UUID.randomUUID(),
+                "서울시 강남구 테헤란로 123",
+                "101호",
+                "홍길동",
+                "U12345678",
                 false
             ));
 
-        // when & then
         assertThatThrownBy(() -> deliveryService.createDelivery(request))
             .isInstanceOf(ServiceException.class)
             .hasMessage(DeliveryErrorCode.COMPANY_NOT_FOUND.getMessage());
@@ -242,83 +246,100 @@ class DeliveryServiceImplTest {
     @Test
     @DisplayName("배송 생성 실패 - 주문 상태가 READY_FOR_DELIVERY 가 아님")
     void create_delivery_fail_order_status_not_allowed() {
-        // given
         UUID orderId = UUID.randomUUID();
-        UUID originHubId = UUID.randomUUID();
-        UUID destinationHubId = UUID.randomUUID();
+        UUID supplierCompanyId = UUID.randomUUID();
         UUID receiverCompanyId = UUID.randomUUID();
 
         CreateDeliveryRequest request = new CreateDeliveryRequest(
             orderId,
-            originHubId,
-            destinationHubId,
+            UUID.randomUUID(),
+            supplierCompanyId,
             receiverCompanyId,
-            "서울시 강남구 테헤란로 123",
-            "101호",
-            "홍길동",
-            "U12345678",
-            LocalDateTime.of(2026, 4, 1, 18, 0)
+            LocalDateTime.of(2026, 4, 1, 18, 0),
+            "요청사항"
         );
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
-        given(hubClient.existsHub(eq(originHubId), any())).willReturn(hubExistsResponse(originHubId, true));
-        given(hubClient.existsHub(eq(destinationHubId), any())).willReturn(hubExistsResponse(destinationHubId, true));
-        given(companyClient.getCompany(receiverCompanyId)).willReturn(activeCompanyResponse(receiverCompanyId));
+
         given(orderClient.getOrder(orderId))
             .willReturn(new OrderInternalResponse(
                 orderId,
                 UUID.randomUUID(),
-                UUID.randomUUID(),
+                supplierCompanyId,
                 receiverCompanyId,
                 null,
                 LocalDateTime.of(2026, 4, 1, 18, 0),
                 "CONFIRMED"
             ));
 
-        // when & then
         assertThatThrownBy(() -> deliveryService.createDelivery(request))
             .isInstanceOf(ServiceException.class)
             .hasMessage(DeliveryErrorCode.DELIVERY_CREATE_NOT_ALLOWED.getMessage());
     }
 
     @Test
+    @DisplayName("배송 생성 실패 - 주문의 supplierCompanyId 와 요청 supplierCompanyId 가 다름")
+    void create_delivery_fail_supplier_company_mismatch() {
+        UUID orderId = UUID.randomUUID();
+        UUID supplierCompanyId = UUID.randomUUID();
+        UUID anotherSupplierCompanyId = UUID.randomUUID();
+        UUID receiverCompanyId = UUID.randomUUID();
+
+        CreateDeliveryRequest request = new CreateDeliveryRequest(
+            orderId,
+            UUID.randomUUID(),
+            supplierCompanyId,
+            receiverCompanyId,
+            LocalDateTime.of(2026, 4, 1, 18, 0),
+            "요청사항"
+        );
+
+        given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
+        given(orderClient.getOrder(orderId))
+            .willReturn(new OrderInternalResponse(
+                orderId,
+                UUID.randomUUID(),
+                anotherSupplierCompanyId,
+                receiverCompanyId,
+                null,
+                LocalDateTime.of(2026, 4, 1, 18, 0),
+                "READY_FOR_DELIVERY"
+            ));
+
+        assertThatThrownBy(() -> deliveryService.createDelivery(request))
+            .isInstanceOf(ServiceException.class)
+            .hasMessage(DeliveryErrorCode.COMMON_INVALID_INPUT.getMessage());
+    }
+
+    @Test
     @DisplayName("배송 생성 실패 - 주문의 receiverCompanyId 와 요청 receiverCompanyId 가 다름")
     void create_delivery_fail_receiver_company_mismatch() {
-        // given
         UUID orderId = UUID.randomUUID();
-        UUID originHubId = UUID.randomUUID();
-        UUID destinationHubId = UUID.randomUUID();
+        UUID supplierCompanyId = UUID.randomUUID();
         UUID receiverCompanyId = UUID.randomUUID();
         UUID anotherReceiverCompanyId = UUID.randomUUID();
 
         CreateDeliveryRequest request = new CreateDeliveryRequest(
             orderId,
-            originHubId,
-            destinationHubId,
+            UUID.randomUUID(),
+            supplierCompanyId,
             receiverCompanyId,
-            "서울시 강남구 테헤란로 123",
-            "101호",
-            "홍길동",
-            "U12345678",
-            LocalDateTime.of(2026, 4, 1, 18, 0)
+            LocalDateTime.of(2026, 4, 1, 18, 0),
+            "요청사항"
         );
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
-        given(hubClient.existsHub(eq(originHubId), any())).willReturn(hubExistsResponse(originHubId, true));
-        given(hubClient.existsHub(eq(destinationHubId), any())).willReturn(hubExistsResponse(destinationHubId, true));
-        given(companyClient.getCompany(receiverCompanyId)).willReturn(activeCompanyResponse(receiverCompanyId));
         given(orderClient.getOrder(orderId))
             .willReturn(new OrderInternalResponse(
                 orderId,
                 UUID.randomUUID(),
-                UUID.randomUUID(),
+                supplierCompanyId,
                 anotherReceiverCompanyId,
                 null,
                 LocalDateTime.of(2026, 4, 1, 18, 0),
                 "READY_FOR_DELIVERY"
             ));
 
-        // when & then
         assertThatThrownBy(() -> deliveryService.createDelivery(request))
             .isInstanceOf(ServiceException.class)
             .hasMessage(DeliveryErrorCode.COMMON_INVALID_INPUT.getMessage());
@@ -327,72 +348,97 @@ class DeliveryServiceImplTest {
     @Test
     @DisplayName("배송 생성 실패 - 주문에 이미 deliveryId 가 연결되어 있음")
     void create_delivery_fail_order_already_has_delivery_id() {
-        // given
         UUID orderId = UUID.randomUUID();
-        UUID originHubId = UUID.randomUUID();
-        UUID destinationHubId = UUID.randomUUID();
+        UUID supplierCompanyId = UUID.randomUUID();
         UUID receiverCompanyId = UUID.randomUUID();
         UUID deliveryId = UUID.randomUUID();
 
         CreateDeliveryRequest request = new CreateDeliveryRequest(
             orderId,
-            originHubId,
-            destinationHubId,
+            UUID.randomUUID(),
+            supplierCompanyId,
             receiverCompanyId,
-            "서울시 강남구 테헤란로 123",
-            "101호",
-            "홍길동",
-            "U12345678",
-            LocalDateTime.of(2026, 4, 1, 18, 0)
+            LocalDateTime.of(2026, 4, 1, 18, 0),
+            "요청사항"
         );
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
-        given(hubClient.existsHub(eq(originHubId), any())).willReturn(hubExistsResponse(originHubId, true));
-        given(hubClient.existsHub(eq(destinationHubId), any())).willReturn(hubExistsResponse(destinationHubId, true));
-        given(companyClient.getCompany(receiverCompanyId)).willReturn(activeCompanyResponse(receiverCompanyId));
         given(orderClient.getOrder(orderId))
             .willReturn(new OrderInternalResponse(
                 orderId,
                 UUID.randomUUID(),
-                UUID.randomUUID(),
+                supplierCompanyId,
                 receiverCompanyId,
                 deliveryId,
                 LocalDateTime.of(2026, 4, 1, 18, 0),
                 "READY_FOR_DELIVERY"
             ));
 
-        // when & then
         assertThatThrownBy(() -> deliveryService.createDelivery(request))
             .isInstanceOf(ServiceException.class)
             .hasMessage(DeliveryErrorCode.DELIVERY_ALREADY_EXISTS.getMessage());
     }
 
     @Test
-    @DisplayName("배송 생성 실패 - 최적 경로가 비어 있음")
-    void create_delivery_fail_empty_route() {
-        // given
+    @DisplayName("배송 생성 실패 - 허브가 존재하지 않음")
+    void create_delivery_fail_hub_not_found() {
         UUID orderId = UUID.randomUUID();
+        UUID supplierCompanyId = UUID.randomUUID();
+        UUID receiverCompanyId = UUID.randomUUID();
         UUID originHubId = UUID.randomUUID();
         UUID destinationHubId = UUID.randomUUID();
-        UUID receiverCompanyId = UUID.randomUUID();
 
         CreateDeliveryRequest request = new CreateDeliveryRequest(
             orderId,
-            originHubId,
-            destinationHubId,
+            UUID.randomUUID(),
+            supplierCompanyId,
             receiverCompanyId,
-            "서울시 강남구 테헤란로 123",
-            "101호",
-            "홍길동",
-            "U12345678",
-            LocalDateTime.of(2026, 4, 1, 18, 0)
+            LocalDateTime.of(2026, 4, 1, 18, 0),
+            "요청사항"
         );
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
+        given(orderClient.getOrder(orderId))
+            .willReturn(readyForDeliveryOrderResponse(orderId, supplierCompanyId, receiverCompanyId));
+        given(companyClient.getCompany(supplierCompanyId))
+            .willReturn(activeSupplierCompanyResponse(supplierCompanyId, originHubId));
+        given(companyClient.getCompany(receiverCompanyId))
+            .willReturn(activeReceiverCompanyResponse(receiverCompanyId, destinationHubId));
+        given(hubClient.existsHub(eq(originHubId), any()))
+            .willReturn(hubExistsResponse(originHubId, false));
+
+        assertThatThrownBy(() -> deliveryService.createDelivery(request))
+            .isInstanceOf(ServiceException.class)
+            .hasMessage(DeliveryErrorCode.HUB_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    @DisplayName("배송 생성 실패 - 최적 경로가 비어 있음")
+    void create_delivery_fail_empty_route() {
+        UUID orderId = UUID.randomUUID();
+        UUID supplierCompanyId = UUID.randomUUID();
+        UUID receiverCompanyId = UUID.randomUUID();
+        UUID originHubId = UUID.randomUUID();
+        UUID destinationHubId = UUID.randomUUID();
+
+        CreateDeliveryRequest request = new CreateDeliveryRequest(
+            orderId,
+            UUID.randomUUID(),
+            supplierCompanyId,
+            receiverCompanyId,
+            LocalDateTime.of(2026, 4, 1, 18, 0),
+            "요청사항"
+        );
+
+        given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
+        given(orderClient.getOrder(orderId))
+            .willReturn(readyForDeliveryOrderResponse(orderId, supplierCompanyId, receiverCompanyId));
+        given(companyClient.getCompany(supplierCompanyId))
+            .willReturn(activeSupplierCompanyResponse(supplierCompanyId, originHubId));
+        given(companyClient.getCompany(receiverCompanyId))
+            .willReturn(activeReceiverCompanyResponse(receiverCompanyId, destinationHubId));
         given(hubClient.existsHub(eq(originHubId), any())).willReturn(hubExistsResponse(originHubId, true));
         given(hubClient.existsHub(eq(destinationHubId), any())).willReturn(hubExistsResponse(destinationHubId, true));
-        given(companyClient.getCompany(receiverCompanyId)).willReturn(activeCompanyResponse(receiverCompanyId));
-        given(orderClient.getOrder(orderId)).willReturn(readyForDeliveryOrderResponse(orderId, receiverCompanyId));
         given(deliveryRepository.save(any(Delivery.class)))
             .willAnswer(invocation -> invocation.getArgument(0));
 
@@ -409,7 +455,6 @@ class DeliveryServiceImplTest {
                 )
             ));
 
-        // when & then
         assertThatThrownBy(() -> deliveryService.createDelivery(request))
             .isInstanceOf(ServiceException.class)
             .hasMessage(DeliveryErrorCode.HUB_SERVICE_UNAVAILABLE.getMessage());
@@ -418,29 +463,31 @@ class DeliveryServiceImplTest {
     @Test
     @DisplayName("배송 생성 실패 - hubClient exists 호출 중 예외가 발생하면 HUB_SERVICE_UNAVAILABLE 로 변환")
     void create_delivery_fail_when_hub_client_exists_throws_exception() {
-        // given
         UUID orderId = UUID.randomUUID();
+        UUID supplierCompanyId = UUID.randomUUID();
+        UUID receiverCompanyId = UUID.randomUUID();
         UUID originHubId = UUID.randomUUID();
         UUID destinationHubId = UUID.randomUUID();
-        UUID receiverCompanyId = UUID.randomUUID();
 
         CreateDeliveryRequest request = new CreateDeliveryRequest(
             orderId,
-            originHubId,
-            destinationHubId,
+            UUID.randomUUID(),
+            supplierCompanyId,
             receiverCompanyId,
-            "서울시 강남구 테헤란로 123",
-            "101호",
-            "홍길동",
-            "U12345678",
-            LocalDateTime.of(2026, 4, 1, 18, 0)
+            LocalDateTime.of(2026, 4, 1, 18, 0),
+            "요청사항"
         );
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
+        given(orderClient.getOrder(orderId))
+            .willReturn(readyForDeliveryOrderResponse(orderId, supplierCompanyId, receiverCompanyId));
+        given(companyClient.getCompany(supplierCompanyId))
+            .willReturn(activeSupplierCompanyResponse(supplierCompanyId, originHubId));
+        given(companyClient.getCompany(receiverCompanyId))
+            .willReturn(activeReceiverCompanyResponse(receiverCompanyId, destinationHubId));
         given(hubClient.existsHub(eq(originHubId), any()))
             .willThrow(feignBadRequestException());
 
-        // when & then
         assertThatThrownBy(() -> deliveryService.createDelivery(request))
             .isInstanceOf(ServiceException.class)
             .hasMessage(DeliveryErrorCode.HUB_SERVICE_UNAVAILABLE.getMessage());
@@ -449,31 +496,25 @@ class DeliveryServiceImplTest {
     @Test
     @DisplayName("배송 생성 실패 - companyClient 호출 중 예외가 발생하면 COMPANY_SERVICE_UNAVAILABLE 로 변환")
     void create_delivery_fail_when_company_client_throws_exception() {
-        // given
         UUID orderId = UUID.randomUUID();
-        UUID originHubId = UUID.randomUUID();
-        UUID destinationHubId = UUID.randomUUID();
+        UUID supplierCompanyId = UUID.randomUUID();
         UUID receiverCompanyId = UUID.randomUUID();
 
         CreateDeliveryRequest request = new CreateDeliveryRequest(
             orderId,
-            originHubId,
-            destinationHubId,
+            UUID.randomUUID(),
+            supplierCompanyId,
             receiverCompanyId,
-            "서울시 강남구 테헤란로 123",
-            "101호",
-            "홍길동",
-            "U12345678",
-            LocalDateTime.of(2026, 4, 1, 18, 0)
+            LocalDateTime.of(2026, 4, 1, 18, 0),
+            "요청사항"
         );
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
-        given(hubClient.existsHub(eq(originHubId), any())).willReturn(hubExistsResponse(originHubId, true));
-        given(hubClient.existsHub(eq(destinationHubId), any())).willReturn(hubExistsResponse(destinationHubId, true));
-        given(companyClient.getCompany(receiverCompanyId))
+        given(orderClient.getOrder(orderId))
+            .willReturn(readyForDeliveryOrderResponse(orderId, supplierCompanyId, receiverCompanyId));
+        given(companyClient.getCompany(supplierCompanyId))
             .willThrow(feignBadRequestException());
 
-        // when & then
         assertThatThrownBy(() -> deliveryService.createDelivery(request))
             .isInstanceOf(ServiceException.class)
             .hasMessage(DeliveryErrorCode.COMPANY_SERVICE_UNAVAILABLE.getMessage());
@@ -482,32 +523,23 @@ class DeliveryServiceImplTest {
     @Test
     @DisplayName("배송 생성 실패 - orderClient 호출 중 예외가 발생하면 ORDER_SERVICE_UNAVAILABLE 로 변환")
     void create_delivery_fail_when_order_client_throws_exception() {
-        // given
         UUID orderId = UUID.randomUUID();
-        UUID originHubId = UUID.randomUUID();
-        UUID destinationHubId = UUID.randomUUID();
+        UUID supplierCompanyId = UUID.randomUUID();
         UUID receiverCompanyId = UUID.randomUUID();
 
         CreateDeliveryRequest request = new CreateDeliveryRequest(
             orderId,
-            originHubId,
-            destinationHubId,
+            UUID.randomUUID(),
+            supplierCompanyId,
             receiverCompanyId,
-            "서울시 강남구 테헤란로 123",
-            "101호",
-            "홍길동",
-            "U12345678",
-            LocalDateTime.of(2026, 4, 1, 18, 0)
+            LocalDateTime.of(2026, 4, 1, 18, 0),
+            "요청사항"
         );
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
-        given(hubClient.existsHub(eq(originHubId), any())).willReturn(hubExistsResponse(originHubId, true));
-        given(hubClient.existsHub(eq(destinationHubId), any())).willReturn(hubExistsResponse(destinationHubId, true));
-        given(companyClient.getCompany(receiverCompanyId)).willReturn(activeCompanyResponse(receiverCompanyId));
         given(orderClient.getOrder(orderId))
             .willThrow(feignBadRequestException());
 
-        // when & then
         assertThatThrownBy(() -> deliveryService.createDelivery(request))
             .isInstanceOf(ServiceException.class)
             .hasMessage(DeliveryErrorCode.ORDER_SERVICE_UNAVAILABLE.getMessage());
@@ -516,35 +548,35 @@ class DeliveryServiceImplTest {
     @Test
     @DisplayName("배송 생성 실패 - hubClient optimal route 호출 중 예외가 발생하면 HUB_SERVICE_UNAVAILABLE 로 변환")
     void create_delivery_fail_when_hub_client_route_throws_exception() {
-        // given
         UUID orderId = UUID.randomUUID();
+        UUID supplierCompanyId = UUID.randomUUID();
+        UUID receiverCompanyId = UUID.randomUUID();
         UUID originHubId = UUID.randomUUID();
         UUID destinationHubId = UUID.randomUUID();
-        UUID receiverCompanyId = UUID.randomUUID();
 
         CreateDeliveryRequest request = new CreateDeliveryRequest(
             orderId,
-            originHubId,
-            destinationHubId,
+            UUID.randomUUID(),
+            supplierCompanyId,
             receiverCompanyId,
-            "서울시 강남구 테헤란로 123",
-            "101호",
-            "홍길동",
-            "U12345678",
-            LocalDateTime.of(2026, 4, 1, 18, 0)
+            LocalDateTime.of(2026, 4, 1, 18, 0),
+            "요청사항"
         );
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
+        given(orderClient.getOrder(orderId))
+            .willReturn(readyForDeliveryOrderResponse(orderId, supplierCompanyId, receiverCompanyId));
+        given(companyClient.getCompany(supplierCompanyId))
+            .willReturn(activeSupplierCompanyResponse(supplierCompanyId, originHubId));
+        given(companyClient.getCompany(receiverCompanyId))
+            .willReturn(activeReceiverCompanyResponse(receiverCompanyId, destinationHubId));
         given(hubClient.existsHub(eq(originHubId), any())).willReturn(hubExistsResponse(originHubId, true));
         given(hubClient.existsHub(eq(destinationHubId), any())).willReturn(hubExistsResponse(destinationHubId, true));
-        given(companyClient.getCompany(receiverCompanyId)).willReturn(activeCompanyResponse(receiverCompanyId));
-        given(orderClient.getOrder(orderId)).willReturn(readyForDeliveryOrderResponse(orderId, receiverCompanyId));
         given(deliveryRepository.save(any(Delivery.class)))
             .willAnswer(invocation -> invocation.getArgument(0));
         given(hubClient.getOptimalRoute(eq(originHubId), eq(destinationHubId), any()))
             .willThrow(feignBadRequestException());
 
-        // when & then
         assertThatThrownBy(() -> deliveryService.createDelivery(request))
             .isInstanceOf(ServiceException.class)
             .hasMessage(DeliveryErrorCode.HUB_SERVICE_UNAVAILABLE.getMessage());
@@ -553,7 +585,6 @@ class DeliveryServiceImplTest {
     @Test
     @DisplayName("배송 상태 변경 성공 - WAITING_AT_HUB 에서 MOVING_BETWEEN_HUBS 로 변경")
     void change_delivery_status_success() {
-        // given
         UUID deliveryId = UUID.randomUUID();
 
         Delivery delivery = createDelivery();
@@ -565,10 +596,8 @@ class DeliveryServiceImplTest {
         given(deliveryRouteLogRepository.findAllByDeliveryIdAndDeletedAtIsNullOrderBySequenceNoAsc(deliveryId))
             .willReturn(List.of());
 
-        // when
         DeliveryResponse response = deliveryService.changeDeliveryStatus(deliveryId, request);
 
-        // then
         assertThat(response.deliveryStatus()).isEqualTo(DeliveryStatus.MOVING_BETWEEN_HUBS);
         assertThat(delivery.getStartedAt()).isNotNull();
     }
@@ -576,7 +605,6 @@ class DeliveryServiceImplTest {
     @Test
     @DisplayName("배송 상태 변경 실패 - 허용되지 않은 상태 전이")
     void change_delivery_status_fail_invalid_transition() {
-        // given
         UUID deliveryId = UUID.randomUUID();
 
         Delivery delivery = createDelivery();
@@ -586,7 +614,6 @@ class DeliveryServiceImplTest {
 
         given(deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)).willReturn(Optional.of(delivery));
 
-        // when & then
         assertThatThrownBy(() -> deliveryService.changeDeliveryStatus(deliveryId, request))
             .isInstanceOf(ServiceException.class)
             .hasMessage(DeliveryErrorCode.DELIVERY_STATUS_CHANGE_NOT_ALLOWED.getMessage());
@@ -595,7 +622,6 @@ class DeliveryServiceImplTest {
     @Test
     @DisplayName("배송 취소 성공 - WAITING_AT_HUB 상태에서만 가능")
     void cancel_delivery_success() {
-        // given
         UUID deliveryId = UUID.randomUUID();
 
         Delivery delivery = createDelivery();
@@ -604,17 +630,14 @@ class DeliveryServiceImplTest {
         given(deliveryRouteLogRepository.findAllByDeliveryIdAndDeletedAtIsNullOrderBySequenceNoAsc(deliveryId))
             .willReturn(List.of());
 
-        // when
         DeliveryResponse response = deliveryService.cancelDelivery(deliveryId);
 
-        // then
         assertThat(response.deliveryStatus()).isEqualTo(DeliveryStatus.CANCELLED);
     }
 
     @Test
     @DisplayName("배송 취소 실패 - WAITING_AT_HUB 이외 상태에서는 불가")
     void cancel_delivery_fail_when_not_waiting() {
-        // given
         UUID deliveryId = UUID.randomUUID();
 
         Delivery delivery = createDelivery();
@@ -622,7 +645,6 @@ class DeliveryServiceImplTest {
 
         given(deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)).willReturn(Optional.of(delivery));
 
-        // when & then
         assertThatThrownBy(() -> deliveryService.cancelDelivery(deliveryId))
             .isInstanceOf(ServiceException.class)
             .hasMessage(DeliveryErrorCode.DELIVERY_CANCEL_NOT_ALLOWED.getMessage());
@@ -631,7 +653,6 @@ class DeliveryServiceImplTest {
     @Test
     @DisplayName("업체 배송 담당자 배정 성공")
     void assign_company_delivery_manager_success() {
-        // given
         UUID deliveryId = UUID.randomUUID();
         UUID destinationHubId = UUID.randomUUID();
         CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), "HUB_ADMIN", destinationHubId, null);
@@ -657,10 +678,8 @@ class DeliveryServiceImplTest {
         given(deliveryRouteLogRepository.findAllByDeliveryIdAndDeletedAtIsNullOrderBySequenceNoAsc(deliveryId))
             .willReturn(List.of());
 
-        // when
         DeliveryResponse response = deliveryService.assignCompanyDeliveryManager(deliveryId, request, currentUser);
 
-        // then
         assertThat(response.companyDeliveryManagerId()).isEqualTo(manager.getId());
         assertThat(delivery.getCompanyDeliveryManagerId()).isEqualTo(manager.getId());
     }
@@ -668,7 +687,6 @@ class DeliveryServiceImplTest {
     @Test
     @DisplayName("업체 배송 담당자 배정 실패 - 배송 담당자를 찾을 수 없음")
     void assign_company_delivery_manager_fail_not_found() {
-        // given
         UUID deliveryId = UUID.randomUUID();
         UUID managerId = UUID.randomUUID();
         CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), "HUB_ADMIN", UUID.randomUUID(), null);
@@ -680,7 +698,6 @@ class DeliveryServiceImplTest {
         given(deliveryManagerRepository.findByIdAndDeletedAtIsNull(managerId))
             .willReturn(Optional.empty());
 
-        // when & then
         assertThatThrownBy(() -> deliveryService.assignCompanyDeliveryManager(deliveryId, request, currentUser))
             .isInstanceOf(ServiceException.class)
             .hasMessage(DeliveryErrorCode.DELIVERY_MANAGER_NOT_FOUND.getMessage());
@@ -689,7 +706,6 @@ class DeliveryServiceImplTest {
     @Test
     @DisplayName("업체 배송 담당자 배정 실패 - 타입이 업체 배송 담당자가 아님")
     void assign_company_delivery_manager_fail_invalid_type() {
-        // given
         UUID deliveryId = UUID.randomUUID();
         UUID destinationHubId = UUID.randomUUID();
         CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), "HUB_ADMIN", destinationHubId, null);
@@ -713,7 +729,6 @@ class DeliveryServiceImplTest {
         given(deliveryManagerRepository.findByIdAndDeletedAtIsNull(manager.getId()))
             .willReturn(Optional.of(manager));
 
-        // when & then
         assertThatThrownBy(() -> deliveryService.assignCompanyDeliveryManager(deliveryId, request, currentUser))
             .isInstanceOf(ServiceException.class)
             .hasMessage(DeliveryErrorCode.DELIVERY_MANAGER_TYPE_INVALID.getMessage());
@@ -722,7 +737,6 @@ class DeliveryServiceImplTest {
     @Test
     @DisplayName("업체 배송 담당자 배정 실패 - 배송 목적지 허브와 담당자 소속 허브가 다름")
     void assign_company_delivery_manager_fail_hub_mismatch() {
-        // given
         UUID deliveryId = UUID.randomUUID();
         UUID destinationHubId = UUID.randomUUID();
         UUID anotherHubId = UUID.randomUUID();
@@ -747,7 +761,6 @@ class DeliveryServiceImplTest {
         given(deliveryManagerRepository.findByIdAndDeletedAtIsNull(manager.getId()))
             .willReturn(Optional.of(manager));
 
-        // when & then
         assertThatThrownBy(() -> deliveryService.assignCompanyDeliveryManager(deliveryId, request, currentUser))
             .isInstanceOf(ServiceException.class)
             .hasMessage(DeliveryErrorCode.DELIVERY_MANAGER_HUB_MISMATCH.getMessage());
@@ -756,7 +769,6 @@ class DeliveryServiceImplTest {
     @Test
     @DisplayName("업체 배송 담당자 배정 실패 - 취소된 배송에는 배정할 수 없음")
     void assign_company_delivery_manager_fail_when_cancelled() {
-        // given
         UUID deliveryId = UUID.randomUUID();
         UUID destinationHubId = UUID.randomUUID();
         CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), "HUB_ADMIN", destinationHubId, null);
@@ -781,7 +793,6 @@ class DeliveryServiceImplTest {
         given(deliveryManagerRepository.findByIdAndDeletedAtIsNull(manager.getId()))
             .willReturn(Optional.of(manager));
 
-        // when & then
         assertThatThrownBy(() -> deliveryService.assignCompanyDeliveryManager(deliveryId, request, currentUser))
             .isInstanceOf(ServiceException.class)
             .hasMessage(DeliveryErrorCode.DELIVERY_ASSIGN_NOT_ALLOWED.getMessage());
@@ -790,7 +801,6 @@ class DeliveryServiceImplTest {
     @Test
     @DisplayName("허브 배송 담당자 배정 성공")
     void assign_hub_delivery_manager_success() {
-        // given
         UUID deliveryId = UUID.randomUUID();
         CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), "MASTER_ADMIN", null, null);
 
@@ -817,10 +827,8 @@ class DeliveryServiceImplTest {
         given(deliveryRouteLogRepository.findAllByDeliveryIdAndDeletedAtIsNullOrderBySequenceNoAsc(deliveryId))
             .willReturn(List.of(routeLog));
 
-        // when
         DeliveryResponse response = deliveryService.assignHubDeliveryManager(deliveryId, request, currentUser);
 
-        // then
         assertThat(routeLog.getDeliveryManagerId()).isEqualTo(manager.getId());
         assertThat(response.routeLogs()).hasSize(1);
         assertThat(response.routeLogs().get(0).deliveryManagerId()).isEqualTo(manager.getId());
@@ -829,7 +837,6 @@ class DeliveryServiceImplTest {
     @Test
     @DisplayName("허브 배송 담당자 배정 실패 - routeLog 가 해당 배송 소속이 아님")
     void assign_hub_delivery_manager_fail_route_log_delivery_mismatch() {
-        // given
         UUID deliveryId = UUID.randomUUID();
         CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), "MASTER_ADMIN", null, null);
 
@@ -852,7 +859,6 @@ class DeliveryServiceImplTest {
         given(deliveryRouteLogRepository.findByIdAndDeletedAtIsNull(anotherDeliveryRouteLog.getId()))
             .willReturn(Optional.of(anotherDeliveryRouteLog));
 
-        // when & then
         assertThatThrownBy(() -> deliveryService.assignHubDeliveryManager(deliveryId, request, currentUser))
             .isInstanceOf(ServiceException.class)
             .hasMessage(DeliveryErrorCode.DELIVERY_ROUTE_MANAGER_ASSIGN_NOT_ALLOWED.getMessage());
@@ -861,7 +867,6 @@ class DeliveryServiceImplTest {
     @Test
     @DisplayName("허브 배송 담당자 배정 실패 - 타입이 허브 배송 담당자가 아님")
     void assign_hub_delivery_manager_fail_invalid_type() {
-        // given
         UUID deliveryId = UUID.randomUUID();
         UUID destinationHubId = UUID.randomUUID();
         CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), "MASTER_ADMIN", null, null);
@@ -887,7 +892,6 @@ class DeliveryServiceImplTest {
         given(deliveryManagerRepository.findByIdAndDeletedAtIsNull(manager.getId()))
             .willReturn(Optional.of(manager));
 
-        // when & then
         assertThatThrownBy(() -> deliveryService.assignHubDeliveryManager(deliveryId, request, currentUser))
             .isInstanceOf(ServiceException.class)
             .hasMessage(DeliveryErrorCode.DELIVERY_MANAGER_TYPE_INVALID.getMessage());
@@ -896,7 +900,6 @@ class DeliveryServiceImplTest {
     @Test
     @DisplayName("허브 배송 담당자 배정 실패 - 완료된 배송 경로에는 배정할 수 없음")
     void assign_hub_delivery_manager_fail_when_route_delivered() {
-        // given
         UUID deliveryId = UUID.randomUUID();
         CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), "MASTER_ADMIN", null, null);
 
@@ -925,7 +928,6 @@ class DeliveryServiceImplTest {
         given(deliveryManagerRepository.findByIdAndDeletedAtIsNull(manager.getId()))
             .willReturn(Optional.of(manager));
 
-        // when & then
         assertThatThrownBy(() -> deliveryService.assignHubDeliveryManager(deliveryId, request, currentUser))
             .isInstanceOf(ServiceException.class)
             .hasMessage(DeliveryErrorCode.DELIVERY_ROUTE_MANAGER_ASSIGN_NOT_ALLOWED.getMessage());
@@ -934,7 +936,6 @@ class DeliveryServiceImplTest {
     @Test
     @DisplayName("배송 삭제 시 배송 경로 로그도 함께 soft delete")
     void delete_delivery_soft_delete_route_logs() {
-        // given
         UUID deliveryId = UUID.randomUUID();
 
         Delivery delivery = createDelivery();
@@ -953,17 +954,14 @@ class DeliveryServiceImplTest {
         given(deliveryRouteLogRepository.findAllByDeliveryIdAndDeletedAtIsNullOrderBySequenceNoAsc(deliveryId))
             .willReturn(List.of(routeLog));
 
-        // when
         deliveryService.deleteDelivery(deliveryId);
 
-        // then
         assertThat(delivery.getDeletedAt()).isNotNull();
         assertThat(delivery.getDeletedBy()).isEqualTo(SYSTEM_ACTOR_ID);
         assertThat(routeLog.getDeletedAt()).isNotNull();
         assertThat(routeLog.getDeletedBy()).isEqualTo(SYSTEM_ACTOR_ID);
     }
 
-    // 테스트용 배송 엔티티 생성
     private Delivery createDelivery() {
         return Delivery.create(
             UUID.randomUUID(),
@@ -978,7 +976,6 @@ class DeliveryServiceImplTest {
         );
     }
 
-    // 테스트용 업체 배송 담당자 생성
     private DeliveryManager createCompanyDeliveryManager(UUID hubId) {
         return DeliveryManager.create(
             UUID.randomUUID(),
@@ -989,7 +986,6 @@ class DeliveryServiceImplTest {
         );
     }
 
-    // 테스트용 허브 배송 담당자 생성
     private DeliveryManager createHubDeliveryManager() {
         return DeliveryManager.create(
             UUID.randomUUID(),
@@ -1000,7 +996,6 @@ class DeliveryServiceImplTest {
         );
     }
 
-    // 허브 존재 응답 생성
     private HubExistsResponse hubExistsResponse(UUID hubId, boolean exists) {
         return new HubExistsResponse(
             true,
@@ -1010,23 +1005,43 @@ class DeliveryServiceImplTest {
         );
     }
 
-    // 활성 업체 응답 생성
-    private CompanyInternalResponse activeCompanyResponse(UUID companyId) {
+    private CompanyInternalResponse activeSupplierCompanyResponse(UUID companyId, UUID hubId) {
         return new CompanyInternalResponse(
             companyId,
-            "수령 업체",
-            "RECEIVER",
-            UUID.randomUUID(),
+            "공급 업체",
+            "PRODUCER",
+            hubId,
+            "서울시 송파구 올림픽로 1",
+            "201호",
+            "공급담당자",
+            "U_SUPPLIER",
             true
         );
     }
 
-    // 배송 생성 가능한 주문 응답 생성
-    private OrderInternalResponse readyForDeliveryOrderResponse(UUID orderId, UUID receiverCompanyId) {
+    private CompanyInternalResponse activeReceiverCompanyResponse(UUID companyId, UUID hubId) {
+        return new CompanyInternalResponse(
+            companyId,
+            "수령 업체",
+            "RECEIVER",
+            hubId,
+            "서울시 강남구 테헤란로 123",
+            "101호",
+            "홍길동",
+            "U12345678",
+            true
+        );
+    }
+
+    private OrderInternalResponse readyForDeliveryOrderResponse(
+        UUID orderId,
+        UUID supplierCompanyId,
+        UUID receiverCompanyId
+    ) {
         return new OrderInternalResponse(
             orderId,
             UUID.randomUUID(),
-            UUID.randomUUID(),
+            supplierCompanyId,
             receiverCompanyId,
             null,
             LocalDateTime.of(2026, 4, 1, 18, 0),
@@ -1034,7 +1049,6 @@ class DeliveryServiceImplTest {
         );
     }
 
-    // 최적 경로 응답 생성
     private OptimalRouteResponseWrapper optimalRouteResponse(UUID originHubId, UUID destinationHubId) {
         return new OptimalRouteResponseWrapper(
             200,
@@ -1057,7 +1071,6 @@ class DeliveryServiceImplTest {
         );
     }
 
-    // 공통 Feign 예외 생성
     private FeignException feignBadRequestException() {
         return FeignException.errorStatus(
             "test",
