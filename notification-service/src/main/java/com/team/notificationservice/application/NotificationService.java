@@ -4,6 +4,7 @@ import com.team.common.Constants;
 import com.team.notificationservice.domain.MsgType;
 import com.team.notificationservice.domain.Notification;
 import com.team.notificationservice.domain.NotificationRepository;
+import com.team.notificationservice.domain.SendStatus;
 import com.team.notificationservice.infrastructure.AiClient;
 import com.team.notificationservice.infrastructure.SlackClient;
 import com.team.notificationservice.presentation.NotificationResponse;
@@ -62,52 +63,32 @@ public class NotificationService {
     /**
      * AI 연동을 통해 허브 담당자에게 상세 알림을 생성하는 로직
      */
-    public void createWithAiAnalysis(AiNotificationRequest aiRequest, String analysisType) {
-        // 1. AI 서비스 호출 (상세 데이터 전달)
-        AiClient.AiAnalysisResponse aiResponse;
+    @Transactional
+    public void createWithAiAnalysis(AiNotificationRequest aiRequest, String msgType) {
+
+        MsgType type = MsgType.valueOf(msgType);
+
+        Notification notification = Notification.builder()
+            .receiverId(aiRequest.receiverId())
+            .receiverSlackId(aiRequest.receiverSlackId())
+            .orderId(aiRequest.orderId())
+            .msgType(type)
+            .msgContent(aiRequest.msgContent())
+            .sendStatus(SendStatus.SENT_IMMEDIATELY)
+            .scheduledAt(aiRequest.scheduledAt())
+            .refId(aiRequest.refId())
+            .build();
+
+        Notification saved = notificationRepository.save(notification);
+
+        // 2. 실제 슬랙 즉시 전송 호출
         try {
-            aiResponse = aiClient.getAnalysis(analysisType, aiRequest);
+            slackClient.sendDirectMessage(saved.getReceiverSlackId(), saved.getMsgContent());
+            log.info("AI 알림 즉시 발송 완료: receiver={}", saved.getReceiverSlackId());
         } catch (Exception e) {
-            log.error("AI 분석 호출 실패: orderId={}", aiRequest.orderId(), e);
-            throw new ServiceException(ErrorCode.NOTI_SLACK_API_ERROR);
+            log.error("슬랙 즉시 전송 실패: {}", e.getMessage());
+            // 실패 시 상태를 PENDING이나 FAIL로 돌리는 로직 추가 가능
         }
-
-        // 2. 슬랙 메시지 예시 포맷에 맞게 본문 조립
-        String formattedMessage = String.format(
-            "주문 번호 : %s\n" +
-                "상품 정보 : %s\n" +
-                "요청 사항 : %s\n" +
-                "발송지 : %s\n" +
-                "경유지 : %s\n" +
-                "도착지 : %s\n" +
-                "배송담당자 : %s\n" +
-                "위 내용을 기반으로 도출된 %s",
-            aiRequest.orderId(),
-            aiRequest.productName(),
-            aiRequest.orderRequestDetails(),
-            aiRequest.originAddress(),
-            String.join(", ", aiRequest.waypoints()),
-            aiRequest.destinationAddress(),
-            aiRequest.deliveryManagerName(),
-            aiResponse.aiResult() // AI가 도출한 "최종 발송 시한은..." 문구
-        );
-
-        // 3. NotificationRequest 생성
-        NotificationRequest request = new NotificationRequest(
-            aiRequest.receiverSlackId(),
-            null,
-            aiRequest.orderId(),
-            formattedMessage,
-            MsgType.ORDER_ALERT
-        );
-
-        // 4. 저장 및 발송 이벤트 발행
-        notificationSaver.saveWithAiRef(
-            request,
-            aiRequest.receiverSlackId(),
-            parseUserId(aiRequest.receiverId()),
-            aiResponse.aiAnalysisId()
-        );
     }
 
     /**
