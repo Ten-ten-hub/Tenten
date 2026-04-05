@@ -1,12 +1,16 @@
 package com.team.deliveryservice.delivery.application.service;
 
 import com.team.common.page.PageSizeUtils;
+<<<<<<< Updated upstream
 import com.team.deliveryservice.delivery.application.dto.request.AssignCompanyDeliveryManagerRequest;
 import com.team.deliveryservice.delivery.application.dto.request.AssignHubDeliveryManagerRequest;
 import com.team.deliveryservice.delivery.application.dto.request.ChangeDeliveryStatusRequest;
 import com.team.deliveryservice.delivery.application.dto.request.CreateDeliveryRequest;
 import com.team.deliveryservice.delivery.application.dto.request.UpdateDeliveryRequest;
 import com.team.deliveryservice.delivery.application.dto.response.AiDeliveryResponse;
+=======
+import com.team.deliveryservice.delivery.application.dto.request.*;
+>>>>>>> Stashed changes
 import com.team.deliveryservice.delivery.application.dto.response.DeliveryPageResponse;
 import com.team.deliveryservice.delivery.application.dto.response.DeliveryResponse;
 import com.team.deliveryservice.delivery.application.dto.response.DeliveryRouteLogResponse;
@@ -26,21 +30,27 @@ import com.team.deliveryservice.infrastructure.client.HubClient;
 import com.team.deliveryservice.infrastructure.client.OrderClient;
 import com.team.deliveryservice.infrastructure.client.dto.CompanyInternalResponse;
 import com.team.deliveryservice.infrastructure.client.dto.HubExistsResponse;
+<<<<<<< Updated upstream
 import com.team.deliveryservice.infrastructure.client.dto.HubInternalResponse;
+=======
+>>>>>>> Stashed changes
 import com.team.deliveryservice.infrastructure.client.dto.OptimalRouteResponseWrapper;
 import com.team.deliveryservice.infrastructure.client.dto.OrderInternalResponse;
 import feign.FeignException;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -62,15 +72,17 @@ public class DeliveryServiceImpl implements DeliveryService {
     public DeliveryResponse createDelivery(CreateDeliveryRequest request) {
         // 같은 주문에 대한 배송이 이미 있으면 생성 불가
         if (deliveryRepository.existsByOrderIdAndDeletedAtIsNull(request.orderId())) {
+            log.warn("[배송 생성] 이미 존재하는 배송 orderId={}", request.orderId());
             throw new ServiceException(DeliveryErrorCode.DELIVERY_ALREADY_EXISTS);
         }
 
-        // 주문 존재 여부 / 주문 상태 / 공급업체 / 수령업체 일치 여부 검증
-        validateOrderExistsAndStatus(
-            request.orderId(),
-            request.supplierCompanyId(),
-            request.receiverCompanyId()
-        );
+//        // 주문 존재 여부 / 주문 상태 / 공급업체 / 수령업체 일치 여부 검증
+//        validateOrderExistsAndStatus(
+//            request.orderId(),
+//            request.supplierCompanyId(),
+//            request.receiverCompanyId()
+//        );
+//        // TODO: 사가 패턴 도입 시 이벤트 기반 검증으로 교체 예정
 
         // 공급 업체 / 수령 업체 조회
         CompanyInternalResponse supplierCompany = getActiveCompany(request.supplierCompanyId());
@@ -79,13 +91,17 @@ public class DeliveryServiceImpl implements DeliveryService {
         // 배송 생성에 필요한 업체 정보 검증
         validateCompanyDeliveryInfo(supplierCompany, receiverCompany);
 
-        // 업체 소속 허브 조회
-        UUID originHubId = supplierCompany.hubId();
-        UUID destinationHubId = receiverCompany.hubId();
+//        // 업체 소속 허브 조회 (허브 서비스 연결 후 주석 해제)
+//        UUID originHubId = supplierCompany.hubId();
+//        UUID destinationHubId = receiverCompany.hubId();
+//
+//        // 허브 존재 여부 검증
+//        validateHubExists(originHubId);
+//        validateHubExists(destinationHubId);
 
-        // 허브 존재 여부 검증
-        validateHubExists(originHubId);
-        validateHubExists(destinationHubId);
+        // 임시 허브 UUID (hub-service 연결 전 테스트용)
+        UUID originHubId = UUID.fromString("550e8400-e29b-41d4-a716-446655440001");
+        UUID destinationHubId = UUID.fromString("550e8400-e29b-41d4-a716-446655440013");
 
         // 수령 업체 정보 기준으로 배송 생성
         Delivery delivery = Delivery.create(
@@ -103,8 +119,8 @@ public class DeliveryServiceImpl implements DeliveryService {
         try {
             Delivery savedDelivery = deliveryRepository.save(delivery);
 
-            // 허브 최적 경로 조회 후 route log 생성
-            createRouteLogs(savedDelivery);
+            // 허브 최적 경로 조회 후 route log 생성 (hub 연결 후 주석 해제)
+            // createRouteLogs(savedDelivery);
 
             return DeliveryResponse.from(savedDelivery, getRouteLogs(savedDelivery.getId()));
         } catch (DataIntegrityViolationException e) {
@@ -188,6 +204,7 @@ public class DeliveryServiceImpl implements DeliveryService {
             // 도메인 상태 전이 규칙에 따라 배송 상태 변경
             delivery.updateStatus(request.deliveryStatus());
         } catch (IllegalStateException e) {
+            log.warn("[배송 상태 변경] 변경 불가 deliveryId={}, requestStatus={}", deliveryId, request.deliveryStatus(), e);
             throw new ServiceException(DeliveryErrorCode.DELIVERY_STATUS_CHANGE_NOT_ALLOWED);
         }
 
@@ -203,6 +220,7 @@ public class DeliveryServiceImpl implements DeliveryService {
             // 취소 가능한 상태일 때만 배송 취소
             delivery.cancel();
         } catch (IllegalStateException e) {
+            log.warn("[배송 취소] 취소 불가 상태 deliveryId={}", deliveryId, e);
             throw new ServiceException(DeliveryErrorCode.DELIVERY_CANCEL_NOT_ALLOWED);
         }
 
@@ -349,11 +367,14 @@ public class DeliveryServiceImpl implements DeliveryService {
             HubExistsResponse response = hubClient.existsHub(hubId, INTERNAL_REQUEST_HEADER);
 
             if (response == null || !response.exists()) {
+                log.warn("[배송 생성] 허브 없음 hubId={}", hubId);
                 throw new ServiceException(DeliveryErrorCode.HUB_NOT_FOUND);
             }
         } catch (FeignException.NotFound e) {
+            log.warn("[배송 생성] 허브 없음 hubId={}", hubId, e);
             throw new ServiceException(DeliveryErrorCode.HUB_NOT_FOUND);
         } catch (FeignException e) {
+            log.error("[배송 생성] 허브 서비스 호출 실패 hubId={}, status={}", hubId, e.status(), e);
             throw new ServiceException(DeliveryErrorCode.HUB_SERVICE_UNAVAILABLE);
         }
     }
@@ -364,13 +385,16 @@ public class DeliveryServiceImpl implements DeliveryService {
             CompanyInternalResponse company = companyClient.getCompany(companyId);
 
             if (company == null || company.id() == null || !company.isActive()) {
+                log.warn("[배송 생성] 업체 없음 또는 비활성 companyId={}", companyId);
                 throw new ServiceException(DeliveryErrorCode.COMPANY_NOT_FOUND);
             }
 
             return company;
         } catch (FeignException.NotFound e) {
+            log.warn("[배송 생성] 업체 없음 companyId={}", companyId, e);
             throw new ServiceException(DeliveryErrorCode.COMPANY_NOT_FOUND);
         } catch (FeignException e) {
+            log.error("[배송 생성] 업체 서비스 호출 실패 companyId={}, status={}", companyId, e.status(), e);
             throw new ServiceException(DeliveryErrorCode.COMPANY_SERVICE_UNAVAILABLE);
         }
     }
