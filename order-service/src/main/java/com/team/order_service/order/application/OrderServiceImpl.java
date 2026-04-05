@@ -61,7 +61,7 @@ public class OrderServiceImpl implements OrderService {
             saved.addOrderItem(orderItem);
         });
 
-        // 3. 재고 차감 (실패 시 이미 차감된 항목 복원 - 보상 트랜잭션)
+        // 3. 재고 차감 + 배송 생성 (실패 시 차감된 재고 전체 복원 - 보상 트랜잭션)
         // TODO: [사가 패턴 도입 시 개선 필요]
         //   - 현재 REST 기반 보상 트랜잭션은 멱등성 보장 불가
         //   - 보상 후 재시도 시 동일 orderId로 중복 차감 발생 가능
@@ -69,7 +69,7 @@ public class OrderServiceImpl implements OrderService {
         int deductedCount = 0;
         var items = command.orderItems();
         try {
-            for (var orderItemCommand : command.orderItems()) {
+            for (var orderItemCommand : items) {
                 deductStockWithFallback(
                         command.orderedBy(),
                         orderItemCommand.productId(),
@@ -78,8 +78,13 @@ public class OrderServiceImpl implements OrderService {
                 );
                 deductedCount++;
             }
-        } catch (BusinessException e) {
-            // 이미 차감된 항목 복원
+
+            // 4. 배송 생성 (재고 차감 성공 후 시도)
+            UUID deliveryId = createDeliveryWithFallback(command, saved.getId());
+            saved.assignDelivery(deliveryId);
+
+        } catch (Exception e) {
+            // 차감된 재고 전체 복원
             for (int i = 0; i < deductedCount; i++) {
                 try {
                     productClient.restoreStock(
@@ -88,16 +93,13 @@ public class OrderServiceImpl implements OrderService {
                             new StockRestoreRequest(items.get(i).quantity(), saved.getId())
                     );
                 } catch (Exception compensationEx) {
-                    log.error("[주문생성 보상 트랜잭션 실패] orderId={}, productId={}, error={}",
-                            saved.getId(), items.get(i).productId(), compensationEx.getMessage());
+                    log.error("[주문생성 보상 트랜잭션 실패] 재고 복원 실패 orderId={}, productId={}",
+                            saved.getId(), items.get(i).productId(), compensationEx);
                 }
             }
-            throw e;
+            if (e instanceof BusinessException) throw (BusinessException) e;
+            throw new BusinessException(OrderErrorCode.STOCK_DEDUCT_FAILED);
         }
-
-        // 4. 배송 생성
-        UUID deliveryId = createDeliveryWithFallback(command, saved.getId());
-        saved.assignDelivery(deliveryId);
 
         return OrderResult.from(saved);
     }
@@ -124,7 +126,6 @@ public class OrderServiceImpl implements OrderService {
     public OrderResult updateOrder(OrderUpdateCommand command) {
         Order order = findActiveOrderById(command.orderId());
         order.update(command.deadlineAt(), command.requestNote());
-
         return OrderResult.from(order);
     }
 
@@ -144,7 +145,7 @@ public class OrderServiceImpl implements OrderService {
             throw new BusinessException(OrderErrorCode.ORDER_NOT_CANCELLABLE);
         }
 
-        // 1. 재고 복원 (실패 시 이미 복원된 항목 다시 차감 - 보상 트랜잭션)
+        // 1. 재고 복원 + 배송 취소 (실패 시 복원된 재고 다시 차감 - 보상 트랜잭션)
         // TODO: [사가 패턴 도입 시 개선 필요]
         //   - 현재 REST 기반 보상 트랜잭션은 멱등성 보장 불가
         //   - 보상 후 재시도 시 동일 orderId로 중복 복원 발생 가능
@@ -161,8 +162,14 @@ public class OrderServiceImpl implements OrderService {
                 );
                 restoredCount++;
             }
-        } catch (BusinessException e) {
-            // 이미 복원된 항목 다시 차감 (보상)
+
+            // 2. 배송 취소 (재고 복원 성공 후 시도)
+            if (order.getDeliveryId() != null) {
+                cancelDeliveryWithFallback(order.getDeliveryId());
+            }
+
+        } catch (Exception e) {
+            // 복원된 재고 다시 차감 (보상)
             for (int i = 0; i < restoredCount; i++) {
                 try {
                     productClient.deductStock(
@@ -171,16 +178,12 @@ public class OrderServiceImpl implements OrderService {
                             new StockDeductRequest(orderItems.get(i).getQuantity(), orderId)
                     );
                 } catch (Exception compensationEx) {
-                    log.error("[주문취소 보상 트랜잭션 실패] orderId={}, productId={}, error={}",
-                            orderId, orderItems.get(i).getProductId(), compensationEx.getMessage());
+                    log.error("[주문취소 보상 트랜잭션 실패] 재고 재차감 실패 orderId={}, productId={}",
+                            orderId, orderItems.get(i).getProductId(), compensationEx);
                 }
             }
-            throw e;
-        }
-
-        // 2. 배송 취소
-        if (order.getDeliveryId() != null) {
-            cancelDeliveryWithFallback(order.getDeliveryId());
+            if (e instanceof BusinessException) throw (BusinessException) e;
+            throw new BusinessException(OrderErrorCode.STOCK_RESTORE_FAILED);
         }
 
         // 3. 주문 취소
@@ -192,12 +195,13 @@ public class OrderServiceImpl implements OrderService {
     public void deleteOrder(UUID orderId, UUID deletedBy) {
         Order order = findActiveOrderById(orderId);
 
-        // 취소되지 않은 주문은 삭제 전 취소 처리 (재고 복원 포함)
-        if (order.isCancellable()) {
-            cancelOrder(orderId, deletedBy);
+        // 취소된 주문만 삭제 가능
+        if (order.getOrderStatus() != OrderStatus.CANCELLED
+                && order.getOrderStatus() != OrderStatus.COMPLETED) {
+            throw new BusinessException(OrderErrorCode.ORDER_NOT_DELETABLE);
         }
-
-        // 배송 삭제 (TODO: 배송 서비스 API 확정 후 주석 해제)
+        
+        // 배송 삭제
         if (order.getDeliveryId() != null) {
             deleteDeliveryWithFallback(order.getDeliveryId());
         }
@@ -213,8 +217,10 @@ public class OrderServiceImpl implements OrderService {
         try {
             return productClient.getProduct(requestUserId, productId);
         } catch (FeignException.NotFound e) {
+            log.warn("[상품 조회] 상품 없음 productId={}", productId, e);
             throw new BusinessException(OrderErrorCode.PRODUCT_NOT_FOUND);
         } catch (Exception e) {
+            log.error("[상품 조회 실패] productId={}", productId, e);
             throw new BusinessException(OrderErrorCode.SERVICE_UNAVAILABLE);
         }
     }
@@ -223,10 +229,16 @@ public class OrderServiceImpl implements OrderService {
         try {
             productClient.deductStock(requestUserId, productId, new StockDeductRequest(quantity, orderId));
         } catch (FeignException.NotFound e) {
+            log.warn("[재고 차감] 상품 없음 productId={}", productId, e);
             throw new BusinessException(OrderErrorCode.PRODUCT_NOT_FOUND);
         } catch (FeignException e) {
+            log.error("[재고 차감 실패] productId={}, status={}", productId, e.status(), e);
+            if (e.status() >= 500) {
+                throw new BusinessException(OrderErrorCode.SERVICE_UNAVAILABLE);
+            }
             throw new BusinessException(OrderErrorCode.STOCK_DEDUCT_FAILED);
         } catch (Exception e) {
+            log.error("[재고 차감 실패] productId={}", productId, e);
             throw new BusinessException(OrderErrorCode.SERVICE_UNAVAILABLE);
         }
     }
@@ -235,10 +247,16 @@ public class OrderServiceImpl implements OrderService {
         try {
             productClient.restoreStock(requestUserId, productId, new StockRestoreRequest(quantity, orderId));
         } catch (FeignException.NotFound e) {
+            log.warn("[재고 복원] 상품 없음 productId={}", productId, e);
             throw new BusinessException(OrderErrorCode.PRODUCT_NOT_FOUND);
         } catch (FeignException e) {
+            log.error("[재고 복원 실패] productId={}, status={}", productId, e.status(), e);
+            if (e.status() >= 500) {
+                throw new BusinessException(OrderErrorCode.SERVICE_UNAVAILABLE);
+            }
             throw new BusinessException(OrderErrorCode.STOCK_RESTORE_FAILED);
         } catch (Exception e) {
+            log.error("[재고 복원 실패] productId={}", productId, e);
             throw new BusinessException(OrderErrorCode.SERVICE_UNAVAILABLE);
         }
     }
@@ -255,10 +273,24 @@ public class OrderServiceImpl implements OrderService {
                             command.requestNote()
                     )
             );
+            if (!response.success() || response.data() == null || response.data().deliveryId() == null) {
+                if (response.data() == null) {
+                    log.error("[배송 생성 실패] 응답 data가 null입니다 orderId={}, code={}, message={}",
+                            orderId, response.code(), response.message());
+                } else {
+                    log.error("[배송 생성 실패] deliveryId가 null입니다 orderId={}, code={}, message={}",
+                            orderId, response.code(), response.message());
+                }
+                throw new BusinessException(OrderErrorCode.DELIVERY_CREATE_FAILED);
+            }
             return response.data().deliveryId();
+        } catch (BusinessException e) {
+            throw e;
         } catch (FeignException.NotFound e) {
+            log.error("[배송 생성 실패] 404 orderId={}", orderId, e);
             throw new BusinessException(OrderErrorCode.DELIVERY_CREATE_FAILED);
         } catch (Exception e) {
+            log.error("[배송 생성 실패] orderId={}", orderId, e);
             throw new BusinessException(OrderErrorCode.SERVICE_UNAVAILABLE);
         }
     }
@@ -267,8 +299,10 @@ public class OrderServiceImpl implements OrderService {
         try {
             deliveryClient.cancelDelivery(deliveryId);
         } catch (FeignException.NotFound e) {
+            log.warn("[배송 취소] 이미 취소된 배송 deliveryId={}", deliveryId, e);
             // 이미 취소된 배송은 무시
         } catch (Exception e) {
+            log.error("[배송 취소 실패] deliveryId={}", deliveryId, e);
             throw new BusinessException(OrderErrorCode.DELIVERY_CANCEL_FAILED);
         }
     }
@@ -277,8 +311,10 @@ public class OrderServiceImpl implements OrderService {
         try {
             deliveryClient.deleteDelivery(deliveryId);
         } catch (FeignException.NotFound e) {
+            log.warn("[배송 삭제] 이미 삭제된 배송 deliveryId={}", deliveryId, e);
             // 이미 삭제된 배송은 무시
         } catch (Exception e) {
+            log.error("[배송 삭제 실패] deliveryId={}", deliveryId, e);
             throw new BusinessException(OrderErrorCode.DELIVERY_DELETE_FAILED);
         }
     }
