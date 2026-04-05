@@ -25,18 +25,17 @@ import static org.springframework.restdocs.request.RequestDocumentation.pathPara
 import static org.springframework.restdocs.request.RequestDocumentation.queryParameters;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.UUID;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.team.common.exception.GlobalExceptionHandler;
 import com.team.companyservice.company.application.dto.response.CompanyPageResponse;
 import com.team.companyservice.company.application.dto.response.CompanyResponse;
 import com.team.companyservice.company.application.service.CompanyService;
 import com.team.companyservice.company.domain.CompanyType;
 import com.team.companyservice.company.presentation.ExternalCompanyController;
 import com.team.companyservice.global.common.CurrentUser;
-import com.team.common.exception.GlobalExceptionHandler;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -79,7 +78,7 @@ class ExternalCompanyControllerRestDocsTest {
             .build();
     }
 
-    // 테스트에서 CurrentUser를 주입하기 위한 resolver
+    // 테스트에서 CurrentUser를 직접 주입한다.
     static class CurrentUserTestArgumentResolver implements HandlerMethodArgumentResolver {
 
         @Override
@@ -95,7 +94,7 @@ class ExternalCompanyControllerRestDocsTest {
             WebDataBinderFactory binderFactory
         ) {
             String userId = webRequest.getHeader("X-User-Id");
-            String role = webRequest.getHeader("X-Role");
+            String role = webRequest.getHeader("X-User-Role");
             String hubId = webRequest.getHeader("X-Hub-Id");
             String companyId = webRequest.getHeader("X-Company-Id");
 
@@ -148,7 +147,7 @@ class ExternalCompanyControllerRestDocsTest {
 
         mockMvc.perform(post("/api/v1/companies")
                 .header("X-User-Id", UUID.randomUUID().toString())
-                .header("X-Role", "MASTER_ADMIN")
+                .header("X-User-Role", "MASTER_ADMIN")
                 .contentType(APPLICATION_JSON)
                 .content(requestBody))
             .andExpect(status().isCreated())
@@ -157,7 +156,7 @@ class ExternalCompanyControllerRestDocsTest {
                 preprocessResponse(prettyPrint()),
                 requestHeaders(
                     headerWithName("X-User-Id").description("요청 사용자 ID"),
-                    headerWithName("X-Role").description("요청 사용자 권한")
+                    headerWithName("X-User-Role").description("요청 사용자 권한")
                 ),
                 requestFields(
                     fieldWithPath("name").type(JsonFieldType.STRING).description("업체명"),
@@ -367,7 +366,7 @@ class ExternalCompanyControllerRestDocsTest {
 
         mockMvc.perform(put("/api/v1/companies/{companyId}", companyId)
                 .header("X-User-Id", UUID.randomUUID().toString())
-                .header("X-Role", "MASTER_ADMIN")
+                .header("X-User-Role", "MASTER_ADMIN")
                 .contentType(APPLICATION_JSON)
                 .content(requestBody))
             .andExpect(status().isOk())
@@ -379,7 +378,7 @@ class ExternalCompanyControllerRestDocsTest {
                 ),
                 requestHeaders(
                     headerWithName("X-User-Id").description("요청 사용자 ID"),
-                    headerWithName("X-Role").description("요청 사용자 권한")
+                    headerWithName("X-User-Role").description("요청 사용자 권한")
                 ),
                 requestFields(
                     fieldWithPath("name").type(JsonFieldType.STRING).description("업체명"),
@@ -421,7 +420,7 @@ class ExternalCompanyControllerRestDocsTest {
 
         mockMvc.perform(delete("/api/v1/companies/{companyId}", companyId)
                 .header("X-User-Id", UUID.randomUUID().toString())
-                .header("X-Role", "MASTER_ADMIN"))
+                .header("X-User-Role", "MASTER_ADMIN"))
             .andExpect(status().isOk())
             .andDo(document("companies/delete",
                 preprocessRequest(prettyPrint()),
@@ -431,7 +430,7 @@ class ExternalCompanyControllerRestDocsTest {
                 ),
                 requestHeaders(
                     headerWithName("X-User-Id").description("요청 사용자 ID"),
-                    headerWithName("X-Role").description("요청 사용자 권한")
+                    headerWithName("X-User-Role").description("요청 사용자 권한")
                 ),
                 responseFields(
                     fieldWithPath("success").type(JsonFieldType.BOOLEAN).description("요청 성공 여부"),
@@ -448,7 +447,6 @@ class ExternalCompanyControllerRestDocsTest {
         UUID companyId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
 
-        // 업체 관리자 지정 서비스 호출 mock
         doNothing().when(companyService).assignManager(eq(companyId), eq(userId), any());
 
         String requestBody = """
@@ -459,7 +457,7 @@ class ExternalCompanyControllerRestDocsTest {
 
         mockMvc.perform(patch("/api/v1/companies/{companyId}/manager", companyId)
                 .header("X-User-Id", UUID.randomUUID().toString())
-                .header("X-Role", "MASTER_ADMIN")
+                .header("X-User-Role", "MASTER_ADMIN")
                 .contentType(APPLICATION_JSON)
                 .content(requestBody))
             .andExpect(status().isOk())
@@ -471,7 +469,7 @@ class ExternalCompanyControllerRestDocsTest {
                 ),
                 requestHeaders(
                     headerWithName("X-User-Id").description("요청 사용자 ID"),
-                    headerWithName("X-Role").description("요청 사용자 권한")
+                    headerWithName("X-User-Role").description("요청 사용자 권한")
                 ),
                 requestFields(
                     fieldWithPath("userId").type(JsonFieldType.STRING).description("업체 관리자로 지정할 사용자 ID")

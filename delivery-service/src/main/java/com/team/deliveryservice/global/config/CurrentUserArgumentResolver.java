@@ -35,7 +35,7 @@ public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolve
 
         return new CurrentUser(
             parseUuid(request.getHeader("X-User-Id")),
-            request.getHeader("X-Role"),
+            request.getHeader("X-User-Role"),
             parseUuid(request.getHeader("X-Hub-Id")),
             parseUuid(request.getHeader("X-Company-Id"))
         );
