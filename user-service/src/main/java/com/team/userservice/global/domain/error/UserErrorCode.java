@@ -27,7 +27,9 @@ public enum UserErrorCode implements com.team.common.exception.ErrorCode {
     DUPLICATE_LOGIN_ID(HttpStatus.CONFLICT, "USER_409_1", "이미 사용 중인 아이디입니다."),
     DUPLICATE_EMAIL(HttpStatus.CONFLICT, "USER_409_2", "이미 사용 중인 이메일입니다."),
     ALREADY_REGISTERED_USER(HttpStatus.CONFLICT, "USER_409_3", "이미 등록이 완료된 유저입니다."),
-    DUPLICATE_USER_INFO(HttpStatus.CONFLICT, "USER_409_4", "이미 사용 중인 정보입니다.");
+    DUPLICATE_USER_INFO(HttpStatus.CONFLICT, "USER_409_4", "이미 사용 중인 정보입니다."),
+
+    SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "USER_503_1", "외부 서비스 호출에 실패했습니다.");
 
 
 ;

@@ -239,12 +239,18 @@ public class UserServiceImpl implements UserService {
                 hubInternalClient.isValidID(affiliationId);
             }catch (FeignException.NotFound e){
                 throw new UserException(UserErrorCode.INVALID_HUB_ID);
+            }catch (FeignException e) {
+                // 500, 503, timeout 등 기타 Feign 예외 처리
+                throw new UserException(UserErrorCode.SERVICE_UNAVAILABLE);
             }
         }else if(affiliation == Affiliation.COMPANY){
             try{
                 companyInternalClient.isValidID(affiliationId);
             }catch (FeignException.NotFound e){
                 throw new UserException(UserErrorCode.INVALID_COMPANY_ID);
+            }catch (FeignException e) {
+                // 500, 503, timeout 등 기타 Feign 예외 처리
+                throw new UserException(UserErrorCode.SERVICE_UNAVAILABLE);
             }
         }else{
             throw new UserException(UserErrorCode.NOT_EXIST_AFFILIATION);
