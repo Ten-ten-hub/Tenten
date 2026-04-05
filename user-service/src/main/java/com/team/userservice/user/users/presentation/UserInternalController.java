@@ -45,7 +45,7 @@ public class UserInternalController {
         return CommonResponse.onSuccess(
             userService.getAllUserInfoInternal(roles, affiliatedStatus)
                 .stream()
-                .map(user -> InternalUserSummaryRes.from(userService.getUserInfo(user.getId())))
+                .map(InternalUserSummaryRes::from)
                 .toList()
         );
     }

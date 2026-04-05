@@ -36,7 +36,10 @@ public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolve
 
         String userIdHeader = request.getHeader("X-User-Id");
         String roleHeader = request.getHeader("X-User-Role");
+        String hubIdHeader = request.getHeader("X-Hub-Id");
+        String companyIdHeader = request.getHeader("X-Company-Id");
 
+        // 외부 API는 최소 사용자 ID와 역할 정보가 있어야 함
         if (userIdHeader == null || userIdHeader.isBlank()
             || roleHeader == null || roleHeader.isBlank()) {
             throw new ServiceException(CompanyErrorCode.COMMON_UNAUTHORIZED);
@@ -45,8 +48,8 @@ public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolve
         return new CurrentUser(
             parseUuid(userIdHeader),
             roleHeader,
-            parseUuid(request.getHeader("X-Hub-Id")),
-            parseUuid(request.getHeader("X-Company-Id"))
+            parseUuid(hubIdHeader),
+            parseUuid(companyIdHeader)
         );
     }
 
@@ -54,6 +57,7 @@ public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolve
         if (value == null || value.isBlank()) {
             return null;
         }
+
         try {
             return UUID.fromString(value);
         } catch (IllegalArgumentException e) {

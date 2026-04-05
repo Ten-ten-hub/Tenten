@@ -2,6 +2,8 @@ package com.team.companyservice.infrastructure.client;
 
 import com.team.companyservice.global.config.FeignConfig;
 import com.team.companyservice.global.config.FeignRetryConfig;
+import com.team.companyservice.infrastructure.client.dto.AffiliatedStatus;
+import com.team.companyservice.infrastructure.client.dto.Role;
 import com.team.companyservice.infrastructure.client.dto.UpdateUserAffiliationRequest;
 import com.team.companyservice.infrastructure.client.dto.UpdateUserRoleRequest;
 import com.team.companyservice.infrastructure.client.dto.UserCommonResponse;
@@ -33,8 +35,8 @@ public interface UserClient {
      */
     @GetMapping("/internal/v1/users")
     UserCommonResponse<List<UserInternalResponse>> getUsers(
-        @RequestParam(required = false) List<String> roles,
-        @RequestParam(required = false) String affiliatedStatus
+        @RequestParam(required = false) List<Role> roles,
+        @RequestParam(required = false) AffiliatedStatus affiliatedStatus
     );
 
     /**

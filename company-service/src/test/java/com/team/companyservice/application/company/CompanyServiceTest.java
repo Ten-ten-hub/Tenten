@@ -4,9 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 
 import com.team.companyservice.company.application.dto.request.CreateCompanyRequest;
 import com.team.companyservice.company.application.service.CompanyService;
@@ -18,7 +18,10 @@ import com.team.companyservice.global.error.CompanyErrorCode;
 import com.team.companyservice.global.error.ServiceException;
 import com.team.companyservice.infrastructure.client.HubClient;
 import com.team.companyservice.infrastructure.client.UserClient;
+import com.team.companyservice.infrastructure.client.dto.AffiliatedStatus;
+import com.team.companyservice.infrastructure.client.dto.AffiliationType;
 import com.team.companyservice.infrastructure.client.dto.HubExistsResponse;
+import com.team.companyservice.infrastructure.client.dto.Role;
 import com.team.companyservice.infrastructure.client.dto.UpdateUserAffiliationRequest;
 import com.team.companyservice.infrastructure.client.dto.UpdateUserRoleRequest;
 import com.team.companyservice.infrastructure.client.dto.UserCommonResponse;
@@ -30,6 +33,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
 class CompanyServiceTest {
@@ -44,7 +48,6 @@ class CompanyServiceTest {
         userClient
     );
 
-    // 테스트용 업체 생성
     private Company createCompany(UUID companyId, UUID hubId) {
         return Company.builder()
             .id(companyId)
@@ -61,17 +64,14 @@ class CompanyServiceTest {
             .build();
     }
 
-    // 마스터 관리자 사용자
     private CurrentUser masterAdmin() {
         return new CurrentUser(UUID.randomUUID(), "MASTER_ADMIN", null, null);
     }
 
-    // 허브 관리자 사용자
     private CurrentUser hubAdmin(UUID hubId) {
         return new CurrentUser(UUID.randomUUID(), "HUB_ADMIN", hubId, null);
     }
 
-    // 내부 계약에 맞는 사용자 응답 생성
     private UserInternalResponse user(
         UUID userId,
         String role,
@@ -101,14 +101,12 @@ class CompanyServiceTest {
 
             Company company = createCompany(companyId, hubId);
 
-            given(companyRepository.findByIdAndDeletedAtIsNull(companyId))
+            given(companyRepository.findByIdAndDeletedAtIsNullForUpdate(companyId))
                 .willReturn(Optional.of(company));
 
-            // 아직 해당 업체에 지정된 업체 관리자가 없음
-            given(userClient.getUsers(anyList(), eq("COM_AFFILIATED")))
+            given(userClient.getUsers(eq(List.of(Role.COMPANY_MANAGER)), eq(AffiliatedStatus.COM_AFFILIATED)))
                 .willReturn(new UserCommonResponse<>(true, List.of(), "OK", "성공"));
 
-            // 대상 사용자 조회 성공
             given(userClient.getUserInfo(userId))
                 .willReturn(new UserCommonResponse<>(
                     true,
@@ -117,15 +115,26 @@ class CompanyServiceTest {
                     "성공"
                 ));
 
-            // 권한 변경 성공
             given(userClient.updateUserRole(eq(userId), any(UpdateUserRoleRequest.class)))
                 .willReturn(new UserCommonResponse<>(true, null, "OK", "성공"));
 
-            // 소속 변경 성공
             given(userClient.updateUserAffiliation(eq(userId), any(UpdateUserAffiliationRequest.class)))
                 .willReturn(new UserCommonResponse<>(true, null, "OK", "성공"));
 
             assertDoesNotThrow(() -> companyService.assignManager(companyId, userId, masterAdmin()));
+
+            ArgumentCaptor<UpdateUserRoleRequest> roleCaptor =
+                ArgumentCaptor.forClass(UpdateUserRoleRequest.class);
+            ArgumentCaptor<UpdateUserAffiliationRequest> affiliationCaptor =
+                ArgumentCaptor.forClass(UpdateUserAffiliationRequest.class);
+
+            verify(userClient).getUsers(eq(List.of(Role.COMPANY_MANAGER)), eq(AffiliatedStatus.COM_AFFILIATED));
+            verify(userClient).updateUserRole(eq(userId), roleCaptor.capture());
+            verify(userClient).updateUserAffiliation(eq(userId), affiliationCaptor.capture());
+
+            assertEquals(Role.COMPANY_MANAGER, roleCaptor.getValue().role());
+            assertEquals(AffiliationType.COMPANY, affiliationCaptor.getValue().affiliation());
+            assertEquals(companyId, affiliationCaptor.getValue().affiliationId());
         }
 
         @Test
@@ -137,10 +146,9 @@ class CompanyServiceTest {
 
             Company company = createCompany(companyId, hubId);
 
-            given(companyRepository.findByIdAndDeletedAtIsNull(companyId))
+            given(companyRepository.findByIdAndDeletedAtIsNullForUpdate(companyId))
                 .willReturn(Optional.of(company));
 
-            // 이미 해당 업체에 매핑된 업체 관리자 존재
             UserInternalResponse assignedManager = user(
                 UUID.randomUUID(),
                 "COMPANY_MANAGER",
@@ -149,7 +157,7 @@ class CompanyServiceTest {
                 companyId
             );
 
-            given(userClient.getUsers(anyList(), eq("COM_AFFILIATED")))
+            given(userClient.getUsers(eq(List.of(Role.COMPANY_MANAGER)), eq(AffiliatedStatus.COM_AFFILIATED)))
                 .willReturn(new UserCommonResponse<>(true, List.of(assignedManager), "OK", "성공"));
 
             ServiceException exception = assertThrows(
@@ -169,9 +177,9 @@ class CompanyServiceTest {
 
             Company company = createCompany(companyId, hubId);
 
-            given(companyRepository.findByIdAndDeletedAtIsNull(companyId))
+            given(companyRepository.findByIdAndDeletedAtIsNullForUpdate(companyId))
                 .willReturn(Optional.of(company));
-            given(userClient.getUsers(anyList(), eq("COM_AFFILIATED")))
+            given(userClient.getUsers(eq(List.of(Role.COMPANY_MANAGER)), eq(AffiliatedStatus.COM_AFFILIATED)))
                 .willReturn(new UserCommonResponse<>(true, List.of(), "OK", "성공"));
 
             given(userClient.getUserInfo(userId))
@@ -199,9 +207,9 @@ class CompanyServiceTest {
 
             Company company = createCompany(companyId, hubId);
 
-            given(companyRepository.findByIdAndDeletedAtIsNull(companyId))
+            given(companyRepository.findByIdAndDeletedAtIsNullForUpdate(companyId))
                 .willReturn(Optional.of(company));
-            given(userClient.getUsers(anyList(), eq("COM_AFFILIATED")))
+            given(userClient.getUsers(eq(List.of(Role.COMPANY_MANAGER)), eq(AffiliatedStatus.COM_AFFILIATED)))
                 .willReturn(new UserCommonResponse<>(true, List.of(), "OK", "성공"));
 
             given(userClient.getUserInfo(userId))
@@ -230,7 +238,7 @@ class CompanyServiceTest {
 
             Company company = createCompany(companyId, companyHubId);
 
-            given(companyRepository.findByIdAndDeletedAtIsNull(companyId))
+            given(companyRepository.findByIdAndDeletedAtIsNullForUpdate(companyId))
                 .willReturn(Optional.of(company));
 
             ServiceException exception = assertThrows(
@@ -250,9 +258,9 @@ class CompanyServiceTest {
 
             Company company = createCompany(companyId, hubId);
 
-            given(companyRepository.findByIdAndDeletedAtIsNull(companyId))
+            given(companyRepository.findByIdAndDeletedAtIsNullForUpdate(companyId))
                 .willReturn(Optional.of(company));
-            given(userClient.getUsers(anyList(), eq("COM_AFFILIATED")))
+            given(userClient.getUsers(eq(List.of(Role.COMPANY_MANAGER)), eq(AffiliatedStatus.COM_AFFILIATED)))
                 .willReturn(new UserCommonResponse<>(true, List.of(), "OK", "성공"));
             given(userClient.getUserInfo(userId))
                 .willReturn(new UserCommonResponse<>(
@@ -279,10 +287,10 @@ class CompanyServiceTest {
 
             Company company = createCompany(companyId, hubId);
 
-            given(companyRepository.findByIdAndDeletedAtIsNull(companyId))
+            given(companyRepository.findByIdAndDeletedAtIsNullForUpdate(companyId))
                 .willReturn(Optional.of(company));
 
-            given(userClient.getUsers(anyList(), eq("COM_AFFILIATED")))
+            given(userClient.getUsers(eq(List.of(Role.COMPANY_MANAGER)), eq(AffiliatedStatus.COM_AFFILIATED)))
                 .willThrow(Mockito.mock(FeignException.class));
 
             ServiceException exception = assertThrows(

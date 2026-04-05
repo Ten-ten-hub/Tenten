@@ -14,7 +14,7 @@ jobs:
         run: |
           BRANCH_NAME=${GITHUB_REF#refs/heads/}
           # 정규식: 타입/이슈번호-설명
-          REGEX="^(feat|fix|refactor|docs|chore)\/[0-9]+-.+$"
+          REGEX="^(feat|fix|refactor|docs|chore|test)\/[0-9]+-.+$"
 
           if [[ ! $BRANCH_NAME =~ $REGEX ]]; then
             echo "❌ ERROR: 브랜치 이름 형식이 틀렸습니다!"
