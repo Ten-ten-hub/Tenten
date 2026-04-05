@@ -124,8 +124,21 @@ public class AiAnalysisService {
             .build());
 
         // 6. 알림 서비스 호출 (외부 호출)
-        // savedAnalysis.getId()가 확실히 생성된 후 호출
+        sendNotification(request, rawResult, savedAnalysis);
+
+        return savedAnalysis;
+    }
+
+    /**
+     * 알림 서비스 호출 및 도메인 매핑 (AnalysisType -> MsgType)
+     */
+    private void sendNotification(AiRequest request, String rawResult, AiAnalysis savedAnalysis) {
         LocalDateTime scheduledAt = parseScheduledTime(rawResult);
+        String cleanResult = rawResult.replaceAll("\\[TIME:.*?\\]", "").trim();
+
+        // 분석 타입에 따른 알림 서비스용 메시지 타입 결정
+        String targetMsgType = determineMsgType(savedAnalysis.getAnalysisType());
+
         try {
             notificationClient.sendWithAi(new NotificationClient.AiNotificationRequest(
                 request.orderId(),
@@ -134,29 +147,38 @@ public class AiAnalysisService {
                 cleanResult,
                 scheduledAt,
                 savedAnalysis.getId()
-            ), "ORDER_ALERT");
+            ), targetMsgType);
         } catch (Exception e) {
             log.error("Notification Service call failed: {}", e.getMessage());
         }
+    }
 
-        return savedAnalysis;
+    /**
+     * AnalysisType(AI 도메인)을 MsgType(알림 도메인 문자열)으로 매핑
+     */
+    private String determineMsgType(AnalysisType analysisType) {
+        return switch (analysisType) {
+            case DEADLINE -> "ORDER_ALERT";
+            case ROUTE -> "ORDER_ALERT"; // 필요 시 DAILY_REPORT 등으로 확장 가능
+            default -> "ORDER_ALERT";
+        };
     }
 
     private String extractArea(String address) {
         if (address == null || address.isBlank()) {
             return "";
         }
-        String[] parts = address.split(" ");
-        // "서울특별시 송파구" -> "서울특별시" 만 추출하여 검색 확률을 높임
-        return parts[0];
+        // 연속된 공백 및 앞뒤 공백 처리 후 시/도 단위 추출
+        String trimmed = address.trim();
+        String[] parts = trimmed.split("\\s+");
+        return parts.length > 0 ? parts[0] : "";
     }
 
-    // 시간 파싱 유틸리티
     private LocalDateTime parseScheduledTime(String text) {
         try {
-            Matcher matcher = SCHEDULE_TIME_PATTERN.matcher(text); // 상수 사용
+            Matcher matcher = SCHEDULE_TIME_PATTERN.matcher(text);
             if (matcher.find()) {
-                return LocalDateTime.parse(matcher.group(1).trim(), DATE_TIME_FORMATTER); // 상수 사용
+                return LocalDateTime.parse(matcher.group(1).trim(), DATE_TIME_FORMATTER);
             }
         } catch (Exception e) {
             log.warn("Failed to parse time from AI result: {}", e.getMessage());
