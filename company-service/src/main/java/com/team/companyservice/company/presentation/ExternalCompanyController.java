@@ -11,6 +11,7 @@ import com.team.companyservice.company.application.dto.response.CompanyResponse;
 import com.team.companyservice.company.application.service.CompanyService;
 import com.team.companyservice.company.application.dto.request.CreateCompanyRequest;
 import com.team.companyservice.company.application.dto.request.UpdateCompanyRequest;
+import com.team.companyservice.company.application.dto.request.AssignCompanyManagerRequest;
 import com.team.companyservice.global.common.ApiResponse;
 import com.team.companyservice.global.common.CurrentUser;
 
@@ -72,6 +73,16 @@ public class ExternalCompanyController {
             CurrentUser currentUser
     ) {
         companyService.delete(companyId, currentUser);
+        return ResponseEntity.ok(ApiResponse.ok());
+    }
+
+    @PatchMapping("/{companyId}/manager")
+    public ResponseEntity<ApiResponse<Void>> assignManager(
+        @PathVariable UUID companyId,
+        @Valid @RequestBody AssignCompanyManagerRequest request,
+        CurrentUser currentUser
+    ) {
+        companyService.assignManager(companyId, request.userId(), currentUser);
         return ResponseEntity.ok(ApiResponse.ok());
     }
 }

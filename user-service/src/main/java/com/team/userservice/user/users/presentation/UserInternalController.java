@@ -3,12 +3,15 @@ package com.team.userservice.user.users.presentation;
 import com.team.userservice.global.dto.CommonResponse;
 import com.team.userservice.user.core.enums.AffiliatedStatus;
 import com.team.userservice.user.core.enums.Role;
+import com.team.userservice.user.core.enums.Affiliation;
 import com.team.userservice.user.users.application.UserService;
 import com.team.userservice.user.users.presentation.dto.request.LoginReq;
 import com.team.userservice.user.users.presentation.dto.response.GetAllUserInfoRes;
 import com.team.userservice.user.users.presentation.dto.response.GetRoleRes;
 import com.team.userservice.user.users.presentation.dto.response.GetUserInfoRes;
 import com.team.userservice.user.users.presentation.dto.response.LoginRes;
+import com.team.userservice.user.users.presentation.dto.request.UpdateUserAffiliationReq;
+import com.team.userservice.user.users.presentation.dto.request.UpdateUserRoleReq;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
@@ -64,5 +67,21 @@ public class UserInternalController {
         return CommonResponse.onSuccess(new GetRoleRes(userService.getUserRole(userId)));
     }
 
+    @PatchMapping("/v1/users/{userId}/role")
+    public CommonResponse<Void> updateUserRoleInternal(
+        @PathVariable UUID userId,
+        @Valid @RequestBody UpdateUserRoleReq request
+    ) {
+        userService.updateUserRole(userId, request.role());
+        return CommonResponse.onSuccess();
+    }
 
+    @PatchMapping("/v1/users/{userId}/affiliation")
+    public CommonResponse<Void> updateUserAffiliationInternal(
+        @PathVariable UUID userId,
+        @Valid @RequestBody UpdateUserAffiliationReq request
+    ) {
+        userService.updateUserAffiliation(userId, request.affiliation(), request.affiliationId());
+        return CommonResponse.onSuccess();
+    }
 }

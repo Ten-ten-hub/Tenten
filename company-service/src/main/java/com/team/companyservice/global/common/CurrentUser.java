@@ -20,7 +20,11 @@ public record CurrentUser(
         return "COMPANY_MANAGER".equals(role);
     }
 
-    public boolean isDeliveryManager() {
-        return "DELIVERY_MANAGER".equals(role);
+    public boolean isHubDeliveryManager() {
+        return "HUB_DELIVERY_MANAGER".equals(role);
+    }
+
+    public boolean isCompanyDeliveryManager() {
+        return "COM_DELIVERY_MANAGER".equals(role);
     }
 }
