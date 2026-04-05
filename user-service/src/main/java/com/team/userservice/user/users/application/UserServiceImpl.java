@@ -3,6 +3,8 @@ package com.team.userservice.user.users.application;
 import com.team.userservice.global.domain.error.UserErrorCode;
 import com.team.userservice.global.exception.UserException;
 import com.team.userservice.user.companies.domain.CompanyRepository;
+import com.team.userservice.user.core.CompanyUser;
+import com.team.userservice.user.core.HubUser;
 import com.team.userservice.user.core.User;
 import com.team.userservice.user.core.enums.AffiliatedStatus;
 import com.team.userservice.user.core.enums.Affiliation;
@@ -18,7 +20,9 @@ import com.team.userservice.user.users.application.dto.UserDataDto;
 import com.team.userservice.user.users.domain.UserRepository;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -39,7 +43,6 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public SignUpResultDto signUp(SignUpServiceDto serviceDto) {
-
         if (userRepository.existsByLoginId(serviceDto.loginId())) {
             throw new UserException(UserErrorCode.DUPLICATE_LOGIN_ID);
         }
@@ -61,8 +64,6 @@ public class UserServiceImpl implements UserService {
         } catch (DataIntegrityViolationException e) {
             throw new UserException(UserErrorCode.DUPLICATE_USER_INFO);
         }
-
-
     }
 
     @Override
@@ -110,36 +111,37 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public void updateUserAffiliation(UUID userId, Affiliation affiliation, UUID affiliationId) {
-        User user = userRepository.findById(userId).orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
+
         Role role = user.getRole();
         AffiliatedStatus affiliatedStatus = user.getAffiliatedStatus();
 
-        if(affiliatedStatus == AffiliatedStatus.NOT_APPLICABLE) {
+        if (affiliatedStatus == AffiliatedStatus.NOT_APPLICABLE) {
             throw new UserException(UserErrorCode.NOT_APPLICABLE);
         }
 
         if (affiliation == Affiliation.HUB) {
-            if(role == Role.COMPANY_MANAGER || role == Role.COM_DELIVERY_MANAGER) {
+            if (role == Role.COMPANY_MANAGER || role == Role.COM_DELIVERY_MANAGER) {
                 throw new UserException(UserErrorCode.ROLE_AFFILIATION_CONFLICT);
             }
 
-            if(affiliatedStatus == AffiliatedStatus.HUB_AFFILIATED){
+            if (affiliatedStatus == AffiliatedStatus.HUB_AFFILIATED) {
                 hubRepository.findByUser(user).updateHubId(affiliationId);
-            }else if(affiliatedStatus == AffiliatedStatus.UNAFFILIATED){
+            } else if (affiliatedStatus == AffiliatedStatus.UNAFFILIATED) {
                 hubRepository.save(user, affiliationId);
                 user.updateUserAffiliation(AffiliatedStatus.HUB_AFFILIATED);
             }
-
         }
 
-        if (affiliation == Affiliation.COMPANY){
-            if(role == Role.HUB_ADMIN || role == Role.HUB_DELIVERY_MANAGER){
+        if (affiliation == Affiliation.COMPANY) {
+            if (role == Role.HUB_ADMIN || role == Role.HUB_DELIVERY_MANAGER) {
                 throw new UserException(UserErrorCode.ROLE_AFFILIATION_CONFLICT);
             }
 
-            if(affiliatedStatus == AffiliatedStatus.COM_AFFILIATED){
+            if (affiliatedStatus == AffiliatedStatus.COM_AFFILIATED) {
                 companyRepository.findByUser(user).updateCompanyId(affiliationId);
-            }else if(affiliatedStatus == AffiliatedStatus.UNAFFILIATED){
+            } else if (affiliatedStatus == AffiliatedStatus.UNAFFILIATED) {
                 companyRepository.save(user, affiliationId);
                 user.updateUserAffiliation(AffiliatedStatus.COM_AFFILIATED);
             }
@@ -149,8 +151,9 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public UserDataDto getUserInfo(UUID userId) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
 
-        User user = userRepository.findById(userId).orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
         if (user.getAffiliatedStatus() == AffiliatedStatus.HUB_AFFILIATED) {
             return UserDataDto.fromUserInfo(user, hubRepository.findByUser(user).getHubId());
         } else if (user.getAffiliatedStatus() == AffiliatedStatus.COM_AFFILIATED) {
@@ -158,7 +161,7 @@ public class UserServiceImpl implements UserService {
         } else if (user.getAffiliatedStatus() == AffiliatedStatus.UNAFFILIATED
             || user.getAffiliatedStatus() == AffiliatedStatus.NOT_APPLICABLE) {
             return UserDataDto.fromUserInfo(user);
-        } else{
+        } else {
             throw new IllegalStateException("Unexpected affiliatedStatus: " + user.getAffiliatedStatus());
         }
     }
@@ -177,14 +180,55 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<User> getAllUserInfoInternal() {
-        return userRepository.findAll();
+    public List<UserDataDto> getAllUserInfoInternal(List<Role> roles, AffiliatedStatus affiliatedStatus) {
+        List<User> users = userRepository.findAll(roles, affiliatedStatus);
+
+        List<User> companyAffiliatedUsers = users.stream()
+            .filter(user -> user.getAffiliatedStatus() == AffiliatedStatus.COM_AFFILIATED)
+            .toList();
+
+        List<User> hubAffiliatedUsers = users.stream()
+            .filter(user -> user.getAffiliatedStatus() == AffiliatedStatus.HUB_AFFILIATED)
+            .toList();
+
+        Map<UUID, UUID> companyAffiliationMap = companyRepository.findAllByUsers(companyAffiliatedUsers).stream()
+            .collect(Collectors.toMap(
+                companyUser -> companyUser.getUser().getId(),
+                CompanyUser::getCompanyId
+            ));
+
+        Map<UUID, UUID> hubAffiliationMap = hubRepository.findAllByUsers(hubAffiliatedUsers).stream()
+            .collect(Collectors.toMap(
+                hubUser -> hubUser.getUser().getId(),
+                HubUser::getHubId
+            ));
+
+        return users.stream()
+            .map(user -> {
+                UUID affiliationId = resolveAffiliationId(user, companyAffiliationMap, hubAffiliationMap);
+
+                if (affiliationId == null) {
+                    return UserDataDto.fromUserInfo(user);
+                }
+                return UserDataDto.fromUserInfo(user, affiliationId);
+            })
+            .toList();
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public List<User> getAllUserInfoInternal(List<Role> roles, AffiliatedStatus affiliatedStatus) {
-        return userRepository.findAll(roles, affiliatedStatus);
+    private UUID resolveAffiliationId(
+        User user,
+        Map<UUID, UUID> companyAffiliationMap,
+        Map<UUID, UUID> hubAffiliationMap
+    ) {
+        if (user.getAffiliatedStatus() == AffiliatedStatus.COM_AFFILIATED) {
+            return companyAffiliationMap.get(user.getId());
+        }
+
+        if (user.getAffiliatedStatus() == AffiliatedStatus.HUB_AFFILIATED) {
+            return hubAffiliationMap.get(user.getId());
+        }
+
+        return null;
     }
 
     @Override
@@ -217,6 +261,8 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public Role getUserRole(UUID userId) {
-        return userRepository.findById(userId).orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND)).getRole();
+        return userRepository.findById(userId)
+            .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND))
+            .getRole();
     }
 }
