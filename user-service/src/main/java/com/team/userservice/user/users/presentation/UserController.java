@@ -7,9 +7,9 @@ import com.team.userservice.user.core.enums.Role;
 import com.team.userservice.user.core.enums.SignupStatus;
 import com.team.userservice.user.users.application.UserService;
 import com.team.userservice.user.users.presentation.dto.request.SignUpReq;
-import com.team.userservice.user.users.presentation.dto.request.UpdateUserAffiliationReq;
 import com.team.userservice.user.users.presentation.dto.request.UpdateUserReq;
-import com.team.userservice.user.users.presentation.dto.request.UpdateUserRoleReq;
+//import com.team.userservice.user.users.presentation.dto.request.UpdateUserRoleReq;
+//import com.team.userservice.user.users.presentation.dto.request.UpdateUserAffiliationReq;
 import com.team.userservice.user.users.presentation.dto.response.GetAllUserInfoRes;
 import com.team.userservice.user.users.presentation.dto.response.GetUserInfoRes;
 import com.team.userservice.user.users.presentation.dto.response.SignUpRes;
@@ -71,14 +71,14 @@ public class UserController {
 
 
     // 4. 단일 사용자 권한 수정
-    @RequireRole(Role.MASTER_ADMIN)
-    @PatchMapping("/{userId}/role")
-    public CommonResponse<Void> updateUserRole(@PathVariable("userId") UUID userId,
-                                               @Valid @RequestBody UpdateUserRoleReq updateUserRoleReq) {
-        userService.updateUserRole(userId, updateUserRoleReq.role());
-
-        return CommonResponse.onSuccess();
-    }
+//    @RequireRole(Role.MASTER_ADMIN)
+//    @PatchMapping("/{userId}/role")
+//    public CommonResponse<Void> updateUserRole(@PathVariable("userId") UUID userId,
+//                                               @Valid @RequestBody UpdateUserRoleReq updateUserRoleReq) {
+//        userService.updateUserRole(userId, updateUserRoleReq.role());
+//
+//        return CommonResponse.onSuccess();
+//    }
 
     // 5. 사용자 단건 조회
     @RequireRole(Role.MASTER_ADMIN)
@@ -134,14 +134,14 @@ public class UserController {
     }
 
     // 11. 단일 사용자 소속 배정
-    @RequireRole(Role.MASTER_ADMIN)
-    @PatchMapping("/{userId}/affiliation")
-    public CommonResponse<Void> updateUserAffiliation(@PathVariable("userId") UUID userId,
-                                                      @Valid @RequestBody UpdateUserAffiliationReq request) {
-        //TODO: 추후 유효한 소속 아이디인지 검증하기 위한 내부 api 호출이 필요함
-        userService.updateUserAffiliation(userId, request.affiliation(), request.affiliationId());
-        return CommonResponse.onSuccess();
-    }
+//    @RequireRole(Role.MASTER_ADMIN)
+//    @PatchMapping("/{userId}/affiliation")
+//    public CommonResponse<Void> updateUserAffiliation(@PathVariable("userId") UUID userId,
+//                                                      @Valid @RequestBody UpdateUserAffiliationReq request) {
+//        //TODO: 추후 유효한 소속 아이디인지 검증하기 위한 내부 api 호출이 필요함
+//        userService.updateUserAffiliation(userId, request.affiliation(), request.affiliationId());
+//        return CommonResponse.onSuccess();
+//    }
 
     // 12. 회원 탈퇴
 }

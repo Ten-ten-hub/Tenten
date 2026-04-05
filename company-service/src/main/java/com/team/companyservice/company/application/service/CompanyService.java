@@ -13,6 +13,7 @@ import com.team.companyservice.infrastructure.client.HubClient;
 import com.team.companyservice.infrastructure.client.UserClient;
 import com.team.companyservice.infrastructure.client.dto.UpdateUserAffiliationRequest;
 import com.team.companyservice.infrastructure.client.dto.UpdateUserRoleRequest;
+import com.team.companyservice.infrastructure.client.dto.UserCommonResponse;
 import com.team.companyservice.infrastructure.client.dto.UserInternalResponse;
 import java.util.List;
 import com.team.companyservice.global.error.CompanyErrorCode;
@@ -244,12 +245,16 @@ public class CompanyService {
     // 이미 해당 업체에 관리자가 지정되어 있는지 검증
     private void validateManagerNotAssigned(UUID companyId) {
         try {
-            List<UserInternalResponse> users = userClient.getUsers(
+            UserCommonResponse<List<UserInternalResponse>> response = userClient.getUsers(
                 List.of("COMPANY_MANAGER"),
                 "COM_AFFILIATED"
-            ).data();
+            );
 
-            boolean alreadyAssigned = users != null && users.stream()
+            if (response == null || response.data() == null) {
+                throw new ServiceException(CompanyErrorCode.USER_SERVICE_UNAVAILABLE);
+            }
+
+            boolean alreadyAssigned = response.data().stream()
                 .anyMatch(user -> companyId.equals(user.affiliationId()));
 
             if (alreadyAssigned) {
@@ -263,11 +268,13 @@ public class CompanyService {
     // 유저 서비스에서 사용자 정보 조회
     private UserInternalResponse getUserInfo(UUID userId) {
         try {
-            UserInternalResponse user = userClient.getUserInfo(userId).data();
-            if (user == null) {
+            UserCommonResponse<UserInternalResponse> response = userClient.getUserInfo(userId);
+
+            if (response == null || response.data() == null) {
                 throw new ServiceException(CompanyErrorCode.USER_NOT_FOUND);
             }
-            return user;
+
+            return response.data();
         } catch (FeignException.NotFound e) {
             throw new ServiceException(CompanyErrorCode.USER_NOT_FOUND);
         } catch (FeignException e) {
@@ -277,17 +284,17 @@ public class CompanyService {
 
     // 업체 관리자로 지정 가능한 사용자 상태인지 검증
     private void validateAssignableUser(UserInternalResponse user) {
-        // 가입 승인 완료된 사용자만 가능
+        // 가입 승인된 사용자만 업체 관리자로 지정 가능
         if (!"APPROVED".equals(user.signupStatus())) {
             throw new ServiceException(CompanyErrorCode.USER_NOT_APPROVED);
         }
 
-        // 아직 어디에도 소속되지 않은 사용자만 가능
+        // 아직 소속이 없는 사용자만 지정 가능
         if (!"UNAFFILIATED".equals(user.affiliatedStatus())) {
             throw new ServiceException(CompanyErrorCode.USER_ALREADY_AFFILIATED);
         }
 
-        // 허브 관리자/허브 배송 담당자/마스터 관리자는 업체 관리자로 지정 불가
+        // 아래 권한은 업체 관리자로 지정 불가
         if ("MASTER_ADMIN".equals(user.role())
             || "HUB_ADMIN".equals(user.role())
             || "HUB_DELIVERY_MANAGER".equals(user.role())) {
@@ -345,4 +352,5 @@ public class CompanyService {
             throw new ServiceException(CompanyErrorCode.COMMON_INVALID_INPUT);
         }
     }
+
 }

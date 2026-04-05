@@ -21,25 +21,33 @@ import org.springframework.web.bind.annotation.RequestParam;
 )
 public interface UserClient {
 
-    // 사용자 단건 정보 조회
+    /**
+     * 사용자 단건 내부 조회
+     */
     @GetMapping("/internal/v1/users/{userId}")
     UserCommonResponse<UserInternalResponse> getUserInfo(@PathVariable UUID userId);
 
-    // 조건에 맞는 사용자 목록 조회
+    /**
+     * 사용자 다건 내부 조회
+     */
     @GetMapping("/internal/v1/users")
     UserCommonResponse<List<UserInternalResponse>> getUsers(
         @RequestParam(required = false) List<String> roles,
         @RequestParam(required = false) String affiliatedStatus
     );
 
-    // 사용자 권한 변경
+    /**
+     * 사용자 권한 변경
+     */
     @PatchMapping("/internal/v1/users/{userId}/role")
     UserCommonResponse<Void> updateUserRole(
         @PathVariable UUID userId,
         @RequestBody UpdateUserRoleRequest request
     );
 
-    // 사용자 소속 변경
+    /**
+     * 사용자 소속 변경
+     */
     @PatchMapping("/internal/v1/users/{userId}/affiliation")
     UserCommonResponse<Void> updateUserAffiliation(
         @PathVariable UUID userId,

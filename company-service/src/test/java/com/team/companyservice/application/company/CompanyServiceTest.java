@@ -1,12 +1,14 @@
 package com.team.companyservice.application.company;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 
+import com.team.companyservice.company.application.dto.request.CreateCompanyRequest;
 import com.team.companyservice.company.application.service.CompanyService;
 import com.team.companyservice.company.domain.Company;
 import com.team.companyservice.company.domain.CompanyRepository;
@@ -59,27 +61,30 @@ class CompanyServiceTest {
             .build();
     }
 
-    // 테스트용 CurrentUser 생성
+    // 마스터 관리자 사용자
     private CurrentUser masterAdmin() {
         return new CurrentUser(UUID.randomUUID(), "MASTER_ADMIN", null, null);
     }
 
+    // 허브 관리자 사용자
     private CurrentUser hubAdmin(UUID hubId) {
         return new CurrentUser(UUID.randomUUID(), "HUB_ADMIN", hubId, null);
     }
 
-    private UserInternalResponse approvedUnaffiliatedUser(UUID userId, String role) {
+    // 내부 계약에 맞는 사용자 응답 생성
+    private UserInternalResponse user(
+        UUID userId,
+        String role,
+        String signupStatus,
+        String affiliatedStatus,
+        UUID affiliationId
+    ) {
         return new UserInternalResponse(
             userId,
             role,
-            "APPROVED",
-            "홍길동",
-            "hong",
-            "hong@test.com",
-            "010-1111-2222",
-            "U111",
-            "UNAFFILIATED",
-            null
+            signupStatus,
+            affiliatedStatus,
+            affiliationId
         );
     }
 
@@ -103,18 +108,20 @@ class CompanyServiceTest {
             given(userClient.getUsers(anyList(), eq("COM_AFFILIATED")))
                 .willReturn(new UserCommonResponse<>(true, List.of(), "OK", "성공"));
 
-            // 대상 사용자 정보 조회 성공
+            // 대상 사용자 조회 성공
             given(userClient.getUserInfo(userId))
                 .willReturn(new UserCommonResponse<>(
                     true,
-                    approvedUnaffiliatedUser(userId, "NONE"),
+                    user(userId, "NONE", "APPROVED", "UNAFFILIATED", null),
                     "OK",
                     "성공"
                 ));
 
-            // 권한 변경/소속 변경 성공
+            // 권한 변경 성공
             given(userClient.updateUserRole(eq(userId), any(UpdateUserRoleRequest.class)))
                 .willReturn(new UserCommonResponse<>(true, null, "OK", "성공"));
+
+            // 소속 변경 성공
             given(userClient.updateUserAffiliation(eq(userId), any(UpdateUserAffiliationRequest.class)))
                 .willReturn(new UserCommonResponse<>(true, null, "OK", "성공"));
 
@@ -133,16 +140,11 @@ class CompanyServiceTest {
             given(companyRepository.findByIdAndDeletedAtIsNull(companyId))
                 .willReturn(Optional.of(company));
 
-            // 이미 해당 companyId로 소속된 업체 관리자 존재
-            UserInternalResponse assignedManager = new UserInternalResponse(
+            // 이미 해당 업체에 매핑된 업체 관리자 존재
+            UserInternalResponse assignedManager = user(
                 UUID.randomUUID(),
                 "COMPANY_MANAGER",
                 "APPROVED",
-                "기존 관리자",
-                "manager1",
-                "manager1@test.com",
-                "010-0000-0000",
-                "U999",
                 "COM_AFFILIATED",
                 companyId
             );
@@ -155,10 +157,7 @@ class CompanyServiceTest {
                 () -> companyService.assignManager(companyId, userId, masterAdmin())
             );
 
-            org.junit.jupiter.api.Assertions.assertEquals(
-                CompanyErrorCode.COMPANY_MANAGER_ALREADY_ASSIGNED,
-                exception.getErrorCode()
-            );
+            assertEquals(CompanyErrorCode.COMPANY_MANAGER_ALREADY_ASSIGNED, exception.getErrorCode());
         }
 
         @Test
@@ -175,31 +174,20 @@ class CompanyServiceTest {
             given(userClient.getUsers(anyList(), eq("COM_AFFILIATED")))
                 .willReturn(new UserCommonResponse<>(true, List.of(), "OK", "성공"));
 
-            UserInternalResponse user = new UserInternalResponse(
-                userId,
-                "NONE",
-                "PENDING",
-                "홍길동",
-                "hong",
-                "hong@test.com",
-                "010-1111-2222",
-                "U111",
-                "UNAFFILIATED",
-                null
-            );
-
             given(userClient.getUserInfo(userId))
-                .willReturn(new UserCommonResponse<>(true, user, "OK", "성공"));
+                .willReturn(new UserCommonResponse<>(
+                    true,
+                    user(userId, "NONE", "PENDING", "UNAFFILIATED", null),
+                    "OK",
+                    "성공"
+                ));
 
             ServiceException exception = assertThrows(
                 ServiceException.class,
                 () -> companyService.assignManager(companyId, userId, masterAdmin())
             );
 
-            org.junit.jupiter.api.Assertions.assertEquals(
-                CompanyErrorCode.USER_NOT_APPROVED,
-                exception.getErrorCode()
-            );
+            assertEquals(CompanyErrorCode.USER_NOT_APPROVED, exception.getErrorCode());
         }
 
         @Test
@@ -216,31 +204,20 @@ class CompanyServiceTest {
             given(userClient.getUsers(anyList(), eq("COM_AFFILIATED")))
                 .willReturn(new UserCommonResponse<>(true, List.of(), "OK", "성공"));
 
-            UserInternalResponse user = new UserInternalResponse(
-                userId,
-                "NONE",
-                "APPROVED",
-                "홍길동",
-                "hong",
-                "hong@test.com",
-                "010-1111-2222",
-                "U111",
-                "COM_AFFILIATED",
-                UUID.randomUUID()
-            );
-
             given(userClient.getUserInfo(userId))
-                .willReturn(new UserCommonResponse<>(true, user, "OK", "성공"));
+                .willReturn(new UserCommonResponse<>(
+                    true,
+                    user(userId, "NONE", "APPROVED", "COM_AFFILIATED", UUID.randomUUID()),
+                    "OK",
+                    "성공"
+                ));
 
             ServiceException exception = assertThrows(
                 ServiceException.class,
                 () -> companyService.assignManager(companyId, userId, masterAdmin())
             );
 
-            org.junit.jupiter.api.Assertions.assertEquals(
-                CompanyErrorCode.USER_ALREADY_AFFILIATED,
-                exception.getErrorCode()
-            );
+            assertEquals(CompanyErrorCode.USER_ALREADY_AFFILIATED, exception.getErrorCode());
         }
 
         @Test
@@ -261,14 +238,11 @@ class CompanyServiceTest {
                 () -> companyService.assignManager(companyId, userId, hubAdmin(otherHubId))
             );
 
-            org.junit.jupiter.api.Assertions.assertEquals(
-                CompanyErrorCode.COMMON_ACCESS_DENIED,
-                exception.getErrorCode()
-            );
+            assertEquals(CompanyErrorCode.COMMON_ACCESS_DENIED, exception.getErrorCode());
         }
 
         @Test
-        @DisplayName("지정 불가 role이면 실패")
+        @DisplayName("지정 불가 권한이면 실패")
         void assign_manager_fail_not_assignable_role() {
             UUID companyId = UUID.randomUUID();
             UUID hubId = UUID.randomUUID();
@@ -283,7 +257,7 @@ class CompanyServiceTest {
             given(userClient.getUserInfo(userId))
                 .willReturn(new UserCommonResponse<>(
                     true,
-                    approvedUnaffiliatedUser(userId, "HUB_ADMIN"),
+                    user(userId, "HUB_ADMIN", "APPROVED", "UNAFFILIATED", null),
                     "OK",
                     "성공"
                 ));
@@ -293,10 +267,7 @@ class CompanyServiceTest {
                 () -> companyService.assignManager(companyId, userId, masterAdmin())
             );
 
-            org.junit.jupiter.api.Assertions.assertEquals(
-                CompanyErrorCode.USER_ROLE_NOT_ASSIGNABLE,
-                exception.getErrorCode()
-            );
+            assertEquals(CompanyErrorCode.USER_ROLE_NOT_ASSIGNABLE, exception.getErrorCode());
         }
 
         @Test
@@ -319,10 +290,7 @@ class CompanyServiceTest {
                 () -> companyService.assignManager(companyId, userId, masterAdmin())
             );
 
-            org.junit.jupiter.api.Assertions.assertEquals(
-                CompanyErrorCode.USER_SERVICE_UNAVAILABLE,
-                exception.getErrorCode()
-            );
+            assertEquals(CompanyErrorCode.USER_SERVICE_UNAVAILABLE, exception.getErrorCode());
         }
     }
 
@@ -333,19 +301,69 @@ class CompanyServiceTest {
         @Test
         @DisplayName("업체 생성 성공")
         void create_success() {
-            // 기존 테스트 유지 또는 기존 파일 내용 사용
+            UUID hubId = UUID.randomUUID();
+
+            CreateCompanyRequest request = Mockito.mock(CreateCompanyRequest.class);
+            given(request.getHubId()).willReturn(hubId);
+            given(request.getName()).willReturn("새 업체");
+            given(request.getCompanyType()).willReturn(CompanyType.PRODUCER);
+            given(request.getAddress()).willReturn("서울시 송파구");
+            given(request.getAddressDetail()).willReturn("101호");
+            given(request.getZipcode()).willReturn("12345");
+            given(request.getContactName()).willReturn("담당자");
+            given(request.getContactPhone()).willReturn("010-1111-2222");
+            given(request.getContactSlackId()).willReturn("U123");
+
+            given(hubClient.existsHub(hubId))
+                .willReturn(new HubExistsResponse(true, new HubExistsResponse.HubExistsData(hubId, true), "OK", "성공"));
+            given(companyRepository.existsByHubIdAndNameAndDeletedAtIsNull(hubId, "새 업체"))
+                .willReturn(false);
+
+            assertDoesNotThrow(() -> companyService.create(request, masterAdmin()));
         }
 
         @Test
         @DisplayName("업체 생성 실패 - 허브가 존재하지 않음")
         void create_fail_hub_not_found() {
-            // 기존 테스트 유지 또는 기존 파일 내용 사용
+            UUID hubId = UUID.randomUUID();
+
+            CreateCompanyRequest request = Mockito.mock(CreateCompanyRequest.class);
+            given(request.getHubId()).willReturn(hubId);
+            given(request.getName()).willReturn("새 업체");
+
+            given(hubClient.existsHub(hubId))
+                .willReturn(new HubExistsResponse(true, new HubExistsResponse.HubExistsData(hubId, false), "OK", "성공"));
+
+            ServiceException exception = assertThrows(
+                ServiceException.class,
+                () -> companyService.create(request, masterAdmin())
+            );
+
+            assertEquals(CompanyErrorCode.HUB_NOT_FOUND, exception.getErrorCode());
         }
 
         @Test
         @DisplayName("업체 생성 실패 - 같은 허브 내 업체명 중복")
         void create_fail_duplicate_name() {
-            // 기존 테스트 유지 또는 기존 파일 내용 사용
+            UUID hubId = UUID.randomUUID();
+
+            CreateCompanyRequest request = Mockito.mock(CreateCompanyRequest.class);
+            given(request.getHubId()).willReturn(hubId);
+            given(request.getName()).willReturn("중복 업체");
+            given(request.getCompanyType()).willReturn(CompanyType.PRODUCER);
+            given(request.getAddress()).willReturn("서울시 강남구");
+
+            given(hubClient.existsHub(hubId))
+                .willReturn(new HubExistsResponse(true, new HubExistsResponse.HubExistsData(hubId, true), "OK", "성공"));
+            given(companyRepository.existsByHubIdAndNameAndDeletedAtIsNull(hubId, "중복 업체"))
+                .willReturn(true);
+
+            ServiceException exception = assertThrows(
+                ServiceException.class,
+                () -> companyService.create(request, masterAdmin())
+            );
+
+            assertEquals(CompanyErrorCode.COMPANY_DUPLICATED, exception.getErrorCode());
         }
     }
 }
