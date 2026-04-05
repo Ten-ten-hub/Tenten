@@ -1,13 +1,17 @@
 package com.team.hubservice.hub.presentation;
 
 import com.team.hubservice.hub.application.HubService;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
+import com.team.hubservice.hub.presentation.dto.HubInternalResponse;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/internal/v1/hubs")
@@ -22,8 +26,8 @@ public class HubInternalController {
     @GetMapping("/{hubId}/exists")
     public ResponseEntity<Map<String, Object>> checkHubExists(
         @PathVariable UUID hubId,
-        @RequestHeader(value = "X-Internal-Request", required = true) String internalHeader) {
-
+        @RequestHeader(value = "X-Internal-Request", required = true) String internalHeader
+    ) {
         if (!"true".equals(internalHeader)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
@@ -43,7 +47,6 @@ public class HubInternalController {
         return ResponseEntity.ok(response);
     }
 
-    // 임시
     @GetMapping("/{hubId}/exists/v2")
     public ResponseEntity<Void> checkHubExistsV2(@PathVariable UUID hubId) {
         boolean exists = hubService.checkHubExists(hubId);
@@ -51,5 +54,23 @@ public class HubInternalController {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/{hubId}")
+    public ResponseEntity<HubInternalResponse> getHubInternal(
+        @PathVariable UUID hubId,
+        @RequestHeader(value = "X-Internal-Request", required = true) String internalHeader
+    ) {
+        if (!"true".equals(internalHeader)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        var hub = hubService.getHubInternal(hubId);
+
+        return ResponseEntity.ok(new HubInternalResponse(
+            hub.id(),
+            hub.name(),
+            hub.address()
+        ));
     }
 }

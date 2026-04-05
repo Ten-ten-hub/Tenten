@@ -1,8 +1,6 @@
 package com.team.common.exception;
 
 import jakarta.validation.ConstraintViolationException;
-import java.util.List;
-import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -10,6 +8,10 @@ import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.nio.file.AccessDeniedException;
+import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RestControllerAdvice
@@ -59,6 +61,13 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(CommonErrorCode.INVALID_INPUT.getStatus())
             .body(ErrorResponse.of(CommonErrorCode.INVALID_INPUT, details));
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDeniedException(AccessDeniedException e) {
+        return ResponseEntity
+            .status(CommonErrorCode.FORBIDDEN.getStatus())
+            .body(ErrorResponse.of(CommonErrorCode.FORBIDDEN));
     }
 
     @ExceptionHandler(Exception.class)

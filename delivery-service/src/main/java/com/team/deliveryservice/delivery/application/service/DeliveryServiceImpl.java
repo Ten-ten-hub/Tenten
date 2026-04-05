@@ -6,6 +6,7 @@ import com.team.deliveryservice.delivery.application.dto.request.AssignHubDelive
 import com.team.deliveryservice.delivery.application.dto.request.ChangeDeliveryStatusRequest;
 import com.team.deliveryservice.delivery.application.dto.request.CreateDeliveryRequest;
 import com.team.deliveryservice.delivery.application.dto.request.UpdateDeliveryRequest;
+import com.team.deliveryservice.delivery.application.dto.response.AiDeliveryResponse;
 import com.team.deliveryservice.delivery.application.dto.response.DeliveryPageResponse;
 import com.team.deliveryservice.delivery.application.dto.response.DeliveryResponse;
 import com.team.deliveryservice.delivery.application.dto.response.DeliveryRouteLogResponse;
@@ -25,8 +26,9 @@ import com.team.deliveryservice.infrastructure.client.HubClient;
 import com.team.deliveryservice.infrastructure.client.OrderClient;
 import com.team.deliveryservice.infrastructure.client.dto.CompanyInternalResponse;
 import com.team.deliveryservice.infrastructure.client.dto.HubExistsResponse;
-import com.team.deliveryservice.infrastructure.client.dto.OrderInternalResponse;
+import com.team.deliveryservice.infrastructure.client.dto.HubInternalResponse;
 import com.team.deliveryservice.infrastructure.client.dto.OptimalRouteResponseWrapper;
+import com.team.deliveryservice.infrastructure.client.dto.OrderInternalResponse;
 import feign.FeignException;
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
@@ -286,6 +288,40 @@ public class DeliveryServiceImpl implements DeliveryService {
         routeLogs.forEach(routeLog -> routeLog.softDelete(SYSTEM_ACTOR_ID));
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public AiDeliveryResponse getAiDeliveryInfo(UUID deliveryId) {
+        Delivery delivery = getDeliveryEntity(deliveryId);
+
+        OrderInternalResponse order;
+        try {
+            order = orderClient.getOrder(delivery.getOrderId());
+            if (order == null || order.id() == null) {
+                throw new ServiceException(DeliveryErrorCode.ORDER_NOT_FOUND);
+            }
+        } catch (FeignException.NotFound e) {
+            throw new ServiceException(DeliveryErrorCode.ORDER_NOT_FOUND);
+        } catch (FeignException e) {
+            throw new ServiceException(DeliveryErrorCode.ORDER_SERVICE_UNAVAILABLE);
+        }
+
+        HubInternalResponse originHub = getHubInfo(delivery.getOriginHubId());
+        HubInternalResponse destinationHub = getHubInfo(delivery.getDestinationHubId());
+
+        return AiDeliveryResponse.builder()
+            .orderId(delivery.getOrderId())
+            .originHubId(delivery.getOriginHubId())
+            .destinationHubId(delivery.getDestinationHubId())
+            .originHubName(originHub.name())
+            .destinationHubName(destinationHub.name())
+            .originAddress(originHub.address())
+            .destinationAddress(destinationHub.address())
+            .productName(order.productName())
+            .orderRequestDetails(order.requestNote())
+            .receiverSlackId(delivery.getRecipientSlackId())
+            .build();
+    }
+
     // 삭제되지 않은 배송 조회
     private Delivery getDeliveryEntity(UUID deliveryId) {
         return deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)
@@ -453,5 +489,21 @@ public class DeliveryServiceImpl implements DeliveryService {
             cause = cause.getCause();
         }
         return false;
+    }
+
+    private HubInternalResponse getHubInfo(UUID hubId) {
+        try {
+            HubInternalResponse hub = hubClient.getHub(hubId, INTERNAL_REQUEST_HEADER);
+
+            if (hub == null || hub.id() == null) {
+                throw new ServiceException(DeliveryErrorCode.HUB_NOT_FOUND);
+            }
+
+            return hub;
+        } catch (FeignException.NotFound e) {
+            throw new ServiceException(DeliveryErrorCode.HUB_NOT_FOUND);
+        } catch (FeignException e) {
+            throw new ServiceException(DeliveryErrorCode.HUB_SERVICE_UNAVAILABLE);
+        }
     }
 }

@@ -1,11 +1,5 @@
 package com.team.order_service.order.application;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.verify;
-
 import com.team.order_service.order.application.dto.OrderCreateCommand;
 import com.team.order_service.order.application.dto.OrderItemCommand;
 import com.team.order_service.order.application.dto.OrderResult;
@@ -13,13 +7,10 @@ import com.team.order_service.order.domain.Order;
 import com.team.order_service.order.domain.OrderRepository;
 import com.team.order_service.order.infrastructure.client.DeliveryClient;
 import com.team.order_service.order.infrastructure.client.ProductClient;
+import com.team.order_service.order.infrastructure.client.dto.DeliveryApiResponse;
 import com.team.order_service.order.infrastructure.client.dto.DeliveryCreateRequest;
 import com.team.order_service.order.infrastructure.client.dto.DeliveryResponse;
 import com.team.order_service.order.infrastructure.client.dto.ProductResponse;
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,6 +18,17 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class OrderServiceImplTest {
@@ -74,8 +76,13 @@ class OrderServiceImplTest {
                 BigDecimal.valueOf(5000)
             ));
 
-        given(deliveryClient.createDelivery(eq(orderedBy), any(DeliveryCreateRequest.class)))
-            .willReturn(new DeliveryResponse(deliveryId));
+        given(deliveryClient.createDelivery(any(DeliveryCreateRequest.class)))
+            .willReturn(new DeliveryApiResponse(
+                true,
+                new DeliveryResponse(deliveryId),
+                "SUCCESS",
+                "요청이 성공했습니다."
+            ));
 
         // when
         OrderResult result = orderService.createOrder(command);
@@ -90,7 +97,7 @@ class OrderServiceImplTest {
         ArgumentCaptor<DeliveryCreateRequest> requestCaptor =
             ArgumentCaptor.forClass(DeliveryCreateRequest.class);
 
-        verify(deliveryClient).createDelivery(eq(orderedBy), requestCaptor.capture());
+        verify(deliveryClient).createDelivery(requestCaptor.capture());
 
         DeliveryCreateRequest captured = requestCaptor.getValue();
         assertThat(captured.orderId()).isEqualTo(result.id());
