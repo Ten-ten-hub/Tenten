@@ -2,11 +2,12 @@ package com.team.companyservice.infrastructure.client;
 
 import java.util.UUID;
 
+import com.team.companyservice.infrastructure.client.dto.HubExistsResponse;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
-import com.team.companyservice.infrastructure.config.FeignRetryConfig;
+import com.team.companyservice.global.config.FeignRetryConfig;
 
 @FeignClient(
         name = "${client.hub-service.name}",
