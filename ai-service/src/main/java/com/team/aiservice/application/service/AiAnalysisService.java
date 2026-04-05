@@ -56,6 +56,12 @@ public class AiAnalysisService {
         // 1. 허브 경로 소요시간 조회
         var route = hubClient.getRoute(request.originHubId(), request.destinationHubId());
 
+        if (route == null || route.duration() == null) {
+            log.error("[HUB CLIENT ERROR] 경로 정보를 가져올 수 없습니다. Origin: {}, Dest: {}",
+                request.originHubId(), request.destinationHubId());
+            throw new RuntimeException("배송 경로 정보(소요 시간)가 유효하지 않아 AI 분석이 불가능합니다.");
+        }
+
         // 2. 광역 뉴스 검색 (시/구 단위)
         String originArea = extractArea(request.originAddress());
         String destArea = extractArea(request.destinationAddress());
