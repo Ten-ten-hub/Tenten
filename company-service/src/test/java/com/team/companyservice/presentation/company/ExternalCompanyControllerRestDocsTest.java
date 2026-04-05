@@ -33,6 +33,8 @@ import com.team.companyservice.company.application.service.CompanyService;
 import com.team.companyservice.company.domain.CompanyType;
 import com.team.companyservice.company.presentation.ExternalCompanyController;
 import com.team.companyservice.global.common.CurrentUser;
+import com.team.companyservice.global.error.CompanyErrorCode;
+import com.team.companyservice.global.error.ServiceException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -78,7 +80,6 @@ class ExternalCompanyControllerRestDocsTest {
             .build();
     }
 
-    // 테스트에서 CurrentUser를 직접 주입한다.
     static class CurrentUserTestArgumentResolver implements HandlerMethodArgumentResolver {
 
         @Override
@@ -98,9 +99,13 @@ class ExternalCompanyControllerRestDocsTest {
             String hubId = webRequest.getHeader("X-Hub-Id");
             String companyId = webRequest.getHeader("X-Company-Id");
 
+            if (userId == null || userId.isBlank() || role == null || role.isBlank()) {
+                throw new ServiceException(CompanyErrorCode.COMMON_UNAUTHORIZED);
+            }
+
             return new CurrentUser(
-                userId != null ? UUID.fromString(userId) : UUID.randomUUID(),
-                role != null ? role : "MASTER_ADMIN",
+                UUID.fromString(userId),
+                role,
                 hubId != null && !hubId.isBlank() ? UUID.fromString(hubId) : null,
                 companyId != null && !companyId.isBlank() ? UUID.fromString(companyId) : null
             );
@@ -279,6 +284,8 @@ class ExternalCompanyControllerRestDocsTest {
             .willReturn(response);
 
         mockMvc.perform(get("/api/v1/companies")
+                .header("X-User-Id", UUID.randomUUID().toString())
+                .header("X-User-Role", "MASTER_ADMIN")
                 .param("keyword", "서울")
                 .param("companyType", "PRODUCER")
                 .param("page", "0")
@@ -289,6 +296,10 @@ class ExternalCompanyControllerRestDocsTest {
             .andDo(document("companies/search",
                 preprocessRequest(prettyPrint()),
                 preprocessResponse(prettyPrint()),
+                requestHeaders(
+                    headerWithName("X-User-Id").description("요청 사용자 ID"),
+                    headerWithName("X-User-Role").description("요청 사용자 권한")
+                ),
                 queryParameters(
                     parameterWithName("keyword").optional().description("검색어"),
                     parameterWithName("companyType").optional().description("업체 타입"),

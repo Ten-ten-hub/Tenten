@@ -1,6 +1,6 @@
 package com.team.companyservice.infrastructure.client.dto;
 
-public record UpdateUserRoleRequest(
-    Role role
-) {
+public enum AffiliationType {
+    HUB,
+    COMPANY
 }

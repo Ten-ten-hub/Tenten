@@ -3,7 +3,7 @@ package com.team.companyservice.infrastructure.client.dto;
 import java.util.UUID;
 
 public record UpdateUserAffiliationRequest(
-    String affiliation,
+    AffiliationType affiliation,
     UUID affiliationId
 ) {
 }

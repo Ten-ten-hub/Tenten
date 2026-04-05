@@ -14,6 +14,9 @@ import com.team.companyservice.global.error.CompanyErrorCode;
 import com.team.companyservice.global.error.ServiceException;
 import com.team.companyservice.infrastructure.client.HubClient;
 import com.team.companyservice.infrastructure.client.UserClient;
+import com.team.companyservice.infrastructure.client.dto.AffiliatedStatus;
+import com.team.companyservice.infrastructure.client.dto.AffiliationType;
+import com.team.companyservice.infrastructure.client.dto.Role;
 import com.team.companyservice.infrastructure.client.dto.UpdateUserAffiliationRequest;
 import com.team.companyservice.infrastructure.client.dto.UpdateUserRoleRequest;
 import com.team.companyservice.infrastructure.client.dto.UserInternalResponse;
@@ -21,6 +24,7 @@ import feign.FeignException;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -29,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 // 업체 도메인 서비스
 // 엔드포인트 접근 권한은 AOP(@RequireRole)에서 처리하고
 // 여기서는 데이터 범위 검증과 비즈니스 검증만 수행한다.
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -40,7 +45,6 @@ public class CompanyService {
 
     @Transactional
     public CompanyResponse create(CreateCompanyRequest request, CurrentUser currentUser) {
-        // 허브 관리자는 자기 허브에만 업체를 생성할 수 있음
         validateCreateScope(request.getHubId(), currentUser);
         validateHubExists(request.getHubId());
         validateDuplicate(request.getHubId(), request.getName());
@@ -76,6 +80,8 @@ public class CompanyService {
         int page,
         int size
     ) {
+        validatePage(page);
+
         int normalizedSize = PageSizeUtils.normalize(size);
         String normalizedSortBy = normalizeSortBy(sortBy);
         Sort.Direction sortDirection = normalizeDirection(direction);
@@ -98,9 +104,7 @@ public class CompanyService {
     public CompanyResponse update(UUID companyId, UpdateCompanyRequest request, CurrentUser currentUser) {
         Company company = getActiveCompany(companyId);
 
-        // 수정 가능한 범위인지 검증
         validateUpdateScope(company, currentUser);
-
         validateHubExists(request.getHubId());
         validateDuplicateOnUpdate(companyId, request.getHubId(), request.getName());
 
@@ -123,33 +127,30 @@ public class CompanyService {
     public void delete(UUID companyId, CurrentUser currentUser) {
         Company company = getActiveCompany(companyId);
 
-        // 삭제 가능한 범위인지 검증
         validateDeleteScope(company, currentUser);
-
         company.softDelete(currentUser.userId());
     }
 
     @Transactional
     public void assignManager(UUID companyId, UUID userId, CurrentUser currentUser) {
-        Company company = getActiveCompany(companyId);
+        Company company = getActiveCompanyForUpdate(companyId);
 
-        // 지정 가능한 범위인지 검증
         validateAssignManagerScope(company, currentUser);
-
-        // 이미 해당 업체에 관리자 지정이 되어 있는지 확인
         validateManagerNotAssigned(companyId);
 
-        // 대상 사용자 조회 및 지정 가능 여부 검증
         UserInternalResponse user = getUserInfo(userId);
         validateAssignableUser(user);
 
-        // 유저 서비스에 역할/소속 변경 요청
-        updateUserRoleToCompanyManager(userId);
-        updateUserAffiliationToCompany(userId, companyId);
+        assignManagerWithCompensation(userId, companyId, user.role());
     }
 
     private Company getActiveCompany(UUID companyId) {
         return companyRepository.findByIdAndDeletedAtIsNull(companyId)
+            .orElseThrow(() -> new ServiceException(CompanyErrorCode.COMPANY_NOT_FOUND));
+    }
+
+    private Company getActiveCompanyForUpdate(UUID companyId) {
+        return companyRepository.findByIdAndDeletedAtIsNullForUpdate(companyId)
             .orElseThrow(() -> new ServiceException(CompanyErrorCode.COMPANY_NOT_FOUND));
     }
 
@@ -176,8 +177,6 @@ public class CompanyService {
         }
     }
 
-    // 생성 범위 검증
-    // 마스터는 전체 가능, 허브 관리자는 자기 허브만 가능
     private void validateCreateScope(UUID requestHubId, CurrentUser currentUser) {
         if (currentUser.isMasterAdmin()) {
             return;
@@ -190,8 +189,6 @@ public class CompanyService {
         throw new ServiceException(CompanyErrorCode.COMMON_ACCESS_DENIED);
     }
 
-    // 수정 범위 검증
-    // 허브 관리자는 자기 허브의 업체만, 업체 담당자는 자기 업체만 수정 가능
     private void validateUpdateScope(Company company, CurrentUser currentUser) {
         if (currentUser.isMasterAdmin()) {
             return;
@@ -208,8 +205,6 @@ public class CompanyService {
         throw new ServiceException(CompanyErrorCode.COMMON_ACCESS_DENIED);
     }
 
-    // 삭제 범위 검증
-    // 허브 관리자는 자기 허브 업체만 삭제 가능
     private void validateDeleteScope(Company company, CurrentUser currentUser) {
         if (currentUser.isMasterAdmin()) {
             return;
@@ -222,8 +217,6 @@ public class CompanyService {
         throw new ServiceException(CompanyErrorCode.COMMON_ACCESS_DENIED);
     }
 
-    // 관리자 지정 범위 검증
-    // 허브 관리자는 자기 허브 업체에만 관리자 지정 가능
     private void validateAssignManagerScope(Company company, CurrentUser currentUser) {
         if (currentUser.isMasterAdmin()) {
             return;
@@ -236,12 +229,11 @@ public class CompanyService {
         throw new ServiceException(CompanyErrorCode.COMMON_ACCESS_DENIED);
     }
 
-    // 이미 업체 관리자가 존재하는지 확인
     private void validateManagerNotAssigned(UUID companyId) {
         try {
             List<UserInternalResponse> users = userClient.getUsers(
-                List.of("COMPANY_MANAGER"),
-                "COM_AFFILIATED"
+                List.of(Role.COMPANY_MANAGER),
+                AffiliatedStatus.COM_AFFILIATED
             ).data();
 
             boolean alreadyAssigned = users != null && users.stream()
@@ -255,7 +247,6 @@ public class CompanyService {
         }
     }
 
-    // 유저 서비스에서 대상 사용자 정보 조회
     private UserInternalResponse getUserInfo(UUID userId) {
         try {
             UserInternalResponse user = userClient.getUserInfo(userId).data();
@@ -272,7 +263,6 @@ public class CompanyService {
         }
     }
 
-    // 업체 관리자로 지정 가능한 사용자 조건 검증
     private void validateAssignableUser(UserInternalResponse user) {
         if (!"APPROVED".equals(user.signupStatus())) {
             throw new ServiceException(CompanyErrorCode.USER_NOT_APPROVED);
@@ -289,10 +279,9 @@ public class CompanyService {
         }
     }
 
-    // 유저 역할을 업체 담당자로 변경
     private void updateUserRoleToCompanyManager(UUID userId) {
         try {
-            userClient.updateUserRole(userId, new UpdateUserRoleRequest("COMPANY_MANAGER"));
+            userClient.updateUserRole(userId, new UpdateUserRoleRequest(Role.COMPANY_MANAGER));
         } catch (FeignException.NotFound e) {
             throw new ServiceException(CompanyErrorCode.USER_NOT_FOUND);
         } catch (FeignException e) {
@@ -300,17 +289,40 @@ public class CompanyService {
         }
     }
 
-    // 유저 소속을 해당 업체로 배정
     private void updateUserAffiliationToCompany(UUID userId, UUID companyId) {
         try {
             userClient.updateUserAffiliation(
                 userId,
-                new UpdateUserAffiliationRequest("COMPANY", companyId)
+                new UpdateUserAffiliationRequest(AffiliationType.COMPANY, companyId)
             );
         } catch (FeignException.NotFound e) {
             throw new ServiceException(CompanyErrorCode.USER_NOT_FOUND);
         } catch (FeignException e) {
             throw new ServiceException(CompanyErrorCode.USER_SERVICE_UNAVAILABLE);
+        }
+    }
+
+    private void assignManagerWithCompensation(UUID userId, UUID companyId, String originalRole) {
+        updateUserRoleToCompanyManager(userId);
+
+        try {
+            updateUserAffiliationToCompany(userId, companyId);
+        } catch (ServiceException e) {
+            rollbackUserRole(userId, originalRole);
+            throw e;
+        }
+    }
+
+    private void rollbackUserRole(UUID userId, String originalRole) {
+        try {
+            userClient.updateUserRole(userId, new UpdateUserRoleRequest(Role.valueOf(originalRole)));
+        } catch (Exception rollbackException) {
+            log.error(
+                "업체 관리자 지정 실패 후 role rollback 중 추가 실패. userId={}, originalRole={}",
+                userId,
+                originalRole,
+                rollbackException
+            );
         }
     }
 
@@ -333,6 +345,12 @@ public class CompanyService {
         try {
             return CompanyType.valueOf(companyType.trim().toUpperCase());
         } catch (IllegalArgumentException e) {
+            throw new ServiceException(CompanyErrorCode.COMMON_INVALID_INPUT);
+        }
+    }
+
+    private void validatePage(int page) {
+        if (page < 0) {
             throw new ServiceException(CompanyErrorCode.COMMON_INVALID_INPUT);
         }
     }

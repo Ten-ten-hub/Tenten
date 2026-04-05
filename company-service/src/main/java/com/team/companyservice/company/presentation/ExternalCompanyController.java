@@ -16,7 +16,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-// 외부 호출용 업체 API 컨트롤러
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/companies")
@@ -24,10 +23,11 @@ public class ExternalCompanyController {
 
     private final CompanyService companyService;
 
-    // 업체 생성은 마스터 관리자 / 허브 관리자 / 업체 관리자만 가능
-    @RequireRole({"MASTER_ADMIN",
-        "HUB_ADMIN",
-        "COMPANY_MANAGER"})
+    // 업체 생성은 마스터 관리자 / 허브 관리자만 가능
+    @RequireRole({
+        "MASTER_ADMIN",
+        "HUB_ADMIN"
+    })
     @PostMapping
     public ResponseEntity<ApiResponse<CompanyResponse>> create(
         @Valid @RequestBody CreateCompanyRequest request,
@@ -39,10 +39,10 @@ public class ExternalCompanyController {
     }
 
     // 업체 단건 조회는 모든 업무 역할 사용자에게 허용
-    @RequireRole({"MASTER_ADMIN",
+    @RequireRole({
+        "MASTER_ADMIN",
         "HUB_ADMIN",
-        "COMPANY_MANAGER"
-        ,
+        "COMPANY_MANAGER",
         "HUB_DELIVERY_MANAGER",
         "COM_DELIVERY_MANAGER"
     })
@@ -78,7 +78,11 @@ public class ExternalCompanyController {
     }
 
     // 업체 수정은 마스터 관리자 / 허브 관리자 / 업체 담당자만 가능
-    @RequireRole({"MASTER_ADMIN", "HUB_ADMIN", "COMPANY_MANAGER"})
+    @RequireRole({
+        "MASTER_ADMIN",
+        "HUB_ADMIN",
+        "COMPANY_MANAGER"
+    })
     @PutMapping("/{companyId}")
     public ResponseEntity<ApiResponse<CompanyResponse>> update(
         @PathVariable UUID companyId,
@@ -89,7 +93,10 @@ public class ExternalCompanyController {
     }
 
     // 업체 삭제는 현재 정책상 마스터 관리자 / 허브 관리자 허용
-    @RequireRole({"MASTER_ADMIN", "HUB_ADMIN"})
+    @RequireRole({
+        "MASTER_ADMIN",
+        "HUB_ADMIN"
+    })
     @DeleteMapping("/{companyId}")
     public ResponseEntity<ApiResponse<Void>> delete(
         @PathVariable UUID companyId,
@@ -99,10 +106,11 @@ public class ExternalCompanyController {
         return ResponseEntity.ok(ApiResponse.ok());
     }
 
-    // 업체 관리자 지정은 마스터 관리자 / 허브 관리자 / 업체 관리자 만 가능
-    @RequireRole({"MASTER_ADMIN",
-        "HUB_ADMIN",
-        "COMPANY_MANAGER"})
+    // 업체 관리자 지정은 마스터 관리자 / 허브 관리자만 가능
+    @RequireRole({
+        "MASTER_ADMIN",
+        "HUB_ADMIN"
+    })
     @PatchMapping("/{companyId}/manager")
     public ResponseEntity<ApiResponse<Void>> assignManager(
         @PathVariable UUID companyId,
