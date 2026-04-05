@@ -20,6 +20,9 @@ public interface UserInternalClient {
     @GetMapping("/{userId}/role")
     UserRoleRes getUserRole(@PathVariable UUID userId);
 
+    @GetMapping("/{userId}/token-info")
+    UserVerifyRes getUserInfoForToken(@PathVariable UUID userId);
+
     @PatchMapping("/{userId}/last-login")
     void lastLoginAt(@PathVariable UUID userId);
 }
