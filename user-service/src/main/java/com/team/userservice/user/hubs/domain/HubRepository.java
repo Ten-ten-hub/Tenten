@@ -1,4 +1,4 @@
-package com.team.userservice.user.hub.domain;
+package com.team.userservice.user.hubs.domain;
 
 import com.team.userservice.user.core.HubUser;
 import com.team.userservice.user.core.User;
