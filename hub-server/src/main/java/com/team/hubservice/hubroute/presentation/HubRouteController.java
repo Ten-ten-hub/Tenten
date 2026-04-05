@@ -34,7 +34,7 @@ public class HubRouteController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('MASTER')")
+    @PreAuthorize("hasRole('MASTER_ADMIN')")
     public ResponseEntity<Map<String, Object>> createHubRoute(@Valid @RequestBody HubRouteCreateRequest request) {
         HubRouteCreateCommand command = new HubRouteCreateCommand(
             request.departureHubId(), request.arrivalHubId(), request.duration(), request.distance()
@@ -67,7 +67,7 @@ public class HubRouteController {
     }
 
     @PatchMapping("/{routeId}")
-    @PreAuthorize("hasRole('MASTER')")
+    @PreAuthorize("hasRole('MASTER_ADMIN')")
     public ResponseEntity<Map<String, Object>> updateHubRoute(
         @PathVariable UUID routeId,
         @Valid @RequestBody HubRouteUpdateRequest request) {
@@ -77,7 +77,7 @@ public class HubRouteController {
     }
 
     @DeleteMapping("/{routeId}")
-    @PreAuthorize("hasRole('MASTER')")
+    @PreAuthorize("hasRole('MASTER_ADMIN')")
     public ResponseEntity<Map<String, Object>> deleteHubRoute(
         @PathVariable UUID routeId,
         @AuthenticationPrincipal UserDetails userDetails) {

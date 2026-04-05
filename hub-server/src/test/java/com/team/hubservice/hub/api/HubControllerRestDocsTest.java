@@ -5,13 +5,16 @@ import com.team.hubservice.hub.application.HubCreateCommand;
 import com.team.hubservice.hub.application.HubResult;
 import com.team.hubservice.hub.application.HubService;
 import com.team.hubservice.hub.presentation.dto.HubCreateRequest;
+import com.team.hubservice.global.security.HubSecurityConfig;
 import com.team.hubservice.hub.presentation.HubController;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.restdocs.AutoConfigureRestDocs;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
 import org.springframework.http.MediaType;
@@ -31,6 +34,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(HubController.class)
 @AutoConfigureRestDocs
+@AutoConfigureMockMvc(addFilters = false)
+@Import(HubSecurityConfig.class)
 class HubControllerRestDocsTest {
 
     @Autowired
@@ -47,7 +52,7 @@ class HubControllerRestDocsTest {
 
     @Test
     @DisplayName("허브 생성 API 문서화 테스트")
-    @WithMockUser(roles = "MASTER")
+    @WithMockUser(roles = "MASTER_ADMIN")
     void createHub() throws Exception {
         // Given
         HubCreateRequest request = new HubCreateRequest(

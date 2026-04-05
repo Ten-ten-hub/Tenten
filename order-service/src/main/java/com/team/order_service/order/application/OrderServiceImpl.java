@@ -40,11 +40,11 @@ public class OrderServiceImpl implements OrderService {
 
         // 1. 주문 생성
         Order order = Order.create(
-            command.orderedBy(),
-            command.supplierCompanyId(),
-            command.receiverCompanyId(),
-            command.deadlineAt(),
-            command.requestNote()
+                command.orderedBy(),
+                command.supplierCompanyId(),
+                command.receiverCompanyId(),
+                command.deadlineAt(),
+                command.requestNote()
         );
         Order saved = orderRepository.save(order);
 
@@ -52,11 +52,11 @@ public class OrderServiceImpl implements OrderService {
         command.orderItems().forEach(orderItemCommand -> {
             ProductResponse product = getProductWithFallback(command.orderedBy(), orderItemCommand.productId());
             OrderItem orderItem = OrderItem.create(
-                saved,
-                orderItemCommand.productId(),
-                product.name(),
-                product.unitPrice(),
-                orderItemCommand.quantity()
+                    saved,
+                    orderItemCommand.productId(),
+                    product.name(),
+                    product.unitPrice(),
+                    orderItemCommand.quantity()
             );
             saved.addOrderItem(orderItem);
         });
@@ -71,10 +71,10 @@ public class OrderServiceImpl implements OrderService {
         try {
             for (var orderItemCommand : command.orderItems()) {
                 deductStockWithFallback(
-                    command.orderedBy(),
-                    orderItemCommand.productId(),
-                    orderItemCommand.quantity(),
-                    saved.getId()
+                        command.orderedBy(),
+                        orderItemCommand.productId(),
+                        orderItemCommand.quantity(),
+                        saved.getId()
                 );
                 deductedCount++;
             }
@@ -83,52 +83,21 @@ public class OrderServiceImpl implements OrderService {
             for (int i = 0; i < deductedCount; i++) {
                 try {
                     productClient.restoreStock(
-                        command.orderedBy(),
-                        items.get(i).productId(),
-                        new StockRestoreRequest(items.get(i).quantity(), saved.getId())
+                            command.orderedBy(),
+                            items.get(i).productId(),
+                            new StockRestoreRequest(items.get(i).quantity(), saved.getId())
                     );
                 } catch (Exception compensationEx) {
                     log.error("[주문생성 보상 트랜잭션 실패] orderId={}, productId={}, error={}",
-                        saved.getId(), items.get(i).productId(), compensationEx.getMessage());
+                            saved.getId(), items.get(i).productId(), compensationEx.getMessage());
                 }
             }
             throw e;
         }
 
-
-//        // 4. 배송 생성 (TODO: 배송 서비스 API 확정 후 주석 해제)
-//        DeliveryResponse delivery;
-//        try {
-//            delivery = deliveryClient.createDelivery(
-//                command.orderedBy(),
-//                new DeliveryCreateRequest(saved.getId(), command.supplierCompanyId(), command.receiverCompanyId())
-//            );
-//        } catch (Exception e) {
-//            throw new BusinessException(OrderErrorCode.DELIVERY_CREATE_FAILED);
-//        }
-//
-//        saved.assignDelivery(delivery.id());
-
-
-        // TODO: 배송 생성 (민지) request 수정 맞춤용 예시 -> 추후 삭제 요망
-        DeliveryResponse delivery;
-        try {
-            delivery = deliveryClient.createDelivery(
-                command.orderedBy(),
-                new DeliveryCreateRequest(
-                    saved.getId(),
-                    command.orderedBy(),
-                    command.supplierCompanyId(),
-                    command.receiverCompanyId(),
-                    command.deadlineAt(),
-                    command.requestNote()
-                )
-            );
-        } catch (Exception e) {
-            throw new BusinessException(OrderErrorCode.DELIVERY_CREATE_FAILED);
-        }
-
-        saved.assignDelivery(delivery.deliveryId());
+        // 4. 배송 생성
+        UUID deliveryId = createDeliveryWithFallback(command, saved.getId());
+        saved.assignDelivery(deliveryId);
 
         return OrderResult.from(saved);
     }
@@ -142,11 +111,11 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public Page<OrderResult> getOrders(OrderGetQuery query, Pageable pageable) {
         return orderRepository.search(
-            query.orderedBy(),
-            query.supplierCompanyId(),
-            query.receiverCompanyId(),
-            query.orderStatus(),
-            pageable
+                query.orderedBy(),
+                query.supplierCompanyId(),
+                query.receiverCompanyId(),
+                query.orderStatus(),
+                pageable
         ).map(OrderResult::from);
     }
 
@@ -185,10 +154,10 @@ public class OrderServiceImpl implements OrderService {
         try {
             for (var orderItem : orderItems) {
                 restoreStockWithFallback(
-                    cancelledBy,
-                    orderItem.getProductId(),
-                    orderItem.getQuantity(),
-                    orderId
+                        cancelledBy,
+                        orderItem.getProductId(),
+                        orderItem.getQuantity(),
+                        orderId
                 );
                 restoredCount++;
             }
@@ -197,26 +166,22 @@ public class OrderServiceImpl implements OrderService {
             for (int i = 0; i < restoredCount; i++) {
                 try {
                     productClient.deductStock(
-                        cancelledBy,
-                        orderItems.get(i).getProductId(),
-                        new StockDeductRequest(orderItems.get(i).getQuantity(), orderId)
+                            cancelledBy,
+                            orderItems.get(i).getProductId(),
+                            new StockDeductRequest(orderItems.get(i).getQuantity(), orderId)
                     );
                 } catch (Exception compensationEx) {
                     log.error("[주문취소 보상 트랜잭션 실패] orderId={}, productId={}, error={}",
-                        orderId, orderItems.get(i).getProductId(), compensationEx.getMessage());
+                            orderId, orderItems.get(i).getProductId(), compensationEx.getMessage());
                 }
             }
             throw e;
         }
 
-//        // 2. 배송 취소 (배송 연동 후 주석 해제)
-//        if (order.getDeliveryId() != null) {
-//            try {
-//                deliveryClient.cancelDelivery(cancelledBy, order.getDeliveryId());
-//            } catch (Exception e) {
-//                throw new BusinessException(OrderErrorCode.DELIVERY_CANCEL_FAILED);
-//            }
-//        }
+        // 2. 배송 취소
+        if (order.getDeliveryId() != null) {
+            cancelDeliveryWithFallback(order.getDeliveryId());
+        }
 
         // 3. 주문 취소
         order.cancel(cancelledBy);
@@ -232,12 +197,12 @@ public class OrderServiceImpl implements OrderService {
             cancelOrder(orderId, deletedBy);
         }
 
-        order.softDelete(deletedBy);
+        // 배송 삭제 (TODO: 배송 서비스 API 확정 후 주석 해제)
+        if (order.getDeliveryId() != null) {
+            deleteDeliveryWithFallback(order.getDeliveryId());
+        }
 
-//         // 배송 삭제 (TODO: 배송 서비스 API 확정 후 주석 해제)
-//         if (order.getDeliveryId() != null) {
-//             deleteDeliveryWithFallback(order.getDeliveryId());
-//         }
+        order.softDelete(deletedBy);
     }
 
     // -------------------------------------------------------
@@ -278,18 +243,48 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
+    private UUID createDeliveryWithFallback(OrderCreateCommand command, UUID orderId) {
+        try {
+            DeliveryApiResponse response = deliveryClient.createDelivery(
+                    new DeliveryCreateRequest(
+                            orderId,
+                            command.orderedBy(),
+                            command.supplierCompanyId(),
+                            command.receiverCompanyId(),
+                            command.deadlineAt(),
+                            command.requestNote()
+                    )
+            );
+            return response.data().deliveryId();
+        } catch (FeignException.NotFound e) {
+            throw new BusinessException(OrderErrorCode.DELIVERY_CREATE_FAILED);
+        } catch (Exception e) {
+            throw new BusinessException(OrderErrorCode.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    private void cancelDeliveryWithFallback(UUID deliveryId) {
+        try {
+            deliveryClient.cancelDelivery(deliveryId);
+        } catch (FeignException.NotFound e) {
+            // 이미 취소된 배송은 무시
+        } catch (Exception e) {
+            throw new BusinessException(OrderErrorCode.DELIVERY_CANCEL_FAILED);
+        }
+    }
+
     private void deleteDeliveryWithFallback(UUID deliveryId) {
         try {
             deliveryClient.deleteDelivery(deliveryId);
         } catch (FeignException.NotFound e) {
             // 이미 삭제된 배송은 무시
         } catch (Exception e) {
-            throw new BusinessException(OrderErrorCode.SERVICE_UNAVAILABLE);
+            throw new BusinessException(OrderErrorCode.DELIVERY_DELETE_FAILED);
         }
     }
 
     private Order findActiveOrderById(UUID orderId) {
         return orderRepository.findByIdAndDeletedAtIsNull(orderId)
-            .orElseThrow(() -> new BusinessException(OrderErrorCode.ORDER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(OrderErrorCode.ORDER_NOT_FOUND));
     }
 }
