@@ -5,14 +5,12 @@ import com.team.aiservice.domain.model.AiAnalysis;
 import com.team.aiservice.domain.model.AnalysisType;
 import com.team.aiservice.domain.repository.AiAnalysisRepository;
 import com.team.aiservice.infrastructure.client.HubClient;
-import com.team.aiservice.infrastructure.client.NaverNewsClient;
 import com.team.aiservice.infrastructure.client.NotificationClient;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
@@ -25,10 +23,14 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 //@RequiredArgsConstructor //TODO mock 제거 후 활성화
 public class AiAnalysisService {
+
+    private static final Pattern SCHEDULE_TIME_PATTERN = Pattern.compile("\\[TIME: (.*?)\\]");
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
     private final OpenAiChatModel chatModel;
     @Qualifier("mockHubClient") //TODO 임시
     private final HubClient hubClient;
-    private final NaverNewsClient naverNewsClient;
+    private final NaverNewsService naverNewsService;
     private final AiAnalysisRepository aiAnalysisRepository;
     private final NotificationClient notificationClient;
 
@@ -36,22 +38,22 @@ public class AiAnalysisService {
     public AiAnalysisService(
         OpenAiChatModel chatModel,
         @Qualifier("mockHubClient") HubClient hubClient, // 명시적 지정
-        NaverNewsClient naverNewsClient,
+        NaverNewsService naverNewsService,
         AiAnalysisRepository aiAnalysisRepository,
         NotificationClient notificationClient
     ) {
         this.chatModel = chatModel;
         this.hubClient = hubClient;
-        this.naverNewsClient = naverNewsClient;
+        this.naverNewsService = naverNewsService;
         this.aiAnalysisRepository = aiAnalysisRepository;
         this.notificationClient = notificationClient;
     }
 
-    //비즈니스 로직 실행 (트랜잭션 분리: 외부 API 호출은 트랜잭션 외부에서 수행)
+    @Transactional
     public AiAnalysis analyzeDeadline(AiRequest request) {
 
         LocalDateTime now = LocalDateTime.now();
-        String currentTimeStr = now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+        String currentTimeStr = now.format(DATE_TIME_FORMATTER);
 
         // 1. 허브 경로 소요시간 조회 (외부 호출)
         var route = hubClient.getRoute(request.originHubId(), request.destinationHubId());
@@ -69,20 +71,8 @@ public class AiAnalysisService {
         String query = String.format("%s %s 날씨 교통사고", originArea, destArea);
         log.info("[NAVER NEWS SEARCH] Query: {}", query);
 
-        String newsAndWeatherContext = "주변 특이사항 없음";
-        try {
-            var res = naverNewsClient.searchNews(query, 10); // 검색 결과 수 조정하기
-            if (res != null && res.items() != null && !res.items().isEmpty()) {
-                newsAndWeatherContext = res.items().stream()
-                    .map(i -> i.title().replaceAll("<[^>]*>", ""))
-                    .collect(Collectors.joining(" / "));
-                log.info("[NAVER NEWS SEARCH] Result Found: {}", newsAndWeatherContext);
-            } else {
-                log.info("[NAVER NEWS SEARCH] No results found for query.");
-            }
-        } catch (Exception e) {
-            log.error("[NAVER NEWS SEARCH] Failed: {}", e.getMessage());
-        }
+        // 인라인 로직을 fetchNewsContext 호출로 대체
+        String newsAndWeatherContext = naverNewsService.fetchNewsContext(query);
 
         // 3. 더미 데이터
         String workHours = request.workingHours() != null ? request.workingHours() : "09:00 - 18:00";
@@ -119,62 +109,23 @@ public class AiAnalysisService {
         ChatResponse response = chatModel.call(new Prompt(promptText));
         String rawResult = response.getResult().getOutput().getText().replace("\\n", "\n").replace("**", "");
 
-        // 5. DB 저장 (트랜잭션 메서드 분리 호출)
-        AiAnalysis savedAnalysis = saveAnalysisResult(request, route.duration(), newsAndWeatherContext, currentTimeStr,
-            rawResult);
-
-        // 6. 알림 서비스 호출 (외부 호출)
-        sendNotification(request, rawResult, savedAnalysis);
-
-        return savedAnalysis;
-    }
-
-    /**
-     * DB 저장 로직만 트랜잭션으로 분리
-     */
-    @Transactional
-    protected AiAnalysis saveAnalysisResult(AiRequest request, Integer duration, String newsContext,
-                                            String currentTimeStr, String rawResult) {
+        // 5. DB 저장
         String cleanResult = rawResult.replaceAll("\\[TIME:.*?\\]", "").trim();
-
-        return aiAnalysisRepository.save(AiAnalysis.builder()
+        AiAnalysis savedAnalysis = aiAnalysisRepository.save(AiAnalysis.builder()
             .orderId(request.orderId())
             .analysisType(AnalysisType.DEADLINE)
             .inputData(Map.of(
-                "duration", duration,
-                "news_weather", newsContext,
+                "duration", route.duration(),
+                "news_weather", newsAndWeatherContext,
                 "currentTime", currentTimeStr
             ))
             .outputData(Map.of("ai_raw_res", rawResult))
             .aiResult(cleanResult)
             .build());
-    }
 
-
-    /**
-     * 뉴스 컨텍스트 조회 로직 분리
-     */
-    private String fetchNewsContext(String query) {
-        try {
-            var res = naverNewsClient.searchNews(query, 10);
-            if (res != null && res.items() != null && !res.items().isEmpty()) {
-                return res.items().stream()
-                    .map(i -> i.title().replaceAll("<[^>]*>", ""))
-                    .collect(Collectors.joining(" / "));
-            }
-        } catch (Exception e) {
-            log.error("[NAVER NEWS SEARCH] Failed: {}", e.getMessage());
-        }
-        return "주변 특이사항 없음";
-    }
-
-    /**
-     * 알림 서비스 호출 로직 분리
-     */
-    private void sendNotification(AiRequest request, String rawResult, AiAnalysis savedAnalysis) {
+        // 6. 알림 서비스 호출 (외부 호출)
+        // savedAnalysis.getId()가 확실히 생성된 후 호출
         LocalDateTime scheduledAt = parseScheduledTime(rawResult);
-        String cleanResult = rawResult.replaceAll("\\[TIME:.*?\\]", "").trim();
-
         try {
             notificationClient.sendWithAi(new NotificationClient.AiNotificationRequest(
                 request.orderId(),
@@ -187,6 +138,8 @@ public class AiAnalysisService {
         } catch (Exception e) {
             log.error("Notification Service call failed: {}", e.getMessage());
         }
+
+        return savedAnalysis;
     }
 
     private String extractArea(String address) {
@@ -201,9 +154,9 @@ public class AiAnalysisService {
     // 시간 파싱 유틸리티
     private LocalDateTime parseScheduledTime(String text) {
         try {
-            Matcher matcher = Pattern.compile("\\[TIME: (.*?)\\]").matcher(text);
+            Matcher matcher = SCHEDULE_TIME_PATTERN.matcher(text); // 상수 사용
             if (matcher.find()) {
-                return LocalDateTime.parse(matcher.group(1).trim(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+                return LocalDateTime.parse(matcher.group(1).trim(), DATE_TIME_FORMATTER); // 상수 사용
             }
         } catch (Exception e) {
             log.warn("Failed to parse time from AI result: {}", e.getMessage());
