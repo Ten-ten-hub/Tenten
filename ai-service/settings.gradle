@@ -1,0 +1,4 @@
+rootProject.name = 'aiservice'
+
+include ':common'
+project(':common').projectDir = new File(settingsDir.parentFile, 'common')
