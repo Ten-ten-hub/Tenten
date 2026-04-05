@@ -79,12 +79,11 @@ class AuthServiceImplTest {
     @DisplayName("로그아웃 성공")
     void logout_success() {
         willDoNothing().given(redisTokenRepository).delete(any());
-        willDoNothing().given(userInternalClient).lastLoginAt(any());
 
         authService.logout(AuthFixture.TEST_USER_ID);
 
         then(redisTokenRepository).should().delete(AuthFixture.TEST_USER_ID);
-        then(userInternalClient).should().lastLoginAt(AuthFixture.TEST_USER_ID);
+        then(userInternalClient).shouldHaveNoInteractions();
     }
 
     // ---------------------------------------------------------------
