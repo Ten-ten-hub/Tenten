@@ -47,13 +47,13 @@ public class AiAnalysisService {
         this.notificationClient = notificationClient;
     }
 
-    @Transactional
+    //비즈니스 로직 실행 (트랜잭션 분리: 외부 API 호출은 트랜잭션 외부에서 수행)
     public AiAnalysis analyzeDeadline(AiRequest request) {
 
         LocalDateTime now = LocalDateTime.now();
         String currentTimeStr = now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
 
-        // 1. 허브 경로 소요시간 조회
+        // 1. 허브 경로 소요시간 조회 (외부 호출)
         var route = hubClient.getRoute(request.originHubId(), request.destinationHubId());
 
         if (route == null || route.duration() == null) {
@@ -62,7 +62,7 @@ public class AiAnalysisService {
             throw new RuntimeException("배송 경로 정보(소요 시간)가 유효하지 않아 AI 분석이 불가능합니다.");
         }
 
-        // 2. 광역 뉴스 검색 (시/구 단위)
+        // 2. 광역 뉴스 검색 (외부 호출) (시/구 단위)
         String originArea = extractArea(request.originAddress());
         String destArea = extractArea(request.destinationAddress());
 
@@ -115,31 +115,66 @@ public class AiAnalysisService {
             originArea, destArea
         );
 
-        // 5. OpenAI 호출 및 후처리 (기호 강제 제거)
+        // 4. OpenAI 호출 (외부 호출)
         ChatResponse response = chatModel.call(new Prompt(promptText));
-        String rawResult = response.getResult().getOutput().getText().replace("\\n", "\n");
+        String rawResult = response.getResult().getOutput().getText().replace("\\n", "\n").replace("**", "");
 
-        // ** 기호를 코드 레벨에서 그냥 지워버림
-        rawResult = rawResult.replace("**", "");
+        // 5. DB 저장 (트랜잭션 메서드 분리 호출)
+        AiAnalysis savedAnalysis = saveAnalysisResult(request, route.duration(), newsAndWeatherContext, currentTimeStr,
+            rawResult);
 
-        //시간 추출 및 결과 정제
-        LocalDateTime scheduledAt = parseScheduledTime(rawResult);
+        // 6. 알림 서비스 호출 (외부 호출)
+        sendNotification(request, rawResult, savedAnalysis);
+
+        return savedAnalysis;
+    }
+
+    /**
+     * DB 저장 로직만 트랜잭션으로 분리
+     */
+    @Transactional
+    protected AiAnalysis saveAnalysisResult(AiRequest request, Integer duration, String newsContext,
+                                            String currentTimeStr, String rawResult) {
         String cleanResult = rawResult.replaceAll("\\[TIME:.*?\\]", "").trim();
 
-        // 6. AI 분석 결과 DB 저장 (ID를 받아오기 위해 객체로 받음)
-        AiAnalysis savedAnalysis = aiAnalysisRepository.save(AiAnalysis.builder()
+        return aiAnalysisRepository.save(AiAnalysis.builder()
             .orderId(request.orderId())
             .analysisType(AnalysisType.DEADLINE)
             .inputData(Map.of(
-                "duration", route.duration(),
-                "news_weather", newsAndWeatherContext,
+                "duration", duration,
+                "news_weather", newsContext,
                 "currentTime", currentTimeStr
             ))
             .outputData(Map.of("ai_raw_res", rawResult))
             .aiResult(cleanResult)
             .build());
+    }
 
-        // 7. 알림 서비스 호출
+
+    /**
+     * 뉴스 컨텍스트 조회 로직 분리
+     */
+    private String fetchNewsContext(String query) {
+        try {
+            var res = naverNewsClient.searchNews(query, 10);
+            if (res != null && res.items() != null && !res.items().isEmpty()) {
+                return res.items().stream()
+                    .map(i -> i.title().replaceAll("<[^>]*>", ""))
+                    .collect(Collectors.joining(" / "));
+            }
+        } catch (Exception e) {
+            log.error("[NAVER NEWS SEARCH] Failed: {}", e.getMessage());
+        }
+        return "주변 특이사항 없음";
+    }
+
+    /**
+     * 알림 서비스 호출 로직 분리
+     */
+    private void sendNotification(AiRequest request, String rawResult, AiAnalysis savedAnalysis) {
+        LocalDateTime scheduledAt = parseScheduledTime(rawResult);
+        String cleanResult = rawResult.replaceAll("\\[TIME:.*?\\]", "").trim();
+
         try {
             notificationClient.sendWithAi(new NotificationClient.AiNotificationRequest(
                 request.orderId(),
@@ -152,8 +187,6 @@ public class AiAnalysisService {
         } catch (Exception e) {
             log.error("Notification Service call failed: {}", e.getMessage());
         }
-
-        return savedAnalysis;
     }
 
     private String extractArea(String address) {
