@@ -205,11 +205,12 @@ public class UserServiceImpl implements UserService {
 
         return users.stream()
             .map(user -> {
-                UUID affiliationId = resolveAffiliationId(user, companyAffiliationMap, hubAffiliationMap);
-
-                if (affiliationId == null) {
+                if (user.getAffiliatedStatus() == AffiliatedStatus.UNAFFILIATED
+                    || user.getAffiliatedStatus() == AffiliatedStatus.NOT_APPLICABLE) {
                     return UserDataDto.fromUserInfo(user);
                 }
+
+                UUID affiliationId = resolveAffiliationId(user, companyAffiliationMap, hubAffiliationMap);
                 return UserDataDto.fromUserInfo(user, affiliationId);
             })
             .toList();
@@ -221,11 +222,19 @@ public class UserServiceImpl implements UserService {
         Map<UUID, UUID> hubAffiliationMap
     ) {
         if (user.getAffiliatedStatus() == AffiliatedStatus.COM_AFFILIATED) {
-            return companyAffiliationMap.get(user.getId());
+            UUID affiliationId = companyAffiliationMap.get(user.getId());
+            if (affiliationId == null) {
+                throw new IllegalStateException("Company affiliation missing for user: " + user.getId());
+            }
+            return affiliationId;
         }
 
         if (user.getAffiliatedStatus() == AffiliatedStatus.HUB_AFFILIATED) {
-            return hubAffiliationMap.get(user.getId());
+            UUID affiliationId = hubAffiliationMap.get(user.getId());
+            if (affiliationId == null) {
+                throw new IllegalStateException("Hub affiliation missing for user: " + user.getId());
+            }
+            return affiliationId;
         }
 
         return null;
