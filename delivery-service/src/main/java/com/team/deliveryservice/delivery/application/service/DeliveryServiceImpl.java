@@ -25,8 +25,8 @@ import com.team.deliveryservice.infrastructure.client.HubClient;
 import com.team.deliveryservice.infrastructure.client.OrderClient;
 import com.team.deliveryservice.infrastructure.client.dto.CompanyInternalResponse;
 import com.team.deliveryservice.infrastructure.client.dto.HubExistsResponse;
-import com.team.deliveryservice.infrastructure.client.dto.OrderInternalResponse;
 import com.team.deliveryservice.infrastructure.client.dto.OptimalRouteResponseWrapper;
+import com.team.deliveryservice.infrastructure.client.dto.OrderInternalResponse;
 import feign.FeignException;
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
@@ -58,34 +58,27 @@ public class DeliveryServiceImpl implements DeliveryService {
     @Override
     @Transactional
     public DeliveryResponse createDelivery(CreateDeliveryRequest request) {
-        // 같은 주문에 대한 배송이 이미 있으면 생성 불가
         if (deliveryRepository.existsByOrderIdAndDeletedAtIsNull(request.orderId())) {
             throw new ServiceException(DeliveryErrorCode.DELIVERY_ALREADY_EXISTS);
         }
 
-        // 주문 존재 여부 / 주문 상태 / 공급업체 / 수령업체 일치 여부 검증
         validateOrderExistsAndStatus(
             request.orderId(),
             request.supplierCompanyId(),
             request.receiverCompanyId()
         );
 
-        // 공급 업체 / 수령 업체 조회
         CompanyInternalResponse supplierCompany = getActiveCompany(request.supplierCompanyId());
         CompanyInternalResponse receiverCompany = getActiveCompany(request.receiverCompanyId());
 
-        // 배송 생성에 필요한 업체 정보 검증
         validateCompanyDeliveryInfo(supplierCompany, receiverCompany);
 
-        // 업체 소속 허브 조회
         UUID originHubId = supplierCompany.hubId();
         UUID destinationHubId = receiverCompany.hubId();
 
-        // 허브 존재 여부 검증
         validateHubExists(originHubId);
         validateHubExists(destinationHubId);
 
-        // 수령 업체 정보 기준으로 배송 생성
         Delivery delivery = Delivery.create(
             request.orderId(),
             originHubId,
@@ -100,10 +93,7 @@ public class DeliveryServiceImpl implements DeliveryService {
 
         try {
             Delivery savedDelivery = deliveryRepository.save(delivery);
-
-            // 허브 최적 경로 조회 후 route log 생성
             createRouteLogs(savedDelivery);
-
             return DeliveryResponse.from(savedDelivery, getRouteLogs(savedDelivery.getId()));
         } catch (DataIntegrityViolationException e) {
             if (isOrderIdUniqueViolation(e)) {
@@ -121,23 +111,21 @@ public class DeliveryServiceImpl implements DeliveryService {
 
     @Override
     public DeliveryResponse getDelivery(UUID deliveryId, CurrentUser currentUser) {
-        // TODO: currentUser 기준 조회 권한 검증 추가
         Delivery delivery = getDeliveryEntity(deliveryId);
+        validateReadPermission(delivery, currentUser);
         return DeliveryResponse.from(delivery, getRouteLogs(deliveryId));
     }
 
     @Override
     public DeliveryPageResponse searchDeliveries(DeliverySearchCondition condition, CurrentUser currentUser) {
-        // TODO: currentUser 기준 조회 범위 제한 추가
         int normalizedSize = PageSizeUtils.normalize(condition.size());
 
-        var pageResult = deliveryRepository.search(condition, normalizedSize);
+        var pageResult = deliveryRepository.search(condition, normalizedSize, currentUser);
 
         var deliveryIds = pageResult.getContent().stream()
             .map(Delivery::getId)
             .toList();
 
-        // route log를 한 번에 조회해서 N+1 문제 방지
         final Map<UUID, List<DeliveryRouteLogResponse>> routeLogsByDeliveryId =
             deliveryIds.isEmpty()
                 ? Map.of()
@@ -163,10 +151,9 @@ public class DeliveryServiceImpl implements DeliveryService {
     @Override
     @Transactional
     public DeliveryResponse updateDelivery(UUID deliveryId, UpdateDeliveryRequest request, CurrentUser currentUser) {
-        // TODO: currentUser 기준 수정 권한 검증 추가
         Delivery delivery = getDeliveryEntity(deliveryId);
+        validateUpdatePermission(delivery, currentUser);
 
-        // 배송지/수령인 정보 수정
         delivery.updateInfo(
             request.deliveryAddress(),
             request.deliveryAddressDetail(),
@@ -183,7 +170,6 @@ public class DeliveryServiceImpl implements DeliveryService {
         Delivery delivery = getDeliveryEntity(deliveryId);
 
         try {
-            // 도메인 상태 전이 규칙에 따라 배송 상태 변경
             delivery.updateStatus(request.deliveryStatus());
         } catch (IllegalStateException e) {
             throw new ServiceException(DeliveryErrorCode.DELIVERY_STATUS_CHANGE_NOT_ALLOWED);
@@ -198,7 +184,6 @@ public class DeliveryServiceImpl implements DeliveryService {
         Delivery delivery = getDeliveryEntity(deliveryId);
 
         try {
-            // 취소 가능한 상태일 때만 배송 취소
             delivery.cancel();
         } catch (IllegalStateException e) {
             throw new ServiceException(DeliveryErrorCode.DELIVERY_CANCEL_NOT_ALLOWED);
@@ -214,18 +199,16 @@ public class DeliveryServiceImpl implements DeliveryService {
         AssignCompanyDeliveryManagerRequest request,
         CurrentUser currentUser
     ) {
-        // TODO: currentUser 기준 권한 검증 추가
         Delivery delivery = getDeliveryEntity(deliveryId);
+        validateManagePermission(delivery, currentUser);
 
         DeliveryManager manager = deliveryManagerRepository.findByIdAndDeletedAtIsNull(request.deliveryManagerId())
             .orElseThrow(() -> new ServiceException(DeliveryErrorCode.DELIVERY_MANAGER_NOT_FOUND));
 
-        // 업체 배송 담당자만 배정 가능
         if (manager.getType() != DeliveryManagerType.COMPANY_DELIVERY_MANAGER) {
             throw new ServiceException(DeliveryErrorCode.DELIVERY_MANAGER_TYPE_INVALID);
         }
 
-        // 업체 배송 담당자는 배송의 도착 허브 소속이어야 함
         if (manager.getHubId() == null || !manager.getHubId().equals(delivery.getDestinationHubId())) {
             throw new ServiceException(DeliveryErrorCode.DELIVERY_MANAGER_HUB_MISMATCH);
         }
@@ -246,12 +229,11 @@ public class DeliveryServiceImpl implements DeliveryService {
         AssignHubDeliveryManagerRequest request,
         CurrentUser currentUser
     ) {
-        // TODO: currentUser 기준 권한 검증 추가
         Delivery delivery = getDeliveryEntity(deliveryId);
+        validateManagePermission(delivery, currentUser);
 
         DeliveryRouteLog routeLog = getRouteLog(request.routeLogId());
 
-        // 다른 배송의 route log에는 배정할 수 없음
         if (!routeLog.getDeliveryId().equals(delivery.getId())) {
             throw new ServiceException(DeliveryErrorCode.DELIVERY_ROUTE_MANAGER_ASSIGN_NOT_ALLOWED);
         }
@@ -259,7 +241,6 @@ public class DeliveryServiceImpl implements DeliveryService {
         DeliveryManager manager = deliveryManagerRepository.findByIdAndDeletedAtIsNull(request.deliveryManagerId())
             .orElseThrow(() -> new ServiceException(DeliveryErrorCode.DELIVERY_MANAGER_NOT_FOUND));
 
-        // 허브 배송 담당자만 route log에 배정 가능
         if (manager.getType() != DeliveryManagerType.HUB_DELIVERY_MANAGER) {
             throw new ServiceException(DeliveryErrorCode.DELIVERY_MANAGER_TYPE_INVALID);
         }
@@ -279,26 +260,22 @@ public class DeliveryServiceImpl implements DeliveryService {
         Delivery delivery = getDeliveryEntity(deliveryId);
         delivery.softDelete(SYSTEM_ACTOR_ID);
 
-        // 배송 삭제 시 연결된 route log도 함께 soft delete
         List<DeliveryRouteLog> routeLogs =
             deliveryRouteLogRepository.findAllByDeliveryIdAndDeletedAtIsNullOrderBySequenceNoAsc(deliveryId);
 
         routeLogs.forEach(routeLog -> routeLog.softDelete(SYSTEM_ACTOR_ID));
     }
 
-    // 삭제되지 않은 배송 조회
     private Delivery getDeliveryEntity(UUID deliveryId) {
         return deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)
             .orElseThrow(() -> new ServiceException(DeliveryErrorCode.DELIVERY_NOT_FOUND));
     }
 
-    // 삭제되지 않은 route log 조회
     private DeliveryRouteLog getRouteLog(UUID routeLogId) {
         return deliveryRouteLogRepository.findByIdAndDeletedAtIsNull(routeLogId)
             .orElseThrow(() -> new ServiceException(DeliveryErrorCode.DELIVERY_ROUTE_LOG_NOT_FOUND));
     }
 
-    // 배송 응답에 포함할 route log 목록 조회
     private List<DeliveryRouteLogResponse> getRouteLogs(UUID deliveryId) {
         return deliveryRouteLogRepository
             .findAllByDeliveryIdAndDeletedAtIsNullOrderBySequenceNoAsc(deliveryId)
@@ -307,7 +284,6 @@ public class DeliveryServiceImpl implements DeliveryService {
             .toList();
     }
 
-    // 허브 서비스에 내부 요청 헤더를 넣어 존재 여부 확인
     private void validateHubExists(UUID hubId) {
         try {
             HubExistsResponse response = hubClient.existsHub(hubId, INTERNAL_REQUEST_HEADER);
@@ -322,7 +298,6 @@ public class DeliveryServiceImpl implements DeliveryService {
         }
     }
 
-    // 업체가 존재하고 활성 상태인지 확인
     private CompanyInternalResponse getActiveCompany(UUID companyId) {
         try {
             CompanyInternalResponse company = companyClient.getCompany(companyId);
@@ -339,7 +314,6 @@ public class DeliveryServiceImpl implements DeliveryService {
         }
     }
 
-    // 배송 생성에 필요한 업체 정보 검증
     private void validateCompanyDeliveryInfo(
         CompanyInternalResponse supplierCompany,
         CompanyInternalResponse receiverCompany
@@ -361,7 +335,6 @@ public class DeliveryServiceImpl implements DeliveryService {
         }
     }
 
-    // 주문 존재 여부, 배송 생성 가능 상태, 공급 업체 / 수령 업체 일치 여부 검증
     private void validateOrderExistsAndStatus(
         UUID orderId,
         UUID supplierCompanyId,
@@ -396,7 +369,6 @@ public class DeliveryServiceImpl implements DeliveryService {
         }
     }
 
-    // 허브 최적 경로를 조회해 배송 경로 로그를 생성
     private void createRouteLogs(Delivery delivery) {
         try {
             OptimalRouteResponseWrapper routeResponse = hubClient.getOptimalRoute(
@@ -442,7 +414,93 @@ public class DeliveryServiceImpl implements DeliveryService {
         }
     }
 
-    // DB unique 제약 위반 메시지에서 orderId 중복 여부 판별
+    private void validateReadPermission(Delivery delivery, CurrentUser currentUser) {
+        if (canRead(delivery, currentUser)) {
+            return;
+        }
+        throw new ServiceException(DeliveryErrorCode.COMMON_ACCESS_DENIED);
+    }
+
+    private void validateUpdatePermission(Delivery delivery, CurrentUser currentUser) {
+        if (currentUser.isMasterAdmin()) {
+            return;
+        }
+
+        if (currentUser.isHubAdmin()) {
+            UUID hubId = currentUser.hubId();
+            if (hubId != null
+                && (hubId.equals(delivery.getOriginHubId()) || hubId.equals(delivery.getDestinationHubId()))) {
+                return;
+            }
+            throw new ServiceException(DeliveryErrorCode.COMMON_ACCESS_DENIED);
+        }
+
+        if (currentUser.isHubDeliveryManager()) {
+            if (isAssignedHubDeliveryManager(delivery.getId(), currentUser.userId())) {
+                return;
+            }
+            throw new ServiceException(DeliveryErrorCode.COMMON_ACCESS_DENIED);
+        }
+
+        if (currentUser.isCompanyDeliveryManager()) {
+            if (currentUser.userId().equals(delivery.getCompanyDeliveryManagerId())) {
+                return;
+            }
+            throw new ServiceException(DeliveryErrorCode.COMMON_ACCESS_DENIED);
+        }
+
+        throw new ServiceException(DeliveryErrorCode.COMMON_ACCESS_DENIED);
+    }
+
+    private void validateManagePermission(Delivery delivery, CurrentUser currentUser) {
+        if (currentUser.isMasterAdmin()) {
+            return;
+        }
+
+        if (currentUser.isHubAdmin()) {
+            UUID hubId = currentUser.hubId();
+            if (hubId != null
+                && (hubId.equals(delivery.getOriginHubId()) || hubId.equals(delivery.getDestinationHubId()))) {
+                return;
+            }
+        }
+
+        throw new ServiceException(DeliveryErrorCode.COMMON_ACCESS_DENIED);
+    }
+
+    private boolean canRead(Delivery delivery, CurrentUser currentUser) {
+        if (currentUser.isMasterAdmin()) {
+            return true;
+        }
+
+        if (currentUser.isHubAdmin()) {
+            UUID hubId = currentUser.hubId();
+            return hubId != null
+                && (hubId.equals(delivery.getOriginHubId()) || hubId.equals(delivery.getDestinationHubId()));
+        }
+
+        if (currentUser.isCompanyManager()) {
+            UUID companyId = currentUser.companyId();
+            return companyId != null && companyId.equals(delivery.getReceiverCompanyId());
+        }
+
+        if (currentUser.isHubDeliveryManager()) {
+            return isAssignedHubDeliveryManager(delivery.getId(), currentUser.userId());
+        }
+
+        if (currentUser.isCompanyDeliveryManager()) {
+            return currentUser.userId().equals(delivery.getCompanyDeliveryManagerId());
+        }
+
+        return false;
+    }
+
+    private boolean isAssignedHubDeliveryManager(UUID deliveryId, UUID userId) {
+        return deliveryRouteLogRepository.findAllByDeliveryIdAndDeletedAtIsNullOrderBySequenceNoAsc(deliveryId)
+            .stream()
+            .anyMatch(routeLog -> userId.equals(routeLog.getDeliveryManagerId()));
+    }
+
     private boolean isOrderIdUniqueViolation(DataIntegrityViolationException e) {
         Throwable cause = e;
         while (cause != null) {

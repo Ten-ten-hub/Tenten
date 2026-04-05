@@ -7,6 +7,7 @@ import com.team.deliveryservice.delivery.application.dto.response.DeliveryPageRe
 import com.team.deliveryservice.delivery.application.dto.response.DeliveryResponse;
 import com.team.deliveryservice.delivery.application.search.DeliverySearchCondition;
 import com.team.deliveryservice.delivery.application.service.DeliveryService;
+import com.team.deliveryservice.global.auth.RequireRole;
 import com.team.deliveryservice.global.common.ApiResponse;
 import com.team.deliveryservice.global.common.CurrentUser;
 import jakarta.validation.Valid;
@@ -22,6 +23,7 @@ public class ExternalDeliveryController {
 
     private final DeliveryService deliveryService;
 
+    @RequireRole({"MASTER_ADMIN", "HUB_ADMIN", "COMPANY_MANAGER", "HUB_DELIVERY_MANAGER", "COM_DELIVERY_MANAGER"})
     @GetMapping("/{deliveryId}")
     public ResponseEntity<ApiResponse<DeliveryResponse>> get(
         @PathVariable UUID deliveryId,
@@ -32,6 +34,7 @@ public class ExternalDeliveryController {
         ));
     }
 
+    @RequireRole({"MASTER_ADMIN", "HUB_ADMIN", "COMPANY_MANAGER", "HUB_DELIVERY_MANAGER", "COM_DELIVERY_MANAGER"})
     @GetMapping
     public ResponseEntity<ApiResponse<DeliveryPageResponse>> search(
         @ModelAttribute DeliverySearchCondition condition,
@@ -42,6 +45,7 @@ public class ExternalDeliveryController {
         ));
     }
 
+    @RequireRole({"MASTER_ADMIN", "HUB_ADMIN", "HUB_DELIVERY_MANAGER", "COM_DELIVERY_MANAGER"})
     @PutMapping("/{deliveryId}")
     public ResponseEntity<ApiResponse<DeliveryResponse>> update(
         @PathVariable UUID deliveryId,
@@ -53,6 +57,7 @@ public class ExternalDeliveryController {
         ));
     }
 
+    @RequireRole({"MASTER_ADMIN", "HUB_ADMIN"})
     @PatchMapping("/{deliveryId}/assign-company-manager")
     public ResponseEntity<ApiResponse<DeliveryResponse>> assignCompanyManager(
         @PathVariable UUID deliveryId,
@@ -64,6 +69,7 @@ public class ExternalDeliveryController {
         ));
     }
 
+    @RequireRole({"MASTER_ADMIN", "HUB_ADMIN"})
     @PatchMapping("/{deliveryId}/assign-delivery-manager")
     public ResponseEntity<ApiResponse<DeliveryResponse>> assignDeliveryManager(
         @PathVariable UUID deliveryId,

@@ -129,6 +129,17 @@ public enum DeliveryErrorCode implements com.team.common.exception.ErrorCode {
         "잘못된 요청입니다."
     ),
 
+    /*
+     * =========================================================
+     * 401 UNAUTHORIZED
+     * =========================================================
+     */
+    COMMON_UNAUTHORIZED(
+        HttpStatus.UNAUTHORIZED,
+        "COMMON_UNAUTHORIZED",
+        "인증 정보가 없습니다."
+    ),
+
 
     /*
      * =========================================================

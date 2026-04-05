@@ -1,5 +1,6 @@
 package com.team.deliveryservice.infrastructure.client;
 
+import com.team.deliveryservice.global.config.FeignAuthForwardConfig;
 import com.team.deliveryservice.global.config.FeignRetryConfig;
 import com.team.deliveryservice.infrastructure.client.dto.HubExistsResponse;
 import com.team.deliveryservice.infrastructure.client.dto.OptimalRouteResponseWrapper;
@@ -12,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 @FeignClient(
     name = "hub-service",
-    configuration = FeignRetryConfig.class
+    configuration = {FeignRetryConfig.class, FeignAuthForwardConfig.class}
 )
 public interface HubClient {
 

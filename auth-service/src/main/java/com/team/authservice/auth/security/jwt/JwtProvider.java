@@ -28,10 +28,12 @@ public class JwtProvider {
     }
 
     // 토큰 생성
-    public String generateAccessToken(UUID userId, Role role) {
+    public String generateAccessToken(UUID userId, Role role, UUID hubId, UUID companyId) {
         return Jwts.builder()
             .subject(userId.toString())
             .claim("role", role.name())
+            .claim("hubId", hubId != null ? hubId.toString() : null)
+            .claim("companyId", companyId != null ? companyId.toString() : null)
             .issuedAt(new Date())
             .expiration(new Date(System.currentTimeMillis() + jwtProperties.accessTokenValidity().toMillis()))
             .signWith(getSigningKey())

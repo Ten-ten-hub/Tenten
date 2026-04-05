@@ -33,9 +33,16 @@ public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolve
             throw new ServiceException(DeliveryErrorCode.COMMON_INTERNAL_ERROR);
         }
 
+        String userIdHeader = request.getHeader("X-User-Id");
+        String roleHeader = request.getHeader("X-User-Role");
+
+        if (userIdHeader == null || userIdHeader.isBlank() || roleHeader == null || roleHeader.isBlank()) {
+            throw new ServiceException(DeliveryErrorCode.COMMON_UNAUTHORIZED);
+        }
+
         return new CurrentUser(
-            parseUuid(request.getHeader("X-User-Id")),
-            request.getHeader("X-User-Role"),
+            parseUuid(userIdHeader),
+            roleHeader,
             parseUuid(request.getHeader("X-Hub-Id")),
             parseUuid(request.getHeader("X-Company-Id"))
         );

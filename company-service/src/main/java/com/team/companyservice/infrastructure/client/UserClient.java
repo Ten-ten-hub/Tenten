@@ -1,5 +1,6 @@
 package com.team.companyservice.infrastructure.client;
 
+import com.team.companyservice.global.config.FeignConfig;
 import com.team.companyservice.global.config.FeignRetryConfig;
 import com.team.companyservice.infrastructure.client.dto.UpdateUserAffiliationRequest;
 import com.team.companyservice.infrastructure.client.dto.UpdateUserRoleRequest;
@@ -17,7 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 @FeignClient(
     name = "${client.user-service.name}",
     url = "${client.user-service.url}",
-    configuration = FeignRetryConfig.class
+    configuration = {FeignRetryConfig.class, FeignConfig.class}
 )
 public interface UserClient {
 

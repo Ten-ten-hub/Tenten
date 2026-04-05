@@ -5,6 +5,8 @@ import java.util.UUID;
 
 public record UserVerifyRes(
     UUID userId,
-    Role role
+    Role role,
+    UUID hubId,
+    UUID companyId
 ) {
 }

@@ -24,7 +24,14 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public TokenDto login(String loginId, String password) {
         UserVerifyRes userInfo = userInternalClient.verify(new UserVerifyReq(loginId, password));
-        String accessToken = jwtProvider.generateAccessToken(userInfo.userId(), userInfo.role());
+
+        String accessToken = jwtProvider.generateAccessToken(
+            userInfo.userId(),
+            userInfo.role(),
+            userInfo.hubId(),
+            userInfo.companyId()
+        );
+
         String refreshToken = jwtProvider.generateRefreshToken(userInfo.userId());
 
         redisTokenRepository.save(userInfo.userId(), refreshToken);
@@ -33,37 +40,39 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public void logout(UUID userId){
+    public void logout(UUID userId) {
         redisTokenRepository.delete(userId);
     }
 
     @Override
     public TokenDto refresh(String refreshToken) {
         UUID userId;
-        try{
+        try {
             userId = jwtProvider.extractUserInfo(refreshToken);
-        }catch (Exception e){
+        } catch (Exception e) {
             throw new AuthException(AuthErrorCode.INVALID_TOKEN);
         }
 
-        Role role;
-        try{
-            role = userInternalClient.getUserRole(userId).role();
-        }catch (Exception e){
+        UserVerifyRes userInfo;
+        try {
+            userInfo = userInternalClient.getUserInfoForToken(userId);
+        } catch (Exception e) {
             throw new AuthException(AuthErrorCode.INVALID_TOKEN);
         }
-        String newAccessToken = jwtProvider.generateAccessToken(userId, role);
+
+        String newAccessToken = jwtProvider.generateAccessToken(
+            userInfo.userId(),
+            userInfo.role(),
+            userInfo.hubId(),
+            userInfo.companyId()
+        );
+
         String newRefreshToken = jwtProvider.generateRefreshToken(userId);
 
-        // compareAndReplace: 원자적으로 "기존 RT == Redis RT"이면 새 RT로 교체
         if (!redisTokenRepository.compareAndReplace(userId, refreshToken, newRefreshToken)) {
             throw new AuthException(AuthErrorCode.INVALID_TOKEN);
-            // -> 이미 다른 요청이 RT를 교체했거나, RT가 일치하지 않는 경우
         }
 
-        return new TokenDto(newAccessToken, newRefreshToken); // 새 토큰 반환
-
+        return new TokenDto(newAccessToken, newRefreshToken);
     }
-
-
 }

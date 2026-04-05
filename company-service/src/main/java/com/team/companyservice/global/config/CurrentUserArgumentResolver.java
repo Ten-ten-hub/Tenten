@@ -6,6 +6,7 @@ import com.team.companyservice.global.error.ServiceException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.UUID;
 import org.springframework.core.MethodParameter;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.support.WebDataBinderFactory;
 import org.springframework.web.context.request.NativeWebRequest;
@@ -24,27 +25,39 @@ public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolve
     @Override
     public Object resolveArgument(
         MethodParameter parameter,
-        ModelAndViewContainer mavContainer,
+        @Nullable ModelAndViewContainer mavContainer,
         NativeWebRequest webRequest,
-        WebDataBinderFactory binderFactory
+        @Nullable WebDataBinderFactory binderFactory
     ) {
         HttpServletRequest request = webRequest.getNativeRequest(HttpServletRequest.class);
+        if (request == null) {
+            throw new ServiceException(CompanyErrorCode.COMMON_INTERNAL_ERROR);
+        }
 
-        String userId = request.getHeader("X-User-Id");
-        String role = request.getHeader("X-User-Role");
-        String hubId = request.getHeader("X-Hub-Id");
-        String companyId = request.getHeader("X-Company-Id");
+        String userIdHeader = request.getHeader("X-User-Id");
+        String roleHeader = request.getHeader("X-User-Role");
 
-        // 외부 API는 최소 사용자 ID와 역할 정보가 있어야 함
-        if (userId == null || role == null || userId.isBlank() || role.isBlank()) {
+        if (userIdHeader == null || userIdHeader.isBlank()
+            || roleHeader == null || roleHeader.isBlank()) {
             throw new ServiceException(CompanyErrorCode.COMMON_UNAUTHORIZED);
         }
 
         return new CurrentUser(
-            UUID.fromString(userId),
-            role,
-            hubId != null && !hubId.isBlank() ? UUID.fromString(hubId) : null,
-            companyId != null && !companyId.isBlank() ? UUID.fromString(companyId) : null
+            parseUuid(userIdHeader),
+            roleHeader,
+            parseUuid(request.getHeader("X-Hub-Id")),
+            parseUuid(request.getHeader("X-Company-Id"))
         );
+    }
+
+    private UUID parseUuid(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(value);
+        } catch (IllegalArgumentException e) {
+            throw new ServiceException(CompanyErrorCode.COMMON_INVALID_INPUT);
+        }
     }
 }

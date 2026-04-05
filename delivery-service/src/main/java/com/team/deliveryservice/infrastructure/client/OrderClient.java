@@ -1,5 +1,6 @@
 package com.team.deliveryservice.infrastructure.client;
 
+import com.team.deliveryservice.global.config.FeignAuthForwardConfig;
 import com.team.deliveryservice.global.config.FeignRetryConfig;
 import com.team.deliveryservice.infrastructure.client.dto.OrderInternalResponse;
 import java.util.UUID;
@@ -9,7 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 
 @FeignClient(
     name = "order-service",
-    configuration = FeignRetryConfig.class
+    configuration = {FeignRetryConfig.class, FeignAuthForwardConfig.class}
 )
 public interface OrderClient {
 

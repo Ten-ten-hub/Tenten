@@ -1,11 +1,12 @@
 package com.team.deliveryservice.deliverymanager.presentation;
 
 import com.team.deliveryservice.deliverymanager.application.dto.request.CreateDeliveryManagerRequest;
+import com.team.deliveryservice.deliverymanager.application.dto.request.UpdateDeliveryManagerRequest;
 import com.team.deliveryservice.deliverymanager.application.dto.response.DeliveryManagerPageResponse;
 import com.team.deliveryservice.deliverymanager.application.dto.response.DeliveryManagerResponse;
 import com.team.deliveryservice.deliverymanager.application.search.DeliveryManagerSearchCondition;
 import com.team.deliveryservice.deliverymanager.application.service.DeliveryManagerService;
-import com.team.deliveryservice.deliverymanager.application.dto.request.UpdateDeliveryManagerRequest;
+import com.team.deliveryservice.global.auth.RequireRole;
 import com.team.deliveryservice.global.common.ApiResponse;
 import com.team.deliveryservice.global.common.CurrentUser;
 import jakarta.validation.Valid;
@@ -22,6 +23,7 @@ public class DeliveryManagerController {
 
     private final DeliveryManagerService deliveryManagerService;
 
+    @RequireRole({"MASTER_ADMIN", "HUB_ADMIN"})
     @PostMapping
     public ResponseEntity<ApiResponse<DeliveryManagerResponse>> create(
         @Valid @RequestBody CreateDeliveryManagerRequest request,
@@ -32,6 +34,7 @@ public class DeliveryManagerController {
             .body(ApiResponse.ok(deliveryManagerService.createDeliveryManager(request, currentUser)));
     }
 
+    @RequireRole({"MASTER_ADMIN", "HUB_ADMIN", "HUB_DELIVERY_MANAGER", "COM_DELIVERY_MANAGER"})
     @GetMapping("/{deliveryManagerId}")
     public ResponseEntity<ApiResponse<DeliveryManagerResponse>> get(
         @PathVariable UUID deliveryManagerId,
@@ -42,6 +45,7 @@ public class DeliveryManagerController {
         ));
     }
 
+    @RequireRole({"MASTER_ADMIN", "HUB_ADMIN", "HUB_DELIVERY_MANAGER", "COM_DELIVERY_MANAGER"})
     @GetMapping
     public ResponseEntity<ApiResponse<DeliveryManagerPageResponse>> search(
         @ModelAttribute DeliveryManagerSearchCondition condition,
@@ -52,6 +56,7 @@ public class DeliveryManagerController {
         ));
     }
 
+    @RequireRole({"MASTER_ADMIN", "HUB_ADMIN"})
     @PutMapping("/{deliveryManagerId}")
     public ResponseEntity<ApiResponse<DeliveryManagerResponse>> update(
         @PathVariable UUID deliveryManagerId,
@@ -63,6 +68,7 @@ public class DeliveryManagerController {
         ));
     }
 
+    @RequireRole({"MASTER_ADMIN", "HUB_ADMIN"})
     @DeleteMapping("/{deliveryManagerId}")
     public ResponseEntity<ApiResponse<Void>> delete(
         @PathVariable UUID deliveryManagerId,
