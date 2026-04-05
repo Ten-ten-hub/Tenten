@@ -119,8 +119,6 @@ public class UserServiceImpl implements UserService {
         Role role = user.getRole();
         AffiliatedStatus affiliatedStatus = user.getAffiliatedStatus();
 
-        verifyAffiliationId(affiliation, affiliationId);
-
         if(affiliatedStatus == AffiliatedStatus.NOT_APPLICABLE) {
             throw new UserException(UserErrorCode.NOT_APPLICABLE);
         }
@@ -151,6 +149,8 @@ public class UserServiceImpl implements UserService {
                 user.updateUserAffiliation(AffiliatedStatus.COM_AFFILIATED);
             }
         }
+
+        verifyAffiliationId(affiliation, affiliationId); // 비용이 있는 외부호출이니 맨 마지막에 위치
     }
 
     @Override

@@ -5,7 +5,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
-@FeignClient(name = "company-service")
+@FeignClient(name = "company-service", path = "/internal/v1/companies")
 public interface CompanyInternalClient {
 
     @GetMapping("/{companyId}/exists")

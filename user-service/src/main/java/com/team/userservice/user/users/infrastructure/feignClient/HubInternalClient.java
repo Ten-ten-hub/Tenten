@@ -5,7 +5,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
-@FeignClient(name = "hub-service")
+@FeignClient(name = "hub-service", path = "/internal/v1/hubs")
 public interface HubInternalClient {
 
     @GetMapping("/{hubId}/exists/v2")
