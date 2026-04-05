@@ -5,6 +5,7 @@ import com.team.userservice.global.exception.UserException;
 import com.team.userservice.user.core.HubUser;
 import com.team.userservice.user.core.User;
 import com.team.userservice.user.hubs.domain.HubRepository;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 @RequiredArgsConstructor
 public class HubRepositoryImpl implements HubRepository {
+
     private final HubJpaRepository hubJpaRepository;
 
     @Override
@@ -21,6 +23,12 @@ public class HubRepositoryImpl implements HubRepository {
 
     @Override
     public HubUser findByUser(User user) {
-        return hubJpaRepository.findByUser(user).orElseThrow(() -> new UserException(UserErrorCode.HUB_USER_NOT_FOUND));
+        return hubJpaRepository.findByUser(user)
+            .orElseThrow(() -> new UserException(UserErrorCode.HUB_USER_NOT_FOUND));
+    }
+
+    @Override
+    public List<HubUser> findAllByUsers(List<User> users) {
+        return hubJpaRepository.findAllByUserIn(users);
     }
 }

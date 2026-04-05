@@ -5,6 +5,7 @@ import com.team.userservice.global.exception.UserException;
 import com.team.userservice.user.companies.domain.CompanyRepository;
 import com.team.userservice.user.core.CompanyUser;
 import com.team.userservice.user.core.User;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 @RequiredArgsConstructor
 public class CompanyRepositoryImpl implements CompanyRepository {
+
     private final CompanyJpaRepository companyJpaRepository;
 
     @Override
@@ -21,6 +23,12 @@ public class CompanyRepositoryImpl implements CompanyRepository {
 
     @Override
     public CompanyUser findByUser(User user) {
-        return companyJpaRepository.findByUser(user).orElseThrow(() -> new UserException(UserErrorCode.COM_USER_NOT_FOUND));
+        return companyJpaRepository.findByUser(user)
+            .orElseThrow(() -> new UserException(UserErrorCode.COM_USER_NOT_FOUND));
+    }
+
+    @Override
+    public List<CompanyUser> findAllByUsers(List<User> users) {
+        return companyJpaRepository.findAllByUserIn(users);
     }
 }
