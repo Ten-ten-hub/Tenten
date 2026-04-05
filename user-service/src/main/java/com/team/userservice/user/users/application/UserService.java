@@ -47,4 +47,8 @@ public interface UserService {
     void updateLastLoginAt(UUID userId);
 
     Role getUserRole(UUID userId);
+
+    void verifyAffiliationId(@NotNull Affiliation affiliation, @NotNull UUID uuid);
+
+    String getUserSlackId(UUID userId);
 }

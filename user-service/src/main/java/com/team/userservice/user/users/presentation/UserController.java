@@ -1,11 +1,16 @@
 package com.team.userservice.user.users.presentation;
 
 import com.team.userservice.global.auth.RequireRole;
+import com.team.userservice.global.domain.error.UserErrorCode;
 import com.team.userservice.global.dto.CommonResponse;
+import com.team.userservice.global.exception.UserException;
 import com.team.userservice.user.core.enums.AffiliatedStatus;
+import com.team.userservice.user.core.enums.Affiliation;
 import com.team.userservice.user.core.enums.Role;
 import com.team.userservice.user.core.enums.SignupStatus;
 import com.team.userservice.user.users.application.UserService;
+import com.team.userservice.user.users.infrastructure.feignClient.CompanyInternalClient;
+import com.team.userservice.user.users.infrastructure.feignClient.HubInternalClient;
 import com.team.userservice.user.users.presentation.dto.request.SignUpReq;
 import com.team.userservice.user.users.presentation.dto.request.UpdateUserAffiliationReq;
 import com.team.userservice.user.users.presentation.dto.request.UpdateUserReq;
@@ -138,7 +143,6 @@ public class UserController {
     @PatchMapping("/{userId}/affiliation")
     public CommonResponse<Void> updateUserAffiliation(@PathVariable("userId") UUID userId,
                                                       @Valid @RequestBody UpdateUserAffiliationReq request) {
-        //TODO: 추후 유효한 소속 아이디인지 검증하기 위한 내부 api 호출이 필요함
         userService.updateUserAffiliation(userId, request.affiliation(), request.affiliationId());
         return CommonResponse.onSuccess();
     }

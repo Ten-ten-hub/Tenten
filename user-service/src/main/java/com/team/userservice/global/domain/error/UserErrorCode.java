@@ -20,7 +20,10 @@ public enum UserErrorCode implements com.team.common.exception.ErrorCode {
     NOT_APPLICABLE(HttpStatus.BAD_REQUEST,"USER_400_2" ,"배정을 받을 수 있는 상태가 아닙니다"),
     HUB_USER_NOT_FOUND(HttpStatus.NOT_FOUND,"USER_404_1", "유저의 허브관련 정보가 존재하지 않습니다."),
     COM_USER_NOT_FOUND(HttpStatus.NOT_FOUND,"USER_404_2", "유저의 업체관련 정보가 존재하지 않습니다."),
-    NOT_EXIST_ROLE(HttpStatus.NOT_FOUND, "USER_404_3","존재하지 않는 권한입니다." );
+    NOT_EXIST_ROLE(HttpStatus.NOT_FOUND, "USER_404_3","존재하지 않는 권한입니다." ),
+    INVALID_HUB_ID(HttpStatus.NOT_FOUND, "USER_404_1", "존재하지 않는 허브ID입니다"),
+    INVALID_COMPANY_ID(HttpStatus.NOT_FOUND, "USER_404_2", "존재하지 않는 허브ID입니다"),
+    NOT_EXIST_AFFILIATION(HttpStatus.NOT_FOUND, "USER_404_3", "존재하지 않는 소속이름입니다" );
 
     private final HttpStatus status;
     private final String code;

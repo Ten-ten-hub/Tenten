@@ -16,6 +16,9 @@ import com.team.userservice.user.users.application.dto.SignUpServiceDto;
 import com.team.userservice.user.users.application.dto.UpdateUserServiceDto;
 import com.team.userservice.user.users.application.dto.UserDataDto;
 import com.team.userservice.user.users.domain.UserRepository;
+import com.team.userservice.user.users.infrastructure.feignClient.CompanyInternalClient;
+import com.team.userservice.user.users.infrastructure.feignClient.HubInternalClient;
+import feign.FeignException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -36,6 +39,8 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final HubService hubService;
     private final CompanyService companyService;
+    private final HubInternalClient hubInternalClient;
+    private final CompanyInternalClient companyInternalClient;
 
     @Override
     public SignUpResultDto signUp(SignUpServiceDto serviceDto) {
@@ -113,6 +118,8 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(userId).orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
         Role role = user.getRole();
         AffiliatedStatus affiliatedStatus = user.getAffiliatedStatus();
+
+        verifyAffiliationId(affiliation, affiliationId);
 
         if(affiliatedStatus == AffiliatedStatus.NOT_APPLICABLE) {
             throw new UserException(UserErrorCode.NOT_APPLICABLE);
@@ -218,5 +225,30 @@ public class UserServiceImpl implements UserService {
     @Override
     public Role getUserRole(UUID userId) {
         return userRepository.findById(userId).orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND)).getRole();
+    }
+
+    @Override
+    public void verifyAffiliationId(Affiliation affiliation, UUID affiliationId) {
+        if(affiliation == Affiliation.HUB){
+
+            try{
+                hubInternalClient.isValidID(affiliationId);
+            }catch (FeignException.NotFound e){
+                throw new UserException(UserErrorCode.INVALID_HUB_ID);
+            }
+        }else if(affiliation == Affiliation.COMPANY){
+            try{
+                companyInternalClient.isValidID(affiliationId);
+            }catch (FeignException.NotFound e){
+                throw new UserException(UserErrorCode.INVALID_COMPANY_ID);
+            }
+        }else{
+            throw new UserException(UserErrorCode.NOT_EXIST_AFFILIATION);
+        }
+    }
+
+    @Override
+    public String getUserSlackId(UUID userId) {
+        return userRepository.findById(userId).orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND)).getSlackId();
     }
 }
