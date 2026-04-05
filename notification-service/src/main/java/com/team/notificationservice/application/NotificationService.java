@@ -66,7 +66,14 @@ public class NotificationService {
     @Transactional
     public void createWithAiAnalysis(AiNotificationRequest aiRequest, String msgType) {
 
-        MsgType type = MsgType.valueOf(msgType);
+        MsgType type;
+        try {
+            // 유효하지 않은 msgType 입력에 대한 방어 로직
+            type = MsgType.valueOf(msgType);
+        } catch (IllegalArgumentException | NullPointerException e) {
+            log.error("[INVALID MSG_TYPE] 요청된 메시지 타입이 올바르지 않습니다: '{}'. OrderID: {}", msgType, aiRequest.orderId());
+            throw new ServiceException(ErrorCode.COMMON_INVALID_INPUT_VALUE);
+        }
 
         Notification notification = Notification.builder()
             .receiverId(aiRequest.receiverId())
@@ -74,7 +81,7 @@ public class NotificationService {
             .orderId(aiRequest.orderId())
             .msgType(type)
             .msgContent(aiRequest.msgContent())
-            .sendStatus(SendStatus.SENT_IMMEDIATELY)
+            .sendStatus(SendStatus.PENDING)
             .scheduledAt(aiRequest.scheduledAt())
             .refId(aiRequest.refId())
             .build();
@@ -84,13 +91,13 @@ public class NotificationService {
         // 2. 실제 슬랙 즉시 전송 호출
         try {
             slackClient.sendDirectMessage(saved.getReceiverSlackId(), saved.getMsgContent());
-            saved.markAsSuccess(); // 성공 시 상태 업데이트
-            log.info("AI 알림 즉시 발송 완료: receiver={}", saved.getReceiverSlackId());
+            saved.markAsSentImmediately();
+            log.info("AI 알림 즉시 발송 성공: ID={}, 상태=SENT_IMMEDIATELY", saved.getId());
         } catch (Exception e) {
             log.error("슬랙 즉시 전송 실패: {}", e.getMessage());
             saved.markAsFailed(); // 실패 시 상태를 FAIL로 변경
-            notificationRepository.save(saved); // 변경 사항 명시적 저장 (영속성 컨텍스트 활용 가능하나 명시성 위해 추가)
         }
+        notificationRepository.save(saved);
     }
 
     /**
