@@ -10,7 +10,6 @@ import com.team.userservice.user.users.application.dto.SignUpResultDto;
 import com.team.userservice.user.users.application.dto.SignUpServiceDto;
 import com.team.userservice.user.users.application.dto.UpdateUserServiceDto;
 import com.team.userservice.user.users.application.dto.UserDataDto;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.UUID;
@@ -18,25 +17,24 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 public interface UserService {
+
     SignUpResultDto signUp(SignUpServiceDto serviceDto);
 
     void register(UUID userId);
 
     LoginServiceDto loginService(String loginId, String password);
 
-    void updateUserRole(@NotNull UUID userId, @NotNull Role role);
+    void updateUserRole(UUID userId, Role role);
 
-    void userUpdate(UUID userId, @Valid UpdateUserServiceDto serviceDto);
+    void userUpdate(UUID userId, UpdateUserServiceDto serviceDto);
 
-    void updateUserAffiliation(UUID userId, @NotNull Affiliation affiliation, @NotNull UUID uuid);
+    void updateUserAffiliation(UUID userId, Affiliation affiliation, UUID affiliationId);
 
     UserDataDto getUserInfo(UUID userId);
 
     Page<User> getAllUserInfo(Pageable pageable);
 
     Page<User> getAllUserInfo(List<Role> roles, AffiliatedStatus affiliatedStatus, Pageable pageable);
-
-    List<User> getAllUserInfoInternal();
 
     List<User> getAllUserInfoInternal(List<Role> roles, AffiliatedStatus affiliatedStatus);
 
@@ -47,4 +45,8 @@ public interface UserService {
     void updateLastLoginAt(UUID userId);
 
     Role getUserRole(UUID userId);
+
+    void verifyAffiliationId(@NotNull Affiliation affiliation, @NotNull UUID uuid);
+
+    String getUserSlackId(UUID userId);
 }

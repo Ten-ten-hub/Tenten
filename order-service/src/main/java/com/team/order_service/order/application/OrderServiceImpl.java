@@ -196,11 +196,10 @@ public class OrderServiceImpl implements OrderService {
         Order order = findActiveOrderById(orderId);
 
         // 취소된 주문만 삭제 가능
-        if (order.getOrderStatus() != OrderStatus.CANCELLED
-                && order.getOrderStatus() != OrderStatus.COMPLETED) {
+        if (order.getOrderStatus() != OrderStatus.CANCELLED) {
             throw new BusinessException(OrderErrorCode.ORDER_NOT_DELETABLE);
         }
-        
+
         // 배송 삭제
         if (order.getDeliveryId() != null) {
             deleteDeliveryWithFallback(order.getDeliveryId());

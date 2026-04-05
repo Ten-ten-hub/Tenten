@@ -9,6 +9,7 @@ import com.team.userservice.user.users.presentation.dto.response.GetAllUserInfoR
 import com.team.userservice.user.users.presentation.dto.response.GetRoleRes;
 import com.team.userservice.user.users.presentation.dto.response.GetUserInfoRes;
 import com.team.userservice.user.users.presentation.dto.response.LoginRes;
+import com.team.userservice.user.users.presentation.dto.response.SlackIdRes;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
@@ -64,5 +65,9 @@ public class UserInternalController {
         return CommonResponse.onSuccess(new GetRoleRes(userService.getUserRole(userId)));
     }
 
-
+    //슬랙아이디 조회 내부api
+    @GetMapping("/v1/users/{userId}/slack")
+    public CommonResponse<SlackIdRes> getSlackInternal(@PathVariable("userId") UUID userId) {
+        return CommonResponse.onSuccess(new SlackIdRes(userService.getUserSlackId(userId)));
+    }
 }

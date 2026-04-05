@@ -11,9 +11,11 @@ import com.team.authservice.global.error.AuthErrorCode;
 import com.team.authservice.global.exception.AuthException;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
@@ -28,6 +30,12 @@ public class AuthServiceImpl implements AuthService {
         String refreshToken = jwtProvider.generateRefreshToken(userInfo.userId());
 
         redisTokenRepository.save(userInfo.userId(), refreshToken);
+
+        try{
+            userInternalClient.lastLoginAt(userInfo.userId()); // 부가기능이므로 실패해도 로그인은 정사응로 되어야함
+        }catch (Exception e){
+            log.warn("lastLoginAt 업데이트 실패 (userId = {}): {}", userInfo.userId(), e.getMessage());
+        }
 
         return new TokenDto(accessToken, refreshToken);
     }
