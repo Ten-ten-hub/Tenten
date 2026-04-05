@@ -29,7 +29,8 @@ CREATE TABLE p_notification
         CHECK (msg_type IN ('ORDER_ALERT', 'DAILY_REPORT')),
     msg_content       TEXT         NOT NULL,
     send_status       VARCHAR(20)  NOT NULL DEFAULT 'PENDING'
-        CHECK (send_status IN ('PENDING', 'SUCCESS', 'FAIL')),
+        CHECK (send_status IN ('PENDING', 'SUCCESS', 'FAIL', 'SENT_IMMEDIATELY', 'RESENT_DAILY')),
+    scheduled_at      TIMESTAMP,
     ref_id            UUID, -- 참조 ID (추가된 필드)
 
     -- common.BaseEntity 상속 필드 (Audit)
