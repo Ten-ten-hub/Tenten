@@ -128,6 +128,8 @@ public class UserServiceImpl implements UserService {
                 throw new UserException(UserErrorCode.ROLE_AFFILIATION_CONFLICT);
             }
 
+            verifyAffiliationId(affiliation, affiliationId); // 비용이 있는 외부호출이니 맨 마지막에 위치
+
             if(affiliatedStatus == AffiliatedStatus.HUB_AFFILIATED){
                 hubService.findByUser(user).updateHubId(affiliationId);
             }else if(affiliatedStatus == AffiliatedStatus.UNAFFILIATED){
@@ -142,6 +144,8 @@ public class UserServiceImpl implements UserService {
                 throw new UserException(UserErrorCode.ROLE_AFFILIATION_CONFLICT);
             }
 
+            verifyAffiliationId(affiliation, affiliationId); // 비용이 있는 외부호출이니 맨 마지막에 위치
+
             if(affiliatedStatus == AffiliatedStatus.COM_AFFILIATED){
                 companyService.findByUser(user).updateCompanyId(affiliationId);
             }else if(affiliatedStatus == AffiliatedStatus.UNAFFILIATED){
@@ -150,7 +154,7 @@ public class UserServiceImpl implements UserService {
             }
         }
 
-        verifyAffiliationId(affiliation, affiliationId); // 비용이 있는 외부호출이니 맨 마지막에 위치
+
     }
 
     @Override
