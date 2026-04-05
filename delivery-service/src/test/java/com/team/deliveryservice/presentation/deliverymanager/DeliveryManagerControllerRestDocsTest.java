@@ -76,7 +76,7 @@ class DeliveryManagerControllerRestDocsTest {
     private MockHttpServletRequestBuilder withCurrentUser(MockHttpServletRequestBuilder builder) {
         return builder
             .header("X-User-Id", "00000000-0000-0000-0000-000000000001")
-            .header("X-Role", "MASTER_ADMIN")
+            .header("X-User-Role", "MASTER_ADMIN")
             .header("X-Hub-Id", "00000000-0000-0000-0000-000000000002")
             .header("X-Company-Id", "00000000-0000-0000-0000-000000000003");
     }
