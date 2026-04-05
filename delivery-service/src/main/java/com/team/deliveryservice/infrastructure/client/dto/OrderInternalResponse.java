@@ -1,10 +1,9 @@
 package com.team.deliveryservice.infrastructure.client.dto;
 
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import java.time.LocalDateTime;
 import java.util.UUID;
-
-import com.fasterxml.jackson.databind.annotation.JsonNaming;
-import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record OrderInternalResponse(
@@ -14,6 +13,8 @@ public record OrderInternalResponse(
     UUID receiverCompanyId,
     UUID deliveryId,
     LocalDateTime deadlineAt,
+    String requestNote,
+    String productName,
     String orderStatus
 ) {
 }

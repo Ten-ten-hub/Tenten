@@ -5,6 +5,7 @@ import com.team.deliveryservice.delivery.application.dto.request.AssignHubDelive
 import com.team.deliveryservice.delivery.application.dto.request.ChangeDeliveryStatusRequest;
 import com.team.deliveryservice.delivery.application.dto.request.CreateDeliveryRequest;
 import com.team.deliveryservice.delivery.application.dto.request.UpdateDeliveryRequest;
+import com.team.deliveryservice.delivery.application.dto.response.AiDeliveryResponse;
 import com.team.deliveryservice.delivery.application.dto.response.DeliveryPageResponse;
 import com.team.deliveryservice.delivery.application.dto.response.DeliveryResponse;
 import com.team.deliveryservice.delivery.application.search.DeliverySearchCondition;
@@ -42,4 +43,6 @@ public interface DeliveryService {
     DeliveryResponse cancelDelivery(UUID deliveryId);
 
     void deleteDelivery(UUID deliveryId);
+
+    AiDeliveryResponse getAiDeliveryInfo(UUID deliveryId);
 }

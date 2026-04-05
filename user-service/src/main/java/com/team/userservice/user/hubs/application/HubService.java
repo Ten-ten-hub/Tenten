@@ -1,0 +1,12 @@
+package com.team.userservice.user.hubs.application;
+
+import com.team.userservice.user.core.HubUser;
+import com.team.userservice.user.core.User;
+import java.util.UUID;
+
+public interface HubService {
+
+    void save(User user, UUID affiliationId);
+
+    HubUser findByUser(User user);
+}

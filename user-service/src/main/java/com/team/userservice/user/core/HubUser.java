@@ -12,6 +12,7 @@ import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.UuidGenerator;
+import com.team.common.BaseEntity;
 
 @Entity
 @Table(name = "p_hub_user")

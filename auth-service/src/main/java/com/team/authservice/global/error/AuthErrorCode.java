@@ -4,6 +4,8 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 
+import com.team.common.exception.ErrorCode;
+
 @RequiredArgsConstructor
 @Getter
 public enum AuthErrorCode implements ErrorCode {
