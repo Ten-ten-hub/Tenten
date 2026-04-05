@@ -9,14 +9,14 @@ import org.springframework.data.domain.AuditorAware;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+import com.team.common.Constants;
 
 @Configuration
 @EnableJpaAuditing
 @Profile("!test")
 public class JpaAuditingConfig {
 
-    private static final UUID ANONYMOUS_USER_ID =
-        UUID.fromString("00000000-0000-0000-0000-000000000000");
+    private static final UUID ANONYMOUS_USER_ID = Constants.SYSTEM_UUID;
 
     @Bean
     public AuditorAware<UUID> auditorProvider() {

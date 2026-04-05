@@ -3,7 +3,7 @@ package com.team.userservice.global.dto;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-import com.team.userservice.global.domain.error.ErrorCode;
+import com.team.common.exception.ErrorCode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;

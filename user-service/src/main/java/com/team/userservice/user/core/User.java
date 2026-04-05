@@ -3,7 +3,6 @@ package com.team.userservice.user.core;
 import com.team.userservice.global.domain.error.UserErrorCode;
 import com.team.userservice.global.exception.UserException;
 import com.team.userservice.user.core.enums.AffiliatedStatus;
-import com.team.userservice.user.core.enums.Affiliation;
 import com.team.userservice.user.core.enums.Role;
 import com.team.userservice.user.core.enums.SignupStatus;
 import com.team.userservice.user.core.vo.UserUpdateInfo;
@@ -20,6 +19,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.SQLRestriction;
 import org.hibernate.annotations.UuidGenerator;
+import com.team.common.BaseEntity;
 
 @Entity
 @Getter
@@ -65,12 +65,6 @@ public class User extends BaseEntity {
 
     @Column(name = "last_login_at")
     private LocalDateTime lastLoginAt; //TODO: api 명세서에 업데이트하는 api 추가해야함
-
-    @Column(name = "deleted_at")
-    private LocalDateTime deletedAt; // 레코드 삭제 시간
-
-    @Column(name = "deleted_by", length = 100)
-    private UUID deletedBy; // 레코드 삭제자
 
     @Builder(builderMethodName = "create")
     private User(String loginId, String password, String name,
@@ -128,12 +122,6 @@ public class User extends BaseEntity {
         if (updateInfo.phoneNumber() != null) {
             this.phoneNumber = updateInfo.phoneNumber();
         }
-    }
-
-    public void deleteUser(UUID deletedBy) {
-        this.deletedAt = LocalDateTime.now();
-        this.deletedBy = deletedBy;
-
     }
 
     public void updateLastLoginAt(LocalDateTime lastLoginAt) {
