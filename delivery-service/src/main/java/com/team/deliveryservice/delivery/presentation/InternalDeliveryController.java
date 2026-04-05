@@ -2,6 +2,7 @@ package com.team.deliveryservice.delivery.presentation;
 
 import com.team.deliveryservice.delivery.application.dto.request.ChangeDeliveryStatusRequest;
 import com.team.deliveryservice.delivery.application.dto.request.CreateDeliveryRequest;
+import com.team.deliveryservice.delivery.application.dto.response.AiDeliveryResponse;
 import com.team.deliveryservice.delivery.application.dto.response.DeliveryResponse;
 import com.team.deliveryservice.delivery.application.service.DeliveryService;
 import com.team.deliveryservice.global.common.ApiResponse;
@@ -62,5 +63,14 @@ public class InternalDeliveryController {
     ) {
         deliveryService.deleteDelivery(deliveryId);
         return ResponseEntity.ok(ApiResponse.ok());
+    }
+
+    @GetMapping("/{deliveryId}/ai")
+    public ResponseEntity<ApiResponse<AiDeliveryResponse>> getAiInfo(
+        @PathVariable UUID deliveryId
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok(
+            deliveryService.getAiDeliveryInfo(deliveryId)
+        ));
     }
 }
