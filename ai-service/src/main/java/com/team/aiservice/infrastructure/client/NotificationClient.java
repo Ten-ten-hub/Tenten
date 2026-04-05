@@ -13,7 +13,7 @@ public interface NotificationClient {
     @PostMapping("/api/v1/notifications/internal/ai-slack")
     void sendWithAi(
         @RequestBody AiNotificationRequest request,
-        @RequestParam("analysisType") String analysisType
+        @RequestParam("msgType") String msgType
     );
 
     record AiNotificationRequest(
