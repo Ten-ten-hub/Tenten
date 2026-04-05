@@ -2,14 +2,14 @@ package com.team.userservice.user.users.application;
 
 import com.team.userservice.global.domain.error.UserErrorCode;
 import com.team.userservice.global.exception.UserException;
-import com.team.userservice.user.companies.domain.CompanyRepository;
+import com.team.userservice.user.companies.application.CompanyService;
 import com.team.userservice.user.core.User;
 import com.team.userservice.user.core.enums.AffiliatedStatus;
 import com.team.userservice.user.core.enums.Affiliation;
 import com.team.userservice.user.core.enums.Role;
 import com.team.userservice.user.core.enums.SignupStatus;
 import com.team.userservice.user.core.vo.UserUpdateInfo;
-import com.team.userservice.user.hubs.domain.HubRepository;
+import com.team.userservice.user.hubs.application.HubService;
 import com.team.userservice.user.users.application.dto.LoginServiceDto;
 import com.team.userservice.user.users.application.dto.SignUpResultDto;
 import com.team.userservice.user.users.application.dto.SignUpServiceDto;
@@ -33,9 +33,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
-    private final HubRepository hubRepository;
-    private final CompanyRepository companyRepository;
     private final PasswordEncoder passwordEncoder;
+    private final HubService hubService;
+    private final CompanyService companyService;
 
     @Override
     public SignUpResultDto signUp(SignUpServiceDto serviceDto) {
@@ -124,9 +124,9 @@ public class UserServiceImpl implements UserService {
             }
 
             if(affiliatedStatus == AffiliatedStatus.HUB_AFFILIATED){
-                hubRepository.findByUser(user).updateHubId(affiliationId);
+                hubService.findByUser(user).updateHubId(affiliationId);
             }else if(affiliatedStatus == AffiliatedStatus.UNAFFILIATED){
-                hubRepository.save(user, affiliationId);
+                hubService.save(user, affiliationId);
                 user.updateUserAffiliation(AffiliatedStatus.HUB_AFFILIATED);
             }
 
@@ -138,9 +138,9 @@ public class UserServiceImpl implements UserService {
             }
 
             if(affiliatedStatus == AffiliatedStatus.COM_AFFILIATED){
-                companyRepository.findByUser(user).updateCompanyId(affiliationId);
+                companyService.findByUser(user).updateCompanyId(affiliationId);
             }else if(affiliatedStatus == AffiliatedStatus.UNAFFILIATED){
-                companyRepository.save(user, affiliationId);
+                companyService.save(user, affiliationId);
                 user.updateUserAffiliation(AffiliatedStatus.COM_AFFILIATED);
             }
         }
@@ -152,9 +152,9 @@ public class UserServiceImpl implements UserService {
 
         User user = userRepository.findById(userId).orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
         if (user.getAffiliatedStatus() == AffiliatedStatus.HUB_AFFILIATED) {
-            return UserDataDto.fromUserInfo(user, hubRepository.findByUser(user).getHubId());
+            return UserDataDto.fromUserInfo(user, hubService.findByUser(user).getHubId());
         } else if (user.getAffiliatedStatus() == AffiliatedStatus.COM_AFFILIATED) {
-            return UserDataDto.fromUserInfo(user, companyRepository.findByUser(user).getCompanyId());
+            return UserDataDto.fromUserInfo(user, companyService.findByUser(user).getCompanyId());
         } else if (user.getAffiliatedStatus() == AffiliatedStatus.UNAFFILIATED
             || user.getAffiliatedStatus() == AffiliatedStatus.NOT_APPLICABLE) {
             return UserDataDto.fromUserInfo(user);
