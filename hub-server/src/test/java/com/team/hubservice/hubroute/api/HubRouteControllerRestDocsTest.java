@@ -1,6 +1,7 @@
 package com.team.hubservice.hubroute.api;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.team.hubservice.global.security.HubSecurityConfig;
 import com.team.hubservice.hubroute.application.HubRouteCreateCommand;
 import com.team.hubservice.hubroute.application.HubRouteResult;
 import com.team.hubservice.hubroute.application.HubRouteService;
@@ -13,7 +14,9 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.restdocs.AutoConfigureRestDocs;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
@@ -37,6 +40,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(HubRouteController.class)
 @AutoConfigureRestDocs
+@AutoConfigureMockMvc(addFilters = false)
+@Import(HubSecurityConfig.class)
 class HubRouteControllerRestDocsTest {
 
     @Autowired
@@ -53,7 +58,7 @@ class HubRouteControllerRestDocsTest {
 
     @Test
     @DisplayName("허브 이동 경로 생성 API 테스트")
-    @WithMockUser(roles = "MASTER")
+    @WithMockUser(roles = "MASTER_ADMIN")
     void createHubRoute() throws Exception {
         UUID departureId = UUID.randomUUID();
         UUID arrivalId = UUID.randomUUID();
@@ -92,7 +97,7 @@ class HubRouteControllerRestDocsTest {
 
     @Test
     @DisplayName("허브 이동 경로 수정 API 테스트")
-    @WithMockUser(roles = "MASTER")
+    @WithMockUser(roles = "MASTER_ADMIN")
     void updateHubRoute() throws Exception {
         UUID routeId = UUID.randomUUID();
         HubRouteUpdateRequest request = new HubRouteUpdateRequest(100, 145.0);
@@ -129,7 +134,7 @@ class HubRouteControllerRestDocsTest {
 
     @Test
     @DisplayName("허브 이동 경로 단건 조회 API 테스트")
-    @WithMockUser(roles = "MASTER")
+    @WithMockUser(roles = "MASTER_ADMIN")
     void getHubRoute() throws Exception {
         UUID routeId = UUID.randomUUID();
         UUID departureId = UUID.randomUUID();
@@ -167,7 +172,7 @@ class HubRouteControllerRestDocsTest {
 
     @Test
     @DisplayName("허브 이동 경로 목록 조회 API 테스트")
-    @WithMockUser(roles = "MASTER")
+    @WithMockUser(roles = "MASTER_ADMIN")
     void getHubRoutes() throws Exception {
         UUID departureId = UUID.randomUUID();
         UUID arrivalId = UUID.randomUUID();
@@ -215,7 +220,7 @@ class HubRouteControllerRestDocsTest {
 
     @Test
     @DisplayName("허브 이동 경로 삭제 API 테스트")
-    @WithMockUser(username = "123e4567-e89b-12d3-a456-426614174000", roles = "MASTER")
+    @WithMockUser(username = "123e4567-e89b-12d3-a456-426614174000", roles = "MASTER_ADMIN")
     void deleteHubRoute() throws Exception {
         UUID routeId = UUID.randomUUID();
 

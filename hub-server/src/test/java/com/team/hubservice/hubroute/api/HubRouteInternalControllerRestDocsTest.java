@@ -1,5 +1,6 @@
 package com.team.hubservice.hubroute.api;
 
+import com.team.hubservice.global.security.HubSecurityConfig;
 import com.team.hubservice.hubroute.application.HubRouteOptimalService;
 import com.team.hubservice.hubroute.application.OptimalRouteQuery;
 import com.team.hubservice.hubroute.application.OptimalRouteResult;
@@ -10,10 +11,11 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.restdocs.AutoConfigureRestDocs;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -33,6 +35,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(HubRouteInternalController.class)
 @AutoConfigureRestDocs
+@AutoConfigureMockMvc(addFilters = false)
+@Import(HubSecurityConfig.class)
 class HubRouteInternalControllerRestDocsTest {
 
     @Autowired
@@ -46,7 +50,6 @@ class HubRouteInternalControllerRestDocsTest {
 
     @Test
     @DisplayName("허브 최적 경로 조회 내부 API 테스트")
-    @WithMockUser
     void getOptimalRoute() throws Exception {
         UUID departureHubId = UUID.randomUUID();
         UUID arrivalHubId = UUID.randomUUID();
