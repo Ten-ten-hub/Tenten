@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 public interface HubClient {
 
     @GetMapping("/api/v1/hubs/routes")
+        //TODO API 연결 후 url 맞게 수정하기
     HubRouteResponse getRoute(@RequestParam UUID originId,
                               @RequestParam UUID destinationId);
 

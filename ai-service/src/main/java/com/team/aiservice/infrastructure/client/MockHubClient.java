@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 public class MockHubClient implements HubClient {
     @Override
     public HubRouteResponse getRoute(UUID originId, UUID destinationId) {
-        // AI가 분석할 수 있도록 실제 서울과 부산의 위경도 더미 데이터를 반환
+        // AI가 분석할 수 있도록 실제 서울과 부산의 위경도 더미 데이터를 반환 TODO API 연결 후 삭제하기
         return new HubRouteResponse(
             120,      // 소요시간 (분)
             325.5,    // 거리 (km)
