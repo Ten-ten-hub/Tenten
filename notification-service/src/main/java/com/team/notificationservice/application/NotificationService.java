@@ -84,10 +84,12 @@ public class NotificationService {
         // 2. 실제 슬랙 즉시 전송 호출
         try {
             slackClient.sendDirectMessage(saved.getReceiverSlackId(), saved.getMsgContent());
+            saved.markAsSuccess(); // 성공 시 상태 업데이트
             log.info("AI 알림 즉시 발송 완료: receiver={}", saved.getReceiverSlackId());
         } catch (Exception e) {
             log.error("슬랙 즉시 전송 실패: {}", e.getMessage());
-            // 실패 시 상태를 PENDING이나 FAIL로 돌리는 로직 추가 가능
+            saved.markAsFailed(); // 실패 시 상태를 FAIL로 변경
+            notificationRepository.save(saved); // 변경 사항 명시적 저장 (영속성 컨텍스트 활용 가능하나 명시성 위해 추가)
         }
     }
 
