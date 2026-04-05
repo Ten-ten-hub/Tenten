@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -15,7 +16,10 @@ public class InternalNotificationController {
     private final NotificationService notificationService;
 
     @PostMapping("/ai-slack")
-    public void createAiNotification(@RequestBody AiNotificationRequest request) {
-        notificationService.createWithAiAnalysis(request, "ORDER_ALERT");
+    public void createAiNotification(
+        @RequestBody AiNotificationRequest request,
+        @RequestParam(value = "msgType", defaultValue = "ORDER_ALERT") String msgType
+    ) {
+        notificationService.createWithAiAnalysis(request, msgType);
     }
 }
