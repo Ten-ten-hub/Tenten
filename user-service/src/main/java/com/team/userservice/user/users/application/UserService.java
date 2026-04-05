@@ -10,6 +10,7 @@ import com.team.userservice.user.users.application.dto.SignUpResultDto;
 import com.team.userservice.user.users.application.dto.SignUpServiceDto;
 import com.team.userservice.user.users.application.dto.UpdateUserServiceDto;
 import com.team.userservice.user.users.application.dto.UserDataDto;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -35,7 +36,7 @@ public interface UserService {
 
     Page<User> getAllUserInfo(List<Role> roles, AffiliatedStatus affiliatedStatus, Pageable pageable);
 
-    List<UserDataDto> getAllUserInfoInternal(List<Role> roles, AffiliatedStatus affiliatedStatus);
+    List<User> getAllUserInfoInternal(List<Role> roles, AffiliatedStatus affiliatedStatus);
 
     Page<User> getAllUserInfoBySignUpStatus(SignupStatus signupStatus, Pageable pageable);
 

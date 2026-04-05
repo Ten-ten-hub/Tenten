@@ -188,12 +188,6 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<User> getAllUserInfoInternal() {
-        return userRepository.findAll();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
     public List<User> getAllUserInfoInternal(List<Role> roles, AffiliatedStatus affiliatedStatus) {
         return userRepository.findAll(roles, affiliatedStatus);
     }
