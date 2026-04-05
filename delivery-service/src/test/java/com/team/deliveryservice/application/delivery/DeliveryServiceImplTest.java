@@ -10,6 +10,7 @@ import com.team.deliveryservice.delivery.application.dto.request.AssignCompanyDe
 import com.team.deliveryservice.delivery.application.dto.request.AssignHubDeliveryManagerRequest;
 import com.team.deliveryservice.delivery.application.dto.request.ChangeDeliveryStatusRequest;
 import com.team.deliveryservice.delivery.application.dto.request.CreateDeliveryRequest;
+import com.team.deliveryservice.delivery.application.dto.response.AiDeliveryResponse;
 import com.team.deliveryservice.delivery.application.dto.response.DeliveryResponse;
 import com.team.deliveryservice.delivery.application.service.DeliveryServiceImpl;
 import com.team.deliveryservice.delivery.domain.Delivery;
@@ -29,6 +30,7 @@ import com.team.deliveryservice.infrastructure.client.HubClient;
 import com.team.deliveryservice.infrastructure.client.OrderClient;
 import com.team.deliveryservice.infrastructure.client.dto.CompanyInternalResponse;
 import com.team.deliveryservice.infrastructure.client.dto.HubExistsResponse;
+import com.team.deliveryservice.infrastructure.client.dto.HubInternalResponse;
 import com.team.deliveryservice.infrastructure.client.dto.OrderInternalResponse;
 import com.team.deliveryservice.infrastructure.client.dto.OptimalRouteResponseWrapper;
 import feign.FeignException;
@@ -48,7 +50,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class DeliveryServiceImplTest {
 
-    private static final UUID SYSTEM_ACTOR_ID = UUID.fromString("00000000-0000-0000-0000-000000000000");
+    private static final UUID SYSTEM_ACTOR_ID =
+        UUID.fromString("00000000-0000-0000-0000-000000000000");
 
     @Mock
     private DeliveryRepository deliveryRepository;
@@ -269,6 +272,8 @@ class DeliveryServiceImplTest {
                 receiverCompanyId,
                 null,
                 LocalDateTime.of(2026, 4, 1, 18, 0),
+                "배송 전에 확인 연락 부탁드립니다.",
+                "신선 전복 세트",
                 "CONFIRMED"
             ));
 
@@ -303,6 +308,8 @@ class DeliveryServiceImplTest {
                 receiverCompanyId,
                 null,
                 LocalDateTime.of(2026, 4, 1, 18, 0),
+                "배송 전에 확인 연락 부탁드립니다.",
+                "신선 전복 세트",
                 "READY_FOR_DELIVERY"
             ));
 
@@ -337,6 +344,8 @@ class DeliveryServiceImplTest {
                 anotherReceiverCompanyId,
                 null,
                 LocalDateTime.of(2026, 4, 1, 18, 0),
+                "배송 전에 확인 연락 부탁드립니다.",
+                "신선 전복 세트",
                 "READY_FOR_DELIVERY"
             ));
 
@@ -371,6 +380,8 @@ class DeliveryServiceImplTest {
                 receiverCompanyId,
                 deliveryId,
                 LocalDateTime.of(2026, 4, 1, 18, 0),
+                "배송 전에 확인 연락 부탁드립니다.",
+                "신선 전복 세트",
                 "READY_FOR_DELIVERY"
             ));
 
@@ -962,6 +973,164 @@ class DeliveryServiceImplTest {
         assertThat(routeLog.getDeletedBy()).isEqualTo(SYSTEM_ACTOR_ID);
     }
 
+    @Test
+    @DisplayName("AI 배송 정보 조회 성공 - 주문, 허브 정보를 조합해 응답한다")
+    void get_ai_delivery_info_success() {
+        UUID deliveryId = UUID.randomUUID();
+        UUID orderId = UUID.randomUUID();
+        UUID originHubId = UUID.randomUUID();
+        UUID destinationHubId = UUID.randomUUID();
+        UUID receiverCompanyId = UUID.randomUUID();
+
+        Delivery delivery = Delivery.create(
+            orderId,
+            originHubId,
+            destinationHubId,
+            receiverCompanyId,
+            "부산광역시 해운대구 우동",
+            "101호",
+            "홍길동",
+            "U12345678",
+            LocalDateTime.of(2026, 4, 1, 18, 0)
+        );
+
+        given(deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)).willReturn(Optional.of(delivery));
+        given(orderClient.getOrder(orderId))
+            .willReturn(new OrderInternalResponse(
+                orderId,
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                receiverCompanyId,
+                deliveryId,
+                LocalDateTime.of(2026, 4, 1, 18, 0),
+                "선물용이라 반드시 내일 오후 2시 전에는 도착해야 합니다. 안전 배송 부탁드려요.",
+                "신선 전복 세트",
+                "READY_FOR_DELIVERY"
+            ));
+        given(hubClient.getHub(eq(originHubId), any()))
+            .willReturn(new HubInternalResponse(
+                originHubId,
+                "서울 허브",
+                "서울특별시 송파구 송파동"
+            ));
+        given(hubClient.getHub(eq(destinationHubId), any()))
+            .willReturn(new HubInternalResponse(
+                destinationHubId,
+                "부산 허브",
+                "부산광역시 해운대구 우동"
+            ));
+
+        AiDeliveryResponse response = deliveryService.getAiDeliveryInfo(deliveryId);
+
+        assertThat(response.getOrderId()).isEqualTo(orderId);
+        assertThat(response.getOriginHubId()).isEqualTo(originHubId);
+        assertThat(response.getDestinationHubId()).isEqualTo(destinationHubId);
+        assertThat(response.getOriginHubName()).isEqualTo("서울 허브");
+        assertThat(response.getDestinationHubName()).isEqualTo("부산 허브");
+        assertThat(response.getOriginAddress()).isEqualTo("서울특별시 송파구 송파동");
+        assertThat(response.getDestinationAddress()).isEqualTo("부산광역시 해운대구 우동");
+        assertThat(response.getProductName()).isEqualTo("신선 전복 세트");
+        assertThat(response.getOrderRequestDetails())
+            .isEqualTo("선물용이라 반드시 내일 오후 2시 전에는 도착해야 합니다. 안전 배송 부탁드려요.");
+        assertThat(response.getReceiverSlackId()).isEqualTo("U12345678");
+    }
+
+    @Test
+    @DisplayName("AI 배송 정보 조회 실패 - 배송이 없으면 DELIVERY_NOT_FOUND")
+    void get_ai_delivery_info_fail_delivery_not_found() {
+        UUID deliveryId = UUID.randomUUID();
+
+        given(deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> deliveryService.getAiDeliveryInfo(deliveryId))
+            .isInstanceOf(ServiceException.class)
+            .hasMessage(DeliveryErrorCode.DELIVERY_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    @DisplayName("AI 배송 정보 조회 실패 - 주문이 없으면 ORDER_NOT_FOUND")
+    void get_ai_delivery_info_fail_order_not_found() {
+        UUID deliveryId = UUID.randomUUID();
+        Delivery delivery = createDelivery();
+
+        given(deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)).willReturn(Optional.of(delivery));
+        given(orderClient.getOrder(delivery.getOrderId()))
+            .willThrow(feignNotFoundException());
+
+        assertThatThrownBy(() -> deliveryService.getAiDeliveryInfo(deliveryId))
+            .isInstanceOf(ServiceException.class)
+            .hasMessage(DeliveryErrorCode.ORDER_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    @DisplayName("AI 배송 정보 조회 실패 - 주문 서비스 예외면 ORDER_SERVICE_UNAVAILABLE")
+    void get_ai_delivery_info_fail_order_service_unavailable() {
+        UUID deliveryId = UUID.randomUUID();
+        Delivery delivery = createDelivery();
+
+        given(deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)).willReturn(Optional.of(delivery));
+        given(orderClient.getOrder(delivery.getOrderId()))
+            .willThrow(feignBadRequestException());
+
+        assertThatThrownBy(() -> deliveryService.getAiDeliveryInfo(deliveryId))
+            .isInstanceOf(ServiceException.class)
+            .hasMessage(DeliveryErrorCode.ORDER_SERVICE_UNAVAILABLE.getMessage());
+    }
+
+    @Test
+    @DisplayName("AI 배송 정보 조회 실패 - 허브가 없으면 HUB_NOT_FOUND")
+    void get_ai_delivery_info_fail_hub_not_found() {
+        UUID deliveryId = UUID.randomUUID();
+        Delivery delivery = createDelivery();
+
+        given(deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)).willReturn(Optional.of(delivery));
+        given(orderClient.getOrder(delivery.getOrderId()))
+            .willReturn(new OrderInternalResponse(
+                delivery.getOrderId(),
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                delivery.getReceiverCompanyId(),
+                deliveryId,
+                LocalDateTime.of(2026, 4, 1, 18, 0),
+                "요청사항",
+                "신선 전복 세트",
+                "READY_FOR_DELIVERY"
+            ));
+        given(hubClient.getHub(eq(delivery.getOriginHubId()), any()))
+            .willThrow(feignNotFoundException());
+
+        assertThatThrownBy(() -> deliveryService.getAiDeliveryInfo(deliveryId))
+            .isInstanceOf(ServiceException.class)
+            .hasMessage(DeliveryErrorCode.HUB_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    @DisplayName("AI 배송 정보 조회 실패 - 허브 서비스 예외면 HUB_SERVICE_UNAVAILABLE")
+    void get_ai_delivery_info_fail_hub_service_unavailable() {
+        UUID deliveryId = UUID.randomUUID();
+        Delivery delivery = createDelivery();
+
+        given(deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)).willReturn(Optional.of(delivery));
+        given(orderClient.getOrder(delivery.getOrderId()))
+            .willReturn(new OrderInternalResponse(
+                delivery.getOrderId(),
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                delivery.getReceiverCompanyId(),
+                deliveryId,
+                LocalDateTime.of(2026, 4, 1, 18, 0),
+                "요청사항",
+                "신선 전복 세트",
+                "READY_FOR_DELIVERY"
+            ));
+        given(hubClient.getHub(eq(delivery.getOriginHubId()), any()))
+            .willThrow(feignBadRequestException());
+
+        assertThatThrownBy(() -> deliveryService.getAiDeliveryInfo(deliveryId))
+            .isInstanceOf(ServiceException.class)
+            .hasMessage(DeliveryErrorCode.HUB_SERVICE_UNAVAILABLE.getMessage());
+    }
+
     private Delivery createDelivery() {
         return Delivery.create(
             UUID.randomUUID(),
@@ -1045,6 +1214,8 @@ class DeliveryServiceImplTest {
             receiverCompanyId,
             null,
             LocalDateTime.of(2026, 4, 1, 18, 0),
+            "배송 전에 확인 연락 부탁드립니다.",
+            "신선 전복 세트",
             "READY_FOR_DELIVERY"
         );
     }
@@ -1077,6 +1248,25 @@ class DeliveryServiceImplTest {
             feign.Response.builder()
                 .status(400)
                 .reason("Bad Request")
+                .request(feign.Request.create(
+                    feign.Request.HttpMethod.GET,
+                    "http://localhost/test",
+                    java.util.Map.of(),
+                    null,
+                    StandardCharsets.UTF_8,
+                    null
+                ))
+                .headers(java.util.Map.of())
+                .build()
+        );
+    }
+
+    private FeignException feignNotFoundException() {
+        return FeignException.errorStatus(
+            "test",
+            feign.Response.builder()
+                .status(404)
+                .reason("Not Found")
                 .request(feign.Request.create(
                     feign.Request.HttpMethod.GET,
                     "http://localhost/test",
