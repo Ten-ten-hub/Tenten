@@ -55,6 +55,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 .parseSignedClaims(token)
                 .getPayload();
 
+            String subject = claims.getSubject();
+            if (subject == null || subject.isBlank()) {
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+                return;
+            }
+
             UUID userId = UUID.fromString(claims.getSubject());
             String role = claims.get("role", String.class);
             if (role == null || role.isBlank()) {
@@ -72,6 +78,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(authentication);
         } catch (JwtException | IllegalArgumentException e) {
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+            return;
+        } catch (Exception e) {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
             return;
         }
