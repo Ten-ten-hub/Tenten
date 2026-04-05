@@ -1,16 +1,8 @@
 package com.team.deliveryservice.delivery.application.service;
 
 import com.team.common.page.PageSizeUtils;
-<<<<<<< Updated upstream
-import com.team.deliveryservice.delivery.application.dto.request.AssignCompanyDeliveryManagerRequest;
-import com.team.deliveryservice.delivery.application.dto.request.AssignHubDeliveryManagerRequest;
-import com.team.deliveryservice.delivery.application.dto.request.ChangeDeliveryStatusRequest;
-import com.team.deliveryservice.delivery.application.dto.request.CreateDeliveryRequest;
-import com.team.deliveryservice.delivery.application.dto.request.UpdateDeliveryRequest;
-import com.team.deliveryservice.delivery.application.dto.response.AiDeliveryResponse;
-=======
 import com.team.deliveryservice.delivery.application.dto.request.*;
->>>>>>> Stashed changes
+import com.team.deliveryservice.delivery.application.dto.response.AiDeliveryResponse;
 import com.team.deliveryservice.delivery.application.dto.response.DeliveryPageResponse;
 import com.team.deliveryservice.delivery.application.dto.response.DeliveryResponse;
 import com.team.deliveryservice.delivery.application.dto.response.DeliveryRouteLogResponse;
@@ -28,14 +20,7 @@ import com.team.deliveryservice.global.error.ServiceException;
 import com.team.deliveryservice.infrastructure.client.CompanyClient;
 import com.team.deliveryservice.infrastructure.client.HubClient;
 import com.team.deliveryservice.infrastructure.client.OrderClient;
-import com.team.deliveryservice.infrastructure.client.dto.CompanyInternalResponse;
-import com.team.deliveryservice.infrastructure.client.dto.HubExistsResponse;
-<<<<<<< Updated upstream
-import com.team.deliveryservice.infrastructure.client.dto.HubInternalResponse;
-=======
->>>>>>> Stashed changes
-import com.team.deliveryservice.infrastructure.client.dto.OptimalRouteResponseWrapper;
-import com.team.deliveryservice.infrastructure.client.dto.OrderInternalResponse;
+import com.team.deliveryservice.infrastructure.client.dto.*;
 import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
