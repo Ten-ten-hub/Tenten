@@ -29,10 +29,10 @@ public class HubService {
         }
 
         Hub hub = Hub.create(
-                command.name(),
-                command.address(),
-                command.latitude(),
-                command.longitude()
+            command.name(),
+            command.address(),
+            command.latitude(),
+            command.longitude()
         );
 
         return HubResult.from(hubRepository.save(hub));
@@ -47,6 +47,10 @@ public class HubService {
 
     @Cacheable(value = "hubs", key = "#hubId")
     public HubResult getHub(UUID hubId) {
+        return HubResult.from(findHubById(hubId));
+    }
+
+    public HubResult getHubInternal(UUID hubId) {
         return HubResult.from(findHubById(hubId));
     }
 
@@ -72,7 +76,7 @@ public class HubService {
 
     private Hub findHubById(UUID hubId) {
         return hubRepository.findById(hubId)
-                .orElseThrow(() -> new BusinessException(HubErrorCode.HUB_NOT_FOUND));
+            .orElseThrow(() -> new BusinessException(HubErrorCode.HUB_NOT_FOUND));
     }
 
     private void checkActiveRoutesAndCompanies(UUID hubId) {
