@@ -67,4 +67,8 @@ public class Notification extends BaseEntity {
     public void delete(UUID adminId) {
         super.softDelete(adminId);
     }
+
+    public void markAsSentImmediately() {
+        this.sendStatus = SendStatus.SENT_IMMEDIATELY;
+    }
 }
