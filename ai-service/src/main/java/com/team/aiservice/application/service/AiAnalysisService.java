@@ -18,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatModel;
+import org.springframework.cloud.stream.function.StreamBridge;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -34,8 +35,8 @@ public class AiAnalysisService {
     private final OpenAiChatModel chatModel;
     private final NaverNewsService naverNewsService;
     private final AiAnalysisRepository aiAnalysisRepository;
-    private final NotificationClient notificationClient;
     private final HubRouteCacheService hubRouteCacheService;
+    private final StreamBridge streamBridge;
 
     @Transactional
     public AiAnalysis analyzeDeadline(AiRequest request) {
@@ -66,15 +67,15 @@ public class AiAnalysisService {
         // 3. 더미 데이터
         String workHours = request.workingHours() != null ? request.workingHours() : "09:00 - 18:00";
 
-        // 4. 프롬프트 구성 (이모티콘 추가, 페르소나 강화, 능동적 리스크 관리 통합)
+// 4. 프롬프트 구성
         String promptText = String.format(
-            "당신은 대한민국 최고의 '도로 교통 분석가이자 물류 최적화 전문가'입니다. 📌 제공되는 데이터를 정밀 분석하여 최적의 배송 가이드를 작성하세요.\n\n" +
+            "당신은 대한민국 최고의 '물류 운영 최적화 전문가'입니다. 아래 데이터를 바탕으로 오차 없는 배송 실행 시한을 도출하세요.\n\n" +
                 "현재 시각은 [%s]입니다.\n" +
                 "주문번호: %s, 상품: %s.\n" +
                 "경로 정보: %s(%s) -> %s(%s)\n" +
                 "기본 소요시간: %d분.\n" +
                 "담당자 근무시간: %s.\n" +
-                "실시간 뉴스 상황 및 기상 정보: %s.\n" +
+                "현지 상황(뉴스/기상): %s.\n" +
                 "고객 요청 사항: %s.\n\n" +
                 "위 정보를 바탕으로 '최종 발송 시한'을 계산하고 배송 가이드를 작성하세요.\n\n" +
                 "지시사항:\n" +
@@ -84,23 +85,32 @@ public class AiAnalysisService {
                 "   > 요청 사항 : %s\n" +
                 "   > 발송지 : %s\n" +
                 "   > 도착지 : %s\n\n" +
-                "2. 위 인용구 섹션 이후에 작성하는 'aiResult' 본문에서는 위에서 언급한 단순 정보(주문번호, 상품명 등)를 중복해서 다시 나열하지 마세요.\n" +
-                "3. 텍스트 강조 기호(**)를 절대 사용하지 마세요. 사용 시 분석은 실패로 간주됩니다.\n" +
-                "4. 가독성을 위해 섹션마다 🚀, ⚠️, ✅, 📌 등의 이모티콘을 적절히 사용하여 읽기 좋게 만드세요.\n" +
-                "5. 능동적 리스크 관리: 출발지(%s)나 도착지(%s)의 기상 상황이 좋지 않다면 이를 근거로 안전 운행을 권고하고 최종 시한을 20분 이상 앞당겨 설정하세요.\n" +
-                "6. 전문가적 분석: 담당자 근무시간과 고객 요청 시각을 대조하세요. 고객 요청을 맞추기 위해 근무 시간 외(예: 새벽 출고) 작업이 불가피하다면, '업무 외 시간 배송 협조'가 필요함을 명시하고 이를 반영한 최적의 출발 시각을 제시하세요. 뉴스에 사고/정체가 있다면 구체적 이유와 함께 더 빠른 출발을 권고하세요.\n"
+                "2. 위 요약 정보를 본문에서 중복 나열하지 마세요. 텍스트 강조 기호(**) 사용을 엄격히 금지합니다.\n" +
+                "3. 가독성을 위해 섹션마다 🚀, ⚠️, ✅, 📌 등의 이모티콘을 적절히 사용하여 섹션을 구분하세요.\n" +
+                "4. 능동적 리스크 관리: 출발지(%s)나 도착지(%s)의 기상 상황이 좋지 않거나 뉴스에 사고/정체가 있다면 이를 구체적 근거로 안전 운행을 권고하고 최종 시한을 20분 이상 앞당겨 설정하세요.\n"
                 +
-                "7. 담백한 마무리: 뉴스 상황이 양호하다면 불필요한 혼잡 경고 없이 '현재 경로상 특이사항이 없으므로 정해진 시한 내에 출발하시기 바랍니다'라고 전문가답게 마무리하세요.\n" +
-                "8. 완결성: 반드시 '위 내용을 기반으로 도출된 최종 발송 시한은 YYYY-MM-DD HH:mm 입니다.'라는 결론과 함께 명확한 마침표로 안내를 종료하세요.\n" +
-                "9. 작성 규칙: 강조 기호(**)는 절대 사용하지 말고, 계산 과정은 생략하고 결론만 정중하게 안내하세요.\n" +
-                "10. 모든 답변은 한글로 작성하며, 각 설명 단계마다 줄바꿈을 적용해 읽기 좋게 만드세요.\n" +
-                "11. 마지막 줄에 반드시 [TIME: YYYY-MM-DD HH:mm] 형식으로 최종 발송 시각만 따로 표시하세요. (반드시 현재 시각 이후여야 함)",
+                "5. 전문가적 분석: 담당자 근무시간과 고객 요청 시각을 대조하세요. 고객 요청을 맞추기 위해 근무 시간 외(예: 새벽 출고) 작업이 불가피하다면, '업무 외 시간 배송 협조'가 필요함을 명시하고 이를 반영한 최적의 출발 시각을 제시하세요.\n"
+                +
+                "6. 담백한 마무리: 뉴스 상황이 양호하다면 불필요한 혼잡 경고 없이 '현재 경로상 특이사항이 없으므로 정해진 시한 내에 출발하시기 바랍니다'라고 전문가답게 마무리하세요.\n" +
+                "7. 완결성: 반드시 '위 내용을 기반으로 도출된 최종 발송 시한은 YYYY-MM-DD HH:mm 입니다.'라는 결론과 함께 명확한 마침표로 안내를 종료하세요.\n" +
+                "8. 작성 규칙: 강조 기호(**)는 절대 사용하지 말고, 계산 과정은 생략하고 결론만 정중하게 안내하세요.\n" +
+                "9. 모든 답변은 한글로 작성하며, 각 설명 단계마다 줄바꿈을 적용해 읽기 좋게 만드세요.\n" +
+                "10. **중요 로직 - 발송 시한 산출 방식 (24시간제 기준)**:\n" +
+                "    - 단계 1: (고객 요청 도착 시각) - (배송 소요시간 %d분)을 계산하여 '출발 한계 시각'을 산출하세요.\n" +
+                "    - 단계 2: 산출된 '출발 한계 시각'이 현재 시각[%s]보다 과거라면 오늘 배송은 물리적으로 불가능하므로, 날짜를 '내일(익일)'로 변경하여 재계산하세요.\n" +
+                "    - 단계 3: **수치 비교 절대 원칙**: 담당자 근무 시작 시각인 09:00보다 산출된 시각이 크다면(예: 10:00, 11:00), 이는 근무 시작 '이후'이므로 절대로 09:00로 시간을 앞당기지 마세요. 계산된 시각(10:00)을 최종 시한으로 확정하세요.\n"
+                +
+                "    - 단계 4: 산출된 시각이 09:00보다 작은 숫자(예: 08:00)일 때만 근무 시작 전으로 판단하여 '업무 외 협조'를 요청하세요.\n" +
+                "    - 결과 설명 시에는 '오전/오후' 표현을 섞되, 결론 날짜와 시간 형식은 정확히 유지하세요.\n" +
+                "11. 마지막 줄에 [TIME: YYYY-MM-DD HH:mm] 형식을 반드시 유지하세요. 시각은 무조건 현재 시각[%s] 이후여야 합니다.",
+
             currentTimeStr, request.orderId(), request.productName(),
             request.originHubName(), originArea, request.destinationHubName(), destArea,
             route.duration(), workHours, newsAndWeatherContext, request.orderRequestDetails(),
             request.orderId(), request.productName(), request.orderRequestDetails(), request.originHubName(),
             request.destinationAddress(),
-            originArea, destArea
+            originArea, destArea,
+            route.duration(), currentTimeStr, currentTimeStr
         );
 
         // 4. OpenAI 호출 (외부 호출)
@@ -138,26 +148,31 @@ public class AiAnalysisService {
         String targetMsgType = determineMsgType(savedAnalysis.getAnalysisType());
 
         try {
-            notificationClient.sendWithAi(new NotificationClient.AiNotificationRequest(
+            NotificationClient.AiNotificationRequest kafkaPayload = new NotificationClient.AiNotificationRequest(
                 request.orderId(),
                 request.receiverId(),
                 request.receiverSlackId(),
                 cleanResult,
                 scheduledAt,
-                savedAnalysis.getId()
-            ), targetMsgType);
+                savedAnalysis.getId(),
+                targetMsgType
+            );
+
+            // application.properties에서 설정한 binding 이름: "ai-notification-out-0"
+            streamBridge.send("ai-notification-out-0", kafkaPayload);
+            log.info("Kafka 알림 메시지 발행 성공: AnalysisID={}", savedAnalysis.getId());
         } catch (Exception e) {
-            log.error("Notification Service call failed: {}", e.getMessage());
+            log.error("Kafka 알림 메시지 발행 실패: {}", e.getMessage());
         }
     }
 
     /**
-     * AnalysisType(AI 도메인)을 MsgType(알림 도메인 문자열)으로 매핑
+     * AnalysisType(AI 도메인)을 MsgType(알림 도메인 문자열)으로 매핑 StreamBridge를 사용하여 비동기 메시지 전송
      */
     private String determineMsgType(AnalysisType analysisType) {
         return switch (analysisType) {
             case DEADLINE -> "ORDER_ALERT";
-            case ROUTE -> "ORDER_ALERT"; // 필요 시 DAILY_REPORT 등으로 확장 가능
+            case ROUTE -> "DAILY_REPORT";
             default -> "ORDER_ALERT";
         };
     }

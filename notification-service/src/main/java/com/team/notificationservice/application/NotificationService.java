@@ -5,15 +5,16 @@ import com.team.notificationservice.domain.MsgType;
 import com.team.notificationservice.domain.Notification;
 import com.team.notificationservice.domain.NotificationRepository;
 import com.team.notificationservice.domain.SendStatus;
-import com.team.notificationservice.infrastructure.AiClient;
 import com.team.notificationservice.infrastructure.SlackClient;
 import com.team.notificationservice.presentation.NotificationResponse;
 import com.team.notificationservice.presentation.common.ErrorCode;
 import com.team.notificationservice.presentation.common.ServiceException;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Bean;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -30,7 +31,6 @@ public class NotificationService {
     private final SlackClient slackClient;// Listener로 옮길 예정이지만, ID 조회 로직 때문에 유지
     private final NotificationSaver notificationSaver;
     private final StringRedisTemplate redisTemplate; // Redis 추가
-    private final AiClient aiClient;
 
     /**
      * 알림 생성 및 전송 엔트리 포인트 네트워크 호출(Slack API)을 포함하므로 @Transactional을 붙이지 않음!
@@ -42,15 +42,6 @@ public class NotificationService {
         // 2. 수신자 UUID 결정
         UUID receiverUuid = parseUserId(userIdFromHeader);
 
-        //TODO 헤더 작업 완료 시 주석 해제
-//        if (userIdFromHeader != null && !userIdFromHeader.isBlank()) {
-//            try {
-//                receiverUuid = UUID.fromString(userIdFromHeader);
-//            } catch (IllegalArgumentException e) {
-//                log.warn("Invalid UUID format in header: {}", userIdFromHeader);
-//            }
-//        }
-
         if (receiverUuid == null) {
             // 필요 시 테스트용 UUID를 직접 넣거나, null로 보내어 Saver에서 0000... 시스템 ID가 박히게 함
             log.debug("헤더값이 없어서 일단 시스템id로 진행 ");
@@ -61,18 +52,18 @@ public class NotificationService {
     }
 
     /**
-     * AI 연동을 통해 허브 담당자에게 상세 알림을 생성하는 로직
+     * Kafka로부터 받은 메시지를 처리하여 슬랙 전송
      */
     @Transactional
     public void createWithAiAnalysis(AiNotificationRequest aiRequest, String msgType) {
+        log.info(">>>> [DB 저장 및 슬랙 발송 시작] RefID: {}", aiRequest.refId());
 
         MsgType type;
         try {
-            // 유효하지 않은 msgType 입력에 대한 방어 로직
             type = MsgType.valueOf(msgType);
         } catch (IllegalArgumentException | NullPointerException e) {
-            log.error("[INVALID MSG_TYPE] 요청된 메시지 타입이 올바르지 않습니다: '{}'. OrderID: {}", msgType, aiRequest.orderId());
-            throw new ServiceException(ErrorCode.COMMON_INVALID_INPUT_VALUE);
+            log.error("[INVALID MSG_TYPE] '{}'. OrderID: {}", msgType, aiRequest.orderId());
+            type = MsgType.ORDER_ALERT; // 기본값 처리
         }
 
         Notification notification = Notification.builder()
@@ -88,16 +79,36 @@ public class NotificationService {
 
         Notification saved = notificationRepository.save(notification);
 
-        // 2. 실제 슬랙 즉시 전송 호출
         try {
             slackClient.sendDirectMessage(saved.getReceiverSlackId(), saved.getMsgContent());
             saved.markAsSentImmediately();
-            log.info("AI 알림 즉시 발송 성공: ID={}, 상태=SENT_IMMEDIATELY", saved.getId());
+            log.info(">>>> [슬랙 발송 최종 성공] ID: {}, SlackID: {}", saved.getId(), saved.getReceiverSlackId());
         } catch (Exception e) {
-            log.error("슬랙 즉시 전송 실패: {}", e.getMessage());
-            saved.markAsFailed(); // 실패 시 상태를 FAIL로 변경
+            log.error(">>>> [슬랙 API 호출 에러] : {}", e.getMessage());
+            saved.markAsFailed();
         }
         notificationRepository.save(saved);
+    }
+
+    /**
+     * Kafka Consumer 설정 (AI 서비스의 메시지를 소비)
+     */
+    @Bean
+    public Consumer<AiNotificationRequest> consumeAiNotification() {
+        // 애플리케이션 시작 시 딱 한 번 찍혀야 함
+        log.info("[CHECK] consumeAiNotification Bean Initialized");
+
+        return request -> {
+            // 메시지를 받으면 무조건 이 로그가 찍혀야 함
+            log.info(">>>> [KAFKA 수신 성공] OrderID: {}, RefID: {}", request.orderId(), request.refId());
+
+            try {
+                String msgType = (request.msgType() != null) ? request.msgType() : "ORDER_ALERT";
+                createWithAiAnalysis(request, msgType);
+            } catch (Exception e) {
+                log.error(">>>> [KAFKA 처리 중 에러] : {}", e.getMessage(), e);
+            }
+        };
     }
 
     /**
