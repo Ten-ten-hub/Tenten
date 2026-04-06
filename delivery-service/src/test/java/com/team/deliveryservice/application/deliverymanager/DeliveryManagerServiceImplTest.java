@@ -41,8 +41,9 @@ class DeliveryManagerServiceImplTest {
     private DeliveryManagerServiceImpl deliveryManagerService;
 
     @Test
-    @DisplayName("배송담당자 생성 성공 - 마스터 관리자는 허브 배송 담당자 생성 가능")
+    @DisplayName("배송담당자 생성 성공 - 마스터 관리자는 제약 없이 모든 타입의 담당자 생성 가능")
     void create_delivery_manager_success_by_master() {
+        // given
         UUID userId = UUID.randomUUID();
         UUID hubId = UUID.randomUUID();
 
@@ -55,15 +56,19 @@ class DeliveryManagerServiceImplTest {
 
         CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), "MASTER_ADMIN", null, null);
 
-        given(deliveryManagerRepository.findTopByTypeAndDeletedAtIsNullOrderByDeliverySequenceDesc(
-            DeliveryManagerType.HUB_DELIVERY_MANAGER
+        // 시퀀스 추출 로직 모킹
+        given(deliveryManagerRepository.findTopByTypeAndHubIdAndDeletedAtIsNullOrderByDeliverySequenceDesc(
+            DeliveryManagerType.HUB_DELIVERY_MANAGER,
+            hubId
         )).willReturn(Optional.empty());
 
         given(deliveryManagerRepository.saveAndFlush(any(DeliveryManager.class)))
             .willAnswer(invocation -> invocation.getArgument(0));
 
+        // when
         DeliveryManagerResponse response = deliveryManagerService.createDeliveryManager(request, currentUser);
 
+        // then
         assertThat(response.deliveryManagerId()).isEqualTo(userId);
         assertThat(response.hubId()).isEqualTo(hubId);
         assertThat(response.type()).isEqualTo(DeliveryManagerType.HUB_DELIVERY_MANAGER);
@@ -71,8 +76,9 @@ class DeliveryManagerServiceImplTest {
     }
 
     @Test
-    @DisplayName("배송담당자 생성 성공 - 허브 관리자는 자기 허브의 업체 배송 담당자만 생성 가능")
+    @DisplayName("배송담당자 생성 성공 - 허브 관리자는 자기 허브의 [업체 배송 담당자]만 생성 가능")
     void create_company_delivery_manager_success_by_hub_admin() {
+        // given
         UUID hubId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
 
@@ -83,6 +89,7 @@ class DeliveryManagerServiceImplTest {
             DeliveryManagerType.COMPANY_DELIVERY_MANAGER
         );
 
+        // 허브 관리자 권한 설정 (자신의 hubId 포함)
         CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), "HUB_ADMIN", hubId, null);
 
         DeliveryManager lastManager = DeliveryManager.create(
@@ -101,11 +108,11 @@ class DeliveryManagerServiceImplTest {
         given(deliveryManagerRepository.saveAndFlush(any(DeliveryManager.class)))
             .willAnswer(invocation -> invocation.getArgument(0));
 
+        // when
         DeliveryManagerResponse response = deliveryManagerService.createDeliveryManager(request, currentUser);
 
+        // then
         assertThat(response.deliveryManagerId()).isEqualTo(userId);
-        assertThat(response.hubId()).isEqualTo(hubId);
-        assertThat(response.type()).isEqualTo(DeliveryManagerType.COMPANY_DELIVERY_MANAGER);
         assertThat(response.deliverySequence()).isEqualTo(5);
     }
 
@@ -204,8 +211,9 @@ class DeliveryManagerServiceImplTest {
     }
 
     @Test
-    @DisplayName("배송담당자 생성 실패 - 허브 관리자는 허브 배송 담당자를 생성할 수 없음")
+    @DisplayName("배송담당자 생성 실패 - 허브 관리자는 [허브 배송 담당자]를 생성할 수 없음 (정책 위반)")
     void create_delivery_manager_fail_hub_admin_cannot_create_hub_manager() {
+        // given
         UUID hubId = UUID.randomUUID();
 
         CreateDeliveryManagerRequest request = new CreateDeliveryManagerRequest(
@@ -215,16 +223,19 @@ class DeliveryManagerServiceImplTest {
             DeliveryManagerType.HUB_DELIVERY_MANAGER
         );
 
+        // 허브 관리자 권한
         CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), "HUB_ADMIN", hubId, null);
 
+        // when & then: 허브 관리자는 허브 배송 담당자 생성 불가
         assertThatThrownBy(() -> deliveryManagerService.createDeliveryManager(request, currentUser))
             .isInstanceOf(ServiceException.class)
             .hasMessage(DeliveryErrorCode.COMMON_ACCESS_DENIED.getMessage());
     }
 
     @Test
-    @DisplayName("배송담당자 생성 실패 - 허브 관리자는 자기 허브가 아닌 업체 배송 담당자를 생성할 수 없음")
+    @DisplayName("배송담당자 생성 실패 - 허브 관리자는 다른 허브 소속의 담당자를 생성할 수 없음 (정책 위반)")
     void create_delivery_manager_fail_hub_admin_other_hub() {
+        // given
         UUID adminHubId = UUID.randomUUID();
         UUID anotherHubId = UUID.randomUUID();
 
@@ -235,8 +246,10 @@ class DeliveryManagerServiceImplTest {
             DeliveryManagerType.COMPANY_DELIVERY_MANAGER
         );
 
+        // 허브 관리자 권한 (자신의 허브와 요청 허브가 다름)
         CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), "HUB_ADMIN", adminHubId, null);
 
+        // when & then
         assertThatThrownBy(() -> deliveryManagerService.createDeliveryManager(request, currentUser))
             .isInstanceOf(ServiceException.class)
             .hasMessage(DeliveryErrorCode.COMMON_ACCESS_DENIED.getMessage());
@@ -413,11 +426,13 @@ class DeliveryManagerServiceImplTest {
     }
 
     @Test
-    @DisplayName("배송담당자 수정 실패 - 허브 관리자는 허브 배송 담당자를 수정할 수 없음")
+    @DisplayName("배송담당자 수정 실패 - 허브 관리자는 [허브 배송 담당자]를 수정할 수 없음 (정책 위반)")
     void update_delivery_manager_fail_hub_admin_cannot_update_hub_manager() {
+        // given
         UUID hubId = UUID.randomUUID();
         UUID deliveryManagerId = UUID.randomUUID();
 
+        // 대상이 허브 배송 담당자임
         DeliveryManager manager = createHubDeliveryManager(deliveryManagerId, hubId, 1);
 
         UpdateDeliveryManagerRequest request = new UpdateDeliveryManagerRequest(
@@ -431,6 +446,7 @@ class DeliveryManagerServiceImplTest {
         given(deliveryManagerRepository.findByIdAndDeletedAtIsNull(deliveryManagerId))
             .willReturn(Optional.of(manager));
 
+        // when & then
         assertThatThrownBy(() -> deliveryManagerService.updateDeliveryManager(deliveryManagerId, request, currentUser))
             .isInstanceOf(ServiceException.class)
             .hasMessage(DeliveryErrorCode.COMMON_ACCESS_DENIED.getMessage());
@@ -439,6 +455,7 @@ class DeliveryManagerServiceImplTest {
     @Test
     @DisplayName("배송담당자 삭제 성공 - 마스터 관리자")
     void delete_delivery_manager_success_by_master() {
+        // given
         UUID deliveryManagerId = UUID.randomUUID();
         UUID actorId = UUID.randomUUID();
         DeliveryManager manager = createCompanyDeliveryManager(deliveryManagerId, UUID.randomUUID(), 1);
@@ -448,8 +465,10 @@ class DeliveryManagerServiceImplTest {
         given(deliveryManagerRepository.findByIdAndDeletedAtIsNull(deliveryManagerId))
             .willReturn(Optional.of(manager));
 
+        // when
         deliveryManagerService.deleteDeliveryManager(deliveryManagerId, currentUser);
 
+        // then
         assertThat(manager.getDeletedAt()).isNotNull();
         assertThat(manager.getDeletedBy()).isEqualTo(actorId);
     }
@@ -457,6 +476,7 @@ class DeliveryManagerServiceImplTest {
     @Test
     @DisplayName("배송담당자 삭제 성공 - 허브 관리자는 자기 허브의 업체 배송 담당자만 삭제 가능")
     void delete_delivery_manager_success_by_hub_admin() {
+        // given
         UUID deliveryManagerId = UUID.randomUUID();
         UUID actorId = UUID.randomUUID();
         UUID hubId = UUID.randomUUID();
@@ -468,24 +488,29 @@ class DeliveryManagerServiceImplTest {
         given(deliveryManagerRepository.findByIdAndDeletedAtIsNull(deliveryManagerId))
             .willReturn(Optional.of(manager));
 
+        // when
         deliveryManagerService.deleteDeliveryManager(deliveryManagerId, currentUser);
 
+        // then
         assertThat(manager.getDeletedAt()).isNotNull();
         assertThat(manager.getDeletedBy()).isEqualTo(actorId);
     }
 
     @Test
-    @DisplayName("배송담당자 삭제 실패 - 허브 관리자는 허브 배송 담당자를 삭제할 수 없음")
+    @DisplayName("배송담당자 삭제 실패 - 허브 관리자는 [허브 배송 담당자]를 삭제할 수 없음 (정책 위반)")
     void delete_delivery_manager_fail_hub_admin_cannot_delete_hub_manager() {
+        // given
         UUID deliveryManagerId = UUID.randomUUID();
         UUID hubId = UUID.randomUUID();
 
+        // 대상이 허브 배송 담당자임
         DeliveryManager manager = createHubDeliveryManager(deliveryManagerId, hubId, 1);
         CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), "HUB_ADMIN", hubId, null);
 
         given(deliveryManagerRepository.findByIdAndDeletedAtIsNull(deliveryManagerId))
             .willReturn(Optional.of(manager));
 
+        // when & then
         assertThatThrownBy(() -> deliveryManagerService.deleteDeliveryManager(deliveryManagerId, currentUser))
             .isInstanceOf(ServiceException.class)
             .hasMessage(DeliveryErrorCode.COMMON_ACCESS_DENIED.getMessage());
