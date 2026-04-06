@@ -33,7 +33,7 @@ public class AiAnalysisController {
         @RequestParam(defaultValue = "10") int size) {
 
         int normalizedSize = PageSizeUtils.normalize(size);
-        Pageable pageable = PageRequest.of(page - 1, normalizedSize, Sort.by("createdAt").descending());
+        Pageable pageable = PageRequest.of(Math.max(0, page - 1), normalizedSize, Sort.by("createdAt").descending());
 
         Page<AiAnalysis> result = aiAnalysisService.search(orderId, pageable);
         return ApiResponse.success(
