@@ -23,7 +23,8 @@ public class HubRouteInternalController {
     private final HubRouteOptimalService hubRouteOptimalService;
     private final HubRouteAiService hubRouteAiService;
 
-    public HubRouteInternalController(HubRouteOptimalService hubRouteOptimalService, HubRouteAiService hubRouteAiService) {
+    public HubRouteInternalController(HubRouteOptimalService hubRouteOptimalService,
+                                      HubRouteAiService hubRouteAiService) {
         this.hubRouteOptimalService = hubRouteOptimalService;
         this.hubRouteAiService = hubRouteAiService;
     }
@@ -46,17 +47,22 @@ public class HubRouteInternalController {
     }
 
     @GetMapping
-    public ResponseEntity<Map<String, Object>> getRouteForAi(
-        @RequestParam UUID originId,
-        @RequestParam UUID destinationId) {
+    public ResponseEntity<AiRouteResponse> getRouteForAi(@RequestParam UUID originId,
+                                                         @RequestParam UUID destinationId,
+                                                         @RequestHeader(value = "X-Internal-Request", required = true) String internalHeader) {
+
+        if (!"true".equals(internalHeader)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
 
         AiRouteResponse response = hubRouteAiService.getRouteInfoForAi(originId, destinationId);
 
-        Map<String, Object> body = new HashMap<>();
-        body.put("code", HttpStatus.OK.value());
-        body.put("message", "AI 학습용 단건 허브 경로 조회를 성공했습니다.");
-        body.put("data", response);
+        if (response == null) {
+            System.out.println("[HUB-DEBUG] 해당 경로 데이터가 DB에 없습니다.");
+            return ResponseEntity.notFound().build();
+        }
+        System.out.println("[HUB-DEBUG] 데이터 조회 성공: duration=" + response.duration());
 
-        return ResponseEntity.ok(body);
+        return ResponseEntity.ok(response);
     }
 }
