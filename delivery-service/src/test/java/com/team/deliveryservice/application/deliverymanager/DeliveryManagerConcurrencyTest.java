@@ -9,6 +9,7 @@ import com.team.deliveryservice.deliverymanager.domain.DeliveryManagerRepository
 import com.team.deliveryservice.deliverymanager.domain.DeliveryManagerType;
 import com.team.deliveryservice.global.common.CurrentUser;
 import com.team.deliveryservice.global.config.JpaAuditingConfig;
+import com.team.deliveryservice.support.PostgreSQLTestSupport;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -21,46 +22,17 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 @DataJpaTest
-@Testcontainers
 @Import({
     DeliveryManagerServiceImpl.class,
     JpaAuditingConfig.class
 })
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-class DeliveryManagerConcurrencyTest {
-
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16")
-        .withDatabaseName("test_delivery")
-        .withUsername("postgres")
-        .withPassword("postgres");
-
-    @DynamicPropertySource
-    static void registerProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", postgres::getJdbcUrl);
-        registry.add("spring.datasource.username", postgres::getUsername);
-        registry.add("spring.datasource.password", postgres::getPassword);
-        registry.add("spring.datasource.driver-class-name", postgres::getDriverClassName);
-
-        registry.add("spring.flyway.enabled", () -> true);
-        registry.add("spring.flyway.locations", () -> "classpath:db/migration");
-        registry.add("spring.flyway.baseline-on-migrate", () -> true);
-
-        registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");
-        registry.add("spring.jpa.show-sql", () -> false);
-    }
+class DeliveryManagerConcurrencyTest extends PostgreSQLTestSupport {
 
     @Autowired
     private DeliveryManagerServiceImpl deliveryManagerService;
