@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 @FeignClient(name = "ai-service")
 public interface AiClient {
 
-    @PostMapping("/internal/v1/ai/analysis")
+    @PostMapping("/internal/v1/ais/analysis")
     AiAnalysisResponse getAnalysis(
         @RequestParam("analysisType") String analysisType,
         @RequestBody AiNotificationRequest request
