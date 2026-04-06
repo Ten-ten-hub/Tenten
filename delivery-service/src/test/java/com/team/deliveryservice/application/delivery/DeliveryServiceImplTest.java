@@ -63,6 +63,8 @@ class DeliveryServiceImplTest {
     private static final UUID FIXED_DESTINATION_HUB_ID =
         UUID.fromString("550e8400-e29b-41d4-a716-446655440013");
 
+    private static final String INTERNAL_HEADER = "true";
+
     @Mock
     private DeliveryRepository deliveryRepository;
 
@@ -87,32 +89,35 @@ class DeliveryServiceImplTest {
     @InjectMocks
     private DeliveryServiceImpl deliveryService;
 
-    private static final String INTERNAL_HEADER = "true";
-
     /**
-     * 배송 생성 전 검증 단계에 필요한 의존성(주문, 업체, 허브 존재 여부)을 설정하는 헬퍼 메서드
+     * 배송 생성 전 검증 단계에 필요한 의존성(업체, 허브 존재 여부)을 설정하는 헬퍼 메서드
      */
     private void givenCommonCreateDependencies(
-        UUID orderId,
         UUID supplierCompanyId,
         UUID receiverCompanyId,
         UUID originHubId,
         UUID destinationHubId
     ) {
-        // 1. 주문 서비스: 배송 대기 중인 주문 정보 반환
-        givenReadyForDeliveryOrder(orderId, supplierCompanyId, receiverCompanyId);
-        
-        // 2. 업체 서비스: 활성화된 공급/수령 업체 정보 반환
         given(companyClient.getCompany(supplierCompanyId))
             .willReturn(activeSupplierCompanyResponse(supplierCompanyId, originHubId));
         given(companyClient.getCompany(receiverCompanyId))
             .willReturn(activeReceiverCompanyResponse(receiverCompanyId, destinationHubId));
-        
-        // 3. 허브 서비스: 각 허브의 존재 여부 확인 (내부 호출 헤더 검증 포함)
+
         given(hubClient.existsHub(eq(originHubId), eq(INTERNAL_HEADER)))
-            .willReturn(new HubExistsResponse(true, new HubExistsResponse.HubExistsData(originHubId, true), "200", "SUCCESS"));
+            .willReturn(new HubExistsResponse(
+                true,
+                new HubExistsResponse.HubExistsData(originHubId, true),
+                "200",
+                "SUCCESS"
+            ));
+
         given(hubClient.existsHub(eq(destinationHubId), eq(INTERNAL_HEADER)))
-            .willReturn(new HubExistsResponse(true, new HubExistsResponse.HubExistsData(destinationHubId, true), "200", "SUCCESS"));
+            .willReturn(new HubExistsResponse(
+                true,
+                new HubExistsResponse.HubExistsData(destinationHubId, true),
+                "200",
+                "SUCCESS"
+            ));
     }
 
     /**
@@ -120,19 +125,30 @@ class DeliveryServiceImplTest {
      */
     private void givenOptimalRoute(UUID originHubId, UUID destinationHubId) {
         given(hubClient.getOptimalRoute(eq(originHubId), eq(destinationHubId), eq(INTERNAL_HEADER)))
-            .willReturn(new OptimalRouteResponseWrapper(200, "SUCCESS", new OptimalRouteResponseWrapper.OptimalRouteResponse(
-                originHubId,
-                destinationHubId,
-                30,
-                10.0,
-                List.of(new OptimalRouteResponseWrapper.RoutePathResponse(1, originHubId, destinationHubId, 30, 10.0))
-            )));
+            .willReturn(new OptimalRouteResponseWrapper(
+                200,
+                "SUCCESS",
+                new OptimalRouteResponseWrapper.OptimalRouteResponse(
+                    originHubId,
+                    destinationHubId,
+                    30,
+                    10.0,
+                    List.of(
+                        new OptimalRouteResponseWrapper.RoutePathResponse(
+                            1,
+                            originHubId,
+                            destinationHubId,
+                            30,
+                            10.0
+                        )
+                    )
+                )
+            ));
     }
 
     @Test
     @DisplayName("배송 생성 성공 - 활성 업체 정보로 배송 생성 및 경로 로그 생성 확인")
     void create_delivery_success() {
-        // given
         UUID orderId = UUID.randomUUID();
         UUID orderedBy = UUID.randomUUID();
         UUID supplierCompanyId = UUID.randomUUID();
@@ -147,12 +163,8 @@ class DeliveryServiceImplTest {
             "문 앞에 놓아주세요"
         );
 
-        // 중복 배송 없음 설정
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
-
-        // 모든 유효 의존성 설정 (헬퍼 사용)
         givenCommonCreateDependencies(
-            orderId,
             supplierCompanyId,
             receiverCompanyId,
             FIXED_ORIGIN_HUB_ID,
@@ -160,11 +172,9 @@ class DeliveryServiceImplTest {
         );
         givenOptimalRoute(FIXED_ORIGIN_HUB_ID, FIXED_DESTINATION_HUB_ID);
 
-        // 배송 저장 모킹
         given(deliveryRepository.save(any(Delivery.class)))
             .willAnswer(invocation -> invocation.getArgument(0));
 
-        // 생성된 경로 로그 조회 모킹
         DeliveryRouteLog mockRouteLog = DeliveryRouteLog.create(
             UUID.randomUUID(),
             1,
@@ -177,28 +187,23 @@ class DeliveryServiceImplTest {
         given(deliveryRouteLogRepository.findAllByDeliveryIdAndDeletedAtIsNullOrderBySequenceNoAsc(any()))
             .willReturn(List.of(mockRouteLog));
 
-        // when
         DeliveryResponse response = deliveryService.createDelivery(request);
 
-        // then
         assertThat(response.orderId()).isEqualTo(orderId);
         assertThat(response.receiverCompanyId()).isEqualTo(receiverCompanyId);
         assertThat(response.originHubId()).isEqualTo(FIXED_ORIGIN_HUB_ID);
         assertThat(response.destinationHubId()).isEqualTo(FIXED_DESTINATION_HUB_ID);
         assertThat(response.deliveryStatus()).isEqualTo(DeliveryStatus.WAITING_AT_HUB);
 
-        // 경로 로그 생성 확인
         assertThat(response.routeLogs()).hasSize(1);
         assertThat(response.routeLogs().get(0).sequenceNo()).isEqualTo(1);
 
-        // 자동 배정 서비스 호출 검증
         verify(deliveryManagerAutoAssignService).autoAssign(any(Delivery.class));
     }
 
     @Test
     @DisplayName("배송 생성 성공 - 다구간 최적 경로가 route log 여러 건으로 생성된다")
     void create_delivery_success_with_multi_segment_route_logs() {
-        // given
         UUID orderId = UUID.randomUUID();
         UUID orderedBy = UUID.randomUUID();
         UUID supplierCompanyId = UUID.randomUUID();
@@ -219,7 +224,6 @@ class DeliveryServiceImplTest {
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
 
         givenCommonCreateDependencies(
-            orderId,
             supplierCompanyId,
             receiverCompanyId,
             FIXED_ORIGIN_HUB_ID,
@@ -269,10 +273,8 @@ class DeliveryServiceImplTest {
         given(deliveryRouteLogRepository.findAllByDeliveryIdAndDeletedAtIsNullOrderBySequenceNoAsc(any()))
             .willReturn(List.of(firstRouteLog, secondRouteLog, thirdRouteLog));
 
-        // when
         DeliveryResponse response = deliveryService.createDelivery(request);
 
-        // then
         assertThat(response.routeLogs()).hasSize(3);
         assertThat(response.routeLogs().get(0).sequenceNo()).isEqualTo(1);
         assertThat(response.routeLogs().get(1).sequenceNo()).isEqualTo(2);
@@ -293,7 +295,6 @@ class DeliveryServiceImplTest {
     @Test
     @DisplayName("배송 생성 후 응답에는 업체 담당자와 route log 담당자 정보가 포함된다")
     void create_delivery_response_contains_assigned_manager_ids() {
-        // given
         UUID orderId = UUID.randomUUID();
         UUID orderedBy = UUID.randomUUID();
         UUID supplierCompanyId = UUID.randomUUID();
@@ -317,7 +318,6 @@ class DeliveryServiceImplTest {
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
 
         givenCommonCreateDependencies(
-            orderId,
             supplierCompanyId,
             receiverCompanyId,
             FIXED_ORIGIN_HUB_ID,
@@ -382,10 +382,8 @@ class DeliveryServiceImplTest {
         given(deliveryRouteLogRepository.findAllByDeliveryIdAndDeletedAtIsNullOrderBySequenceNoAsc(savedDelivery.getId()))
             .willReturn(List.of(firstRouteLog, secondRouteLog));
 
-        // when
         DeliveryResponse response = deliveryService.createDelivery(request);
 
-        // then
         assertThat(response.companyDeliveryManagerId()).isEqualTo(companyManagerId);
         assertThat(response.routeLogs()).hasSize(2);
         assertThat(response.routeLogs().get(0).deliveryManagerId()).isEqualTo(hubManagerId1);
@@ -397,7 +395,6 @@ class DeliveryServiceImplTest {
     @Test
     @DisplayName("배송 단건 조회 응답에는 route log 담당자와 업체 담당자 정보가 포함된다")
     void get_delivery_response_contains_assigned_manager_ids() {
-        // given
         UUID deliveryId = UUID.randomUUID();
         UUID companyManagerId = UUID.randomUUID();
         UUID hubManagerId = UUID.randomUUID();
@@ -429,10 +426,8 @@ class DeliveryServiceImplTest {
         given(deliveryRouteLogRepository.findAllByDeliveryIdAndDeletedAtIsNullOrderBySequenceNoAsc(deliveryId))
             .willReturn(List.of(routeLog));
 
-        // when
         DeliveryResponse response = deliveryService.getDelivery(deliveryId);
 
-        // then
         assertThat(response.companyDeliveryManagerId()).isEqualTo(companyManagerId);
         assertThat(response.routeLogs()).hasSize(1);
         assertThat(response.routeLogs().get(0).deliveryManagerId()).isEqualTo(hubManagerId);
@@ -441,7 +436,6 @@ class DeliveryServiceImplTest {
     @Test
     @DisplayName("배송 생성 실패 - 자동 배정 가능한 허브 배송 담당자가 없으면 예외 발생")
     void create_delivery_fail_when_no_hub_delivery_manager_candidate() {
-        // given
         UUID orderId = UUID.randomUUID();
         UUID orderedBy = UUID.randomUUID();
         UUID supplierCompanyId = UUID.randomUUID();
@@ -458,7 +452,6 @@ class DeliveryServiceImplTest {
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
         givenCommonCreateDependencies(
-            orderId,
             supplierCompanyId,
             receiverCompanyId,
             FIXED_ORIGIN_HUB_ID,
@@ -473,7 +466,6 @@ class DeliveryServiceImplTest {
             .given(deliveryManagerAutoAssignService)
             .autoAssign(any(Delivery.class));
 
-        // when & then
         assertThatThrownBy(() -> deliveryService.createDelivery(request))
             .isInstanceOf(ServiceException.class)
             .hasMessage(DeliveryErrorCode.HUB_DELIVERY_MANAGER_CANDIDATE_NOT_FOUND.getMessage());
@@ -482,7 +474,6 @@ class DeliveryServiceImplTest {
     @Test
     @DisplayName("배송 생성 실패 - 자동 배정 가능한 업체 배송 담당자가 없으면 예외 발생")
     void create_delivery_fail_when_no_company_delivery_manager_candidate() {
-        // given
         UUID orderId = UUID.randomUUID();
         UUID orderedBy = UUID.randomUUID();
         UUID supplierCompanyId = UUID.randomUUID();
@@ -499,7 +490,6 @@ class DeliveryServiceImplTest {
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
         givenCommonCreateDependencies(
-            orderId,
             supplierCompanyId,
             receiverCompanyId,
             FIXED_ORIGIN_HUB_ID,
@@ -514,7 +504,6 @@ class DeliveryServiceImplTest {
             .given(deliveryManagerAutoAssignService)
             .autoAssign(any(Delivery.class));
 
-        // when & then
         assertThatThrownBy(() -> deliveryService.createDelivery(request))
             .isInstanceOf(ServiceException.class)
             .hasMessage(DeliveryErrorCode.COMPANY_DELIVERY_MANAGER_CANDIDATE_NOT_FOUND.getMessage());
@@ -558,7 +547,6 @@ class DeliveryServiceImplTest {
         );
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
-        givenReadyForDeliveryOrder(orderId, supplierCompanyId, receiverCompanyId);
         given(companyClient.getCompany(supplierCompanyId))
             .willReturn(new CompanyInternalResponse(
                 supplierCompanyId,
@@ -594,7 +582,6 @@ class DeliveryServiceImplTest {
         );
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
-        givenReadyForDeliveryOrder(orderId, supplierCompanyId, receiverCompanyId);
         given(companyClient.getCompany(supplierCompanyId))
             .willReturn(activeSupplierCompanyResponse(supplierCompanyId, UUID.randomUUID()));
         given(companyClient.getCompany(receiverCompanyId))
@@ -632,7 +619,6 @@ class DeliveryServiceImplTest {
         );
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
-        givenReadyForDeliveryOrder(orderId, supplierCompanyId, receiverCompanyId);
         given(companyClient.getCompany(supplierCompanyId))
             .willReturn(new CompanyInternalResponse(
                 supplierCompanyId,
@@ -670,7 +656,6 @@ class DeliveryServiceImplTest {
         );
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
-        givenReadyForDeliveryOrder(orderId, supplierCompanyId, receiverCompanyId);
         given(companyClient.getCompany(supplierCompanyId))
             .willReturn(activeSupplierCompanyResponse(supplierCompanyId, UUID.randomUUID()));
         given(companyClient.getCompany(receiverCompanyId))
@@ -708,7 +693,6 @@ class DeliveryServiceImplTest {
         );
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
-        givenReadyForDeliveryOrder(orderId, supplierCompanyId, receiverCompanyId);
         given(companyClient.getCompany(supplierCompanyId))
             .willReturn(activeSupplierCompanyResponse(supplierCompanyId, UUID.randomUUID()));
         given(companyClient.getCompany(receiverCompanyId))
@@ -746,7 +730,6 @@ class DeliveryServiceImplTest {
         );
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
-        givenReadyForDeliveryOrder(orderId, supplierCompanyId, receiverCompanyId);
         given(companyClient.getCompany(supplierCompanyId))
             .willReturn(activeSupplierCompanyResponse(supplierCompanyId, UUID.randomUUID()));
         given(companyClient.getCompany(receiverCompanyId))
@@ -784,7 +767,6 @@ class DeliveryServiceImplTest {
         );
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
-        givenReadyForDeliveryOrder(orderId, supplierCompanyId, receiverCompanyId);
         given(companyClient.getCompany(supplierCompanyId))
             .willReturn(activeSupplierCompanyResponse(supplierCompanyId, UUID.randomUUID()));
         given(companyClient.getCompany(receiverCompanyId))
@@ -822,7 +804,6 @@ class DeliveryServiceImplTest {
         );
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
-        givenReadyForDeliveryOrder(orderId, supplierCompanyId, receiverCompanyId);
         given(companyClient.getCompany(supplierCompanyId))
             .willThrow(feignBadRequestException());
 
@@ -834,7 +815,6 @@ class DeliveryServiceImplTest {
     @Test
     @DisplayName("배송 생성 실패 - 이미 배송이 존재하는 주문(DB unique 제약 조건 위반)")
     void create_delivery_fail_unique_constraint() {
-        // given
         UUID orderId = UUID.randomUUID();
         UUID supplierCompanyId = UUID.randomUUID();
         UUID receiverCompanyId = UUID.randomUUID();
@@ -848,17 +828,19 @@ class DeliveryServiceImplTest {
             "요청사항"
         );
 
-        // 중복 체크 통과 후 저장 시점에 충돌이 나는 시나리오
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
-        givenCommonCreateDependencies(orderId, supplierCompanyId, receiverCompanyId, FIXED_ORIGIN_HUB_ID, FIXED_DESTINATION_HUB_ID);
+        givenCommonCreateDependencies(
+            supplierCompanyId,
+            receiverCompanyId,
+            FIXED_ORIGIN_HUB_ID,
+            FIXED_DESTINATION_HUB_ID
+        );
 
-        // DB Unique 제약 조건 위반 발생 시뮬레이션
         given(deliveryRepository.save(any(Delivery.class)))
             .willThrow(new DataIntegrityViolationException(
                 "duplicate key value violates unique constraint uk_p_delivery_order_id_active"
             ));
 
-        // when & then
         assertThatThrownBy(() -> deliveryService.createDelivery(request))
             .isInstanceOf(ServiceException.class)
             .hasMessage(DeliveryErrorCode.DELIVERY_ALREADY_EXISTS.getMessage());
@@ -867,7 +849,6 @@ class DeliveryServiceImplTest {
     @Test
     @DisplayName("배송 생성 실패 - 데이터 무결성 위반 발생 시 공통 예외 반환")
     void create_delivery_fail_data_integrity() {
-        // given
         UUID orderId = UUID.randomUUID();
         UUID supplierCompanyId = UUID.randomUUID();
         UUID receiverCompanyId = UUID.randomUUID();
@@ -882,13 +863,16 @@ class DeliveryServiceImplTest {
         );
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
-        givenCommonCreateDependencies(orderId, supplierCompanyId, receiverCompanyId, FIXED_ORIGIN_HUB_ID, FIXED_DESTINATION_HUB_ID);
+        givenCommonCreateDependencies(
+            supplierCompanyId,
+            receiverCompanyId,
+            FIXED_ORIGIN_HUB_ID,
+            FIXED_DESTINATION_HUB_ID
+        );
 
-        // 기타 데이터 무결성 오류 발생 시뮬레이션
         given(deliveryRepository.save(any(Delivery.class)))
             .willThrow(new DataIntegrityViolationException("other constraint"));
 
-        // when & then
         assertThatThrownBy(() -> deliveryService.createDelivery(request))
             .isInstanceOf(ServiceException.class)
             .hasMessage(DeliveryErrorCode.COMMON_INVALID_INPUT.getMessage());
@@ -1088,7 +1072,7 @@ class DeliveryServiceImplTest {
         DeliveryRouteLog routeLog = DeliveryRouteLog.create(
             delivery.getId(),
             1,
-            hubId, // departureHubId matches manager's hubId
+            hubId,
             UUID.randomUUID(),
             BigDecimal.valueOf(12.5),
             30,
@@ -1190,7 +1174,7 @@ class DeliveryServiceImplTest {
             .id(UUID.randomUUID())
             .deliveryId(delivery.getId())
             .sequenceNo(1)
-            .departureHubId(hubId) // match manager's hubId
+            .departureHubId(hubId)
             .arrivalHubId(UUID.randomUUID())
             .expectedDistanceKm(BigDecimal.valueOf(12.5))
             .expectedDurationMinutes(30)
@@ -1248,7 +1232,6 @@ class DeliveryServiceImplTest {
     @Test
     @DisplayName("AI 배송 정보 조회 성공 - 주문 및 각 허브의 최신 정보를 조합하여 응답")
     void get_ai_delivery_info_success() {
-        // given
         UUID deliveryId = UUID.randomUUID();
         UUID orderId = UUID.randomUUID();
         UUID originHubId = UUID.randomUUID();
@@ -1268,8 +1251,6 @@ class DeliveryServiceImplTest {
         );
 
         given(deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)).willReturn(Optional.of(delivery));
-        
-        // 주문 서비스 호출 모킹
         given(orderClient.getOrder(orderId))
             .willReturn(new OrderInternalResponse(
                 orderId,
@@ -1283,7 +1264,6 @@ class DeliveryServiceImplTest {
                 "READY_FOR_DELIVERY"
             ));
 
-        // 허브 서비스 호출 모킹 (내부 헤더 명시적 검증)
         given(hubClient.getHub(eq(originHubId), eq(INTERNAL_HEADER)))
             .willReturn(new HubInternalResponse(
                 originHubId,
@@ -1297,10 +1277,8 @@ class DeliveryServiceImplTest {
                 "부산광역시 해운대구 우동"
             ));
 
-        // when
         AiDeliveryResponse response = deliveryService.getAiDeliveryInfo(deliveryId);
 
-        // then
         assertThat(response.getOrderId()).isEqualTo(orderId);
         assertThat(response.getOriginHubId()).isEqualTo(originHubId);
         assertThat(response.getDestinationHubId()).isEqualTo(destinationHubId);
@@ -1359,7 +1337,6 @@ class DeliveryServiceImplTest {
     @Test
     @DisplayName("AI 배송 정보 조회 실패 - 출발 허브 정보가 없을 때 HUB_NOT_FOUND")
     void get_ai_delivery_info_fail_hub_not_found() {
-        // given
         UUID deliveryId = UUID.randomUUID();
         Delivery delivery = createDelivery();
 
@@ -1376,12 +1353,10 @@ class DeliveryServiceImplTest {
                 "신선 전복 세트",
                 "READY_FOR_DELIVERY"
             ));
-            
-        // 허브를 찾을 수 없는 시나리오 (내부 헤더 명시적 검증)
+
         given(hubClient.getHub(eq(delivery.getOriginHubId()), eq(INTERNAL_HEADER)))
             .willThrow(feignNotFoundException());
 
-        // when & then
         assertThatThrownBy(() -> deliveryService.getAiDeliveryInfo(deliveryId))
             .isInstanceOf(ServiceException.class)
             .hasMessage(DeliveryErrorCode.HUB_NOT_FOUND.getMessage());
@@ -1406,27 +1381,12 @@ class DeliveryServiceImplTest {
                 "신선 전복 세트",
                 "READY_FOR_DELIVERY"
             ));
-        given(hubClient.getHub(delivery.getOriginHubId(), "true"))
+        given(hubClient.getHub(eq(delivery.getOriginHubId()), eq(INTERNAL_HEADER)))
             .willThrow(feignBadRequestException());
 
         assertThatThrownBy(() -> deliveryService.getAiDeliveryInfo(deliveryId))
             .isInstanceOf(ServiceException.class)
             .hasMessage(DeliveryErrorCode.HUB_SERVICE_UNAVAILABLE.getMessage());
-    }
-
-    private void givenReadyForDeliveryOrder(UUID orderId, UUID supplierCompanyId, UUID receiverCompanyId) {
-        given(orderClient.getOrder(orderId))
-            .willReturn(new OrderInternalResponse(
-                orderId,
-                UUID.randomUUID(),
-                supplierCompanyId,
-                receiverCompanyId,
-                null,
-                LocalDateTime.of(2026, 4, 1, 18, 0),
-                "요청사항",
-                "테스트 상품",
-                "READY_FOR_DELIVERY"
-            ));
     }
 
     private Delivery createDelivery() {
