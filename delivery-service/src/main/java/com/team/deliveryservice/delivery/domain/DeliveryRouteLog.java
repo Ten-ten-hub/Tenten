@@ -47,6 +47,7 @@ public class DeliveryRouteLog extends com.team.common.BaseEntity {
     private Integer realDurationMinutes;
 
     @Enumerated(EnumType.STRING)
+    @org.hibernate.annotations.JdbcType(org.hibernate.dialect.PostgreSQLEnumJdbcType.class)
     @Column(nullable = false, columnDefinition = "delivery_route_status")
     private DeliveryRouteStatus routeStatus;
 

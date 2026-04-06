@@ -1,10 +1,6 @@
 package com.team.deliveryservice.delivery.application.service;
 
-import com.team.deliveryservice.delivery.domain.Delivery;
-import com.team.deliveryservice.delivery.domain.DeliveryRepository;
-import com.team.deliveryservice.delivery.domain.DeliveryRouteLog;
-import com.team.deliveryservice.delivery.domain.DeliveryRouteLogRepository;
-import com.team.deliveryservice.delivery.domain.DeliveryStatus;
+import com.team.deliveryservice.delivery.domain.*;
 import com.team.deliveryservice.deliverymanager.domain.DeliveryManager;
 import com.team.deliveryservice.deliverymanager.domain.DeliveryManagerRepository;
 import com.team.deliveryservice.deliverymanager.domain.DeliveryManagerType;
@@ -80,9 +76,15 @@ public class DeliveryManagerAutoAssignServiceImpl implements DeliveryManagerAuto
         delivery.assignCompanyDeliveryManager(selected.getId());
     }
 
+    private static final List<DeliveryRouteStatus> INACTIVE_ROUTE_STATUSES =
+        List.of(DeliveryRouteStatus.DELIVERED, DeliveryRouteStatus.CANCELLED);
+
     private long getActiveHubAssignmentCount(DeliveryManager manager) {
         UUID managerId = manager.getId();
-        return deliveryRouteLogRepository.countActiveByDeliveryManagerId(managerId);
+        return deliveryRouteLogRepository.countByDeliveryManagerIdAndDeletedAtIsNullAndRouteStatusNotIn(
+            managerId,
+            INACTIVE_ROUTE_STATUSES
+        );
     }
 
     private long getActiveCompanyAssignmentCount(DeliveryManager manager) {
