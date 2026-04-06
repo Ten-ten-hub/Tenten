@@ -23,17 +23,18 @@ public class CacheConfig {
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
 
-        objectMapper.activateDefaultTyping(
-            BasicPolymorphicTypeValidator.builder()
-                .allowIfBaseType(Object.class)
-                .build(),
-            ObjectMapper.DefaultTyping.EVERYTHING,
-            JsonTypeInfo.As.PROPERTY
-        );
+        // 1. 허용할 패키지 및 타입 등록
+        BasicPolymorphicTypeValidator validator = BasicPolymorphicTypeValidator.builder()
+            .allowIfSubType("com.team")   // 프로젝트 내부 클래스 모두 허용
+            .allowIfSubType("java.util")  // List, Map 등 유틸 허용
+            .allowIfSubType("java.time")  // LocalDateTime 등 날짜 타입 허용
+            .build();
+
+        // 2. 위에서 만든 validator를 적용
+        objectMapper.activateDefaultTyping(validator, ObjectMapper.DefaultTyping.EVERYTHING, JsonTypeInfo.As.PROPERTY);
 
         GenericJackson2JsonRedisSerializer serializer = new GenericJackson2JsonRedisSerializer(objectMapper);
 
-        // Redis 캐시 설정
         RedisCacheConfiguration defaultCacheConfig = RedisCacheConfiguration.defaultCacheConfig()
             .entryTtl(Duration.ofHours(12))
             .disableCachingNullValues()
