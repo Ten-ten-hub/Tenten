@@ -17,9 +17,11 @@ public class FeignConfig {
                 HttpServletRequest request = attributes.getRequest();
                 String userId = request.getHeader("X-User-Id");
                 if (userId != null) {
-                    requestTemplate.header("X-User-Id", userId); // 헤더 복사해서 전달
+                    requestTemplate.header("X-User-Id", userId);
                 }
             }
+
+            requestTemplate.header("X-Internal-Request", "true");
         };
     }
 }
