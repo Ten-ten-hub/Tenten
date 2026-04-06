@@ -5,9 +5,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 
 public class NaverFeignConfig {
-    @Value("${NAVER_API_CLIENT_KEY}")
+    @Value("${naver.api.client-key}")
     private String clientId;
-    @Value("${NAVER_API_CLIENT_SECRET}")
+    @Value("${naver.api.client-secret}")
     private String clientSecret;
 
     @Bean
