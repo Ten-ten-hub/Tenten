@@ -103,3 +103,7 @@ bootJar {
         into 'static/docs'
     }
 }
+
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs.add('-parameters')
+}

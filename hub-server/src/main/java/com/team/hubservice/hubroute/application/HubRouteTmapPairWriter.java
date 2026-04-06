@@ -9,6 +9,8 @@ import org.springframework.cache.CacheManager;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Component
 public class HubRouteTmapPairWriter {
@@ -37,9 +39,13 @@ public class HubRouteTmapPairWriter {
             affectedRouteId = outcome.route().getId();
             result = outcome.syncResult();
         }
-
-        evictRouteCache(affectedRouteId);
-        evictOptimalRouteCacheAll();
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                evictRouteCache(affectedRouteId);
+                evictOptimalRouteCacheAll();
+            }
+        });
         return result;
     }
 
