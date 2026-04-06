@@ -1,5 +1,6 @@
 package com.team.companyservice.company.application.dto.response;
 
+import com.team.companyservice.company.domain.Company;
 import java.util.UUID;
 
 public record CompanyInternalResponse(
@@ -11,19 +12,19 @@ public record CompanyInternalResponse(
     String addressDetail,
     String contactName,
     String contactSlackId,
-    boolean isActive
+    boolean active
 ) {
-    public static CompanyInternalResponse from(CompanyResponse response) {
+    public static CompanyInternalResponse from(Company company) {
         return new CompanyInternalResponse(
-            response.id(),
-            response.name(),
-            response.companyType().name(),
-            response.hubId(),
-            response.address(),
-            response.addressDetail(),
-            response.contactName(),
-            response.contactSlackId(),
-            response.isActive()
+            company.getId(),
+            company.getName(),
+            company.getCompanyType().name(),
+            company.getHubId(),
+            company.getAddress(),
+            company.getAddressDetail(),
+            company.getContactName(),
+            company.getContactSlackId(),
+            company.isActive()
         );
     }
 }

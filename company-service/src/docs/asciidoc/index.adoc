@@ -5,6 +5,7 @@
 :toc: left
 :toclevels: 3
 :sectlinks:
+:lang: ko
 
 == 업체 서비스 개요
 
@@ -110,3 +111,19 @@ include::{snippets}/companies/assign-manager/request-fields.adoc[]
 
 include::{snippets}/companies/assign-manager/http-response.adoc[]
 include::{snippets}/companies/assign-manager/response-fields.adoc[]
+
+== 내부 API
+
+=== 내부 업체 단건 조회
+
+`GET /internal/v1/companies/{companyId}`
+
+==== 요청
+
+include::{snippets}/internal-companies/get/http-request.adoc[]
+include::{snippets}/internal-companies/get/path-parameters.adoc[]
+
+==== 응답
+
+include::{snippets}/internal-companies/get/http-response.adoc[]
+include::{snippets}/internal-companies/get/response-fields.adoc[]

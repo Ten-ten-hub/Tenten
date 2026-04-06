@@ -3,6 +3,7 @@ package com.team.companyservice.company.application.service;
 import com.team.common.page.PageSizeUtils;
 import com.team.companyservice.company.application.dto.request.CreateCompanyRequest;
 import com.team.companyservice.company.application.dto.request.UpdateCompanyRequest;
+import com.team.companyservice.company.application.dto.response.CompanyInternalResponse;
 import com.team.companyservice.company.application.dto.response.CompanyPageResponse;
 import com.team.companyservice.company.application.dto.response.CompanyResponse;
 import com.team.companyservice.company.application.search.CompanySearchCondition;
@@ -353,5 +354,10 @@ public class CompanyService {
         if (page < 0) {
             throw new ServiceException(CompanyErrorCode.COMMON_INVALID_INPUT);
         }
+    }
+
+    public CompanyInternalResponse getInternalCompany(UUID companyId) {
+        Company company = getActiveCompany(companyId);
+        return CompanyInternalResponse.from(company);
     }
 }
