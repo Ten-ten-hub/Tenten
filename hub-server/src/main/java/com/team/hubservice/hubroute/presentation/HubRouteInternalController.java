@@ -12,7 +12,6 @@ import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -29,16 +28,10 @@ public class HubRouteInternalController {
         this.hubRouteAiService = hubRouteAiService;
     }
 
-    // 기존 optimal 경로 메서드 유지
     @GetMapping("/optimal")
     public ResponseEntity<Map<String, Object>> getOptimalRoute(
         @RequestParam UUID departureHubId,
-        @RequestParam UUID arrivalHubId,
-        @RequestHeader(value = "X-Internal-Request", required = true) String internalHeader) {
-
-        if (!"true".equals(internalHeader)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
+        @RequestParam UUID arrivalHubId) {
 
         OptimalRouteQuery query = new OptimalRouteQuery(departureHubId, arrivalHubId);
         OptimalRouteResult result = hubRouteOptimalService.findOptimalRoute(query);
@@ -55,12 +48,7 @@ public class HubRouteInternalController {
     @GetMapping
     public ResponseEntity<Map<String, Object>> getRouteForAi(
         @RequestParam UUID originId,
-        @RequestParam UUID destinationId,
-        @RequestHeader(value = "X-Internal-Request", required = true) String internalHeader) {
-
-        if (!"true".equals(internalHeader)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
+        @RequestParam UUID destinationId) {
 
         AiRouteResponse response = hubRouteAiService.getRouteInfoForAi(originId, destinationId);
 

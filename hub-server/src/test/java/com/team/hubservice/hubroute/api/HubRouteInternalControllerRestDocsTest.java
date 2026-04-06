@@ -73,15 +73,11 @@ class HubRouteInternalControllerRestDocsTest {
         Mockito.when(hubRouteOptimalService.findOptimalRoute(any(OptimalRouteQuery.class))).thenReturn(result);
 
         mockMvc.perform(get("/internal/v1/hub-route/optimal")
-                .header("X-Internal-Request", "true")
                 .param("departureHubId", departureHubId.toString())
                 .param("arrivalHubId", arrivalHubId.toString())
                 .contentType(MediaType.APPLICATION_JSON))
             .andExpect(status().isOk())
             .andDo(document("hub-route-optimal-get",
-                requestHeaders(
-                    headerWithName("X-Internal-Request").description("내부망 접근 확인 헤더 (반드시 true여야 함)")
-                ),
                 queryParameters(
                     parameterWithName("departureHubId").description("출발 허브 ID"),
                     parameterWithName("arrivalHubId").description("도착 허브 ID")
@@ -117,15 +113,11 @@ class HubRouteInternalControllerRestDocsTest {
             .thenReturn(aiResponse);
 
         mockMvc.perform(get("/internal/v1/hub-route")
-                .header("X-Internal-Request", "true")
                 .param("originId", originId.toString())
                 .param("destinationId", destinationId.toString())
                 .contentType(MediaType.APPLICATION_JSON))
             .andExpect(status().isOk())
             .andDo(document("hub-route-ai-get",
-                requestHeaders(
-                    headerWithName("X-Internal-Request").description("내부망 접근 확인 헤더 (반드시 true여야 함)")
-                ),
                 queryParameters(
                     parameterWithName("originId").description("출발 허브 ID"),
                     parameterWithName("destinationId").description("도착 허브 ID")
