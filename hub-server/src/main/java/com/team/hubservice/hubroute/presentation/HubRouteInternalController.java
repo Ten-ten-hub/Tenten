@@ -35,7 +35,8 @@ public class HubRouteInternalController {
         HubRouteOptimalService hubRouteOptimalService,
         HubRouteAiService hubRouteAiService,
         HubRouteTmapSyncService hubRouteTmapSyncService
-    ) {
+    )
+    {
         this.hubRouteOptimalService = hubRouteOptimalService;
         this.hubRouteAiService = hubRouteAiService;
         this.hubRouteTmapSyncService = hubRouteTmapSyncService;
@@ -44,12 +45,7 @@ public class HubRouteInternalController {
     @GetMapping("/optimal")
     public ResponseEntity<Map<String, Object>> getOptimalRoute(
         @RequestParam UUID departureHubId,
-        @RequestParam UUID arrivalHubId,
-        @RequestHeader(value = "X-Internal-Request", required = true) String internalHeader) {
-
-        if (!"true".equals(internalHeader)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
+        @RequestParam UUID arrivalHubId) {
 
         OptimalRouteQuery query = new OptimalRouteQuery(departureHubId, arrivalHubId);
         OptimalRouteResult result = hubRouteOptimalService.findOptimalRoute(query);
@@ -66,12 +62,9 @@ public class HubRouteInternalController {
     @GetMapping
     public ResponseEntity<Map<String, Object>> getRouteForAi(
         @RequestParam UUID originId,
-        @RequestParam UUID destinationId,
-        @RequestHeader(value = "X-Internal-Request", required = true) String internalHeader) {
-
-        if (!"true".equals(internalHeader)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
+        @RequestParam UUID destinationId
+    )
+    {
 
         AiRouteResponse response = hubRouteAiService.getRouteInfoForAi(originId, destinationId);
 
@@ -83,19 +76,12 @@ public class HubRouteInternalController {
         return ResponseEntity.ok(body);
     }
 
-    /**
-     * 티맵 도로 경로 기준으로 허브 간 duration(분)·distance(km)를 적재합니다.
-     * {@code departureHubId}, {@code arrivalHubId} 가 모두 있으면 해당 유향 1건만 동기화하고, 없으면 전 허브 유향 쌍 전체를 동기화합니다.
-     */
     @PostMapping("/sync-from-tmap")
     public ResponseEntity<Map<String, Object>> syncRoutesFromTmap(
         @RequestParam(required = false) UUID departureHubId,
-        @RequestParam(required = false) UUID arrivalHubId,
-        @RequestHeader(value = "X-Internal-Request", required = true) String internalHeader) {
-
-        if (!"true".equals(internalHeader)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
+        @RequestParam(required = false) UUID arrivalHubId
+    )
+    {
 
         Map<String, Object> body = new HashMap<>();
         if (departureHubId != null ^ arrivalHubId != null) {

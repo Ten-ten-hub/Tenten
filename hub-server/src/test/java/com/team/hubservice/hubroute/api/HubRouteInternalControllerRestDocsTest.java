@@ -30,8 +30,6 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.springframework.restdocs.headers.HeaderDocumentation.headerWithName;
-import static org.springframework.restdocs.headers.HeaderDocumentation.requestHeaders;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders.get;
 import static org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders.post;
@@ -157,15 +155,11 @@ class HubRouteInternalControllerRestDocsTest {
             .thenReturn(syncResult);
 
         mockMvc.perform(post("/internal/v1/hub-route/sync-from-tmap")
-                .header("X-Internal-Request", "true")
                 .param("departureHubId", departureHubId.toString())
                 .param("arrivalHubId", arrivalHubId.toString())
                 .contentType(MediaType.APPLICATION_JSON))
             .andExpect(status().isOk())
             .andDo(document("hub-route-tmap-sync-post",
-                requestHeaders(
-                    headerWithName("X-Internal-Request").description("내부망 접근 확인 헤더 (반드시 true여야 함)")
-                ),
                 queryParameters(
                     parameterWithName("departureHubId").description("출발 허브 ID (단건 동기화 시 필수)").optional(),
                     parameterWithName("arrivalHubId").description("도착 허브 ID (단건 동기화 시 필수)").optional()
