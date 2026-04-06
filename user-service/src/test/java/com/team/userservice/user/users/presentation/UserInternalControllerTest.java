@@ -258,17 +258,13 @@ class UserInternalControllerTest extends AbstractRestDocsTest {
 
         mockMvc.perform(get("/internal/v1/users/{userId}/role", UserFixture.TEST_USER_ID))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.role").value("HUB_ADMIN"))
+                .andExpect(jsonPath("$.role").value("HUB_ADMIN"))
                 .andDo(document("internal/get-user-role-success",
                         pathParameters(
                                 parameterWithName("userId").description("조회할 유저 ID")
                         ),
                         responseFields(
-                                fieldWithPath("result").description("처리 결과"),
-                                fieldWithPath("code").description("HTTP 상태 코드"),
-                                fieldWithPath("message").description("응답 메시지"),
-                                fieldWithPath("timestamp").description("응답 시각"),
-                                fieldWithPath("data.role").description("유저 역할")
+                                fieldWithPath("role").description("유저 역할")
                         )
                 ));
     }
@@ -302,17 +298,13 @@ class UserInternalControllerTest extends AbstractRestDocsTest {
 
         mockMvc.perform(get("/internal/v1/users/{userId}/slack", UserFixture.TEST_USER_ID))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.slackId").value(UserFixture.TEST_SLACK_ID))
+                .andExpect(jsonPath("$.slackId").value(UserFixture.TEST_SLACK_ID))
                 .andDo(document("internal/get-slack-id-success",
                         pathParameters(
                                 parameterWithName("userId").description("조회할 유저 ID")
                         ),
                         responseFields(
-                                fieldWithPath("result").description("처리 결과"),
-                                fieldWithPath("code").description("HTTP 상태 코드"),
-                                fieldWithPath("message").description("응답 메시지"),
-                                fieldWithPath("timestamp").description("응답 시각"),
-                                fieldWithPath("data.slackId").description("슬랙 아이디")
+                                fieldWithPath("slackId").description("슬랙 아이디")
                         )
                 ));
     }
