@@ -2,7 +2,6 @@ package com.team.companyservice.global.common;
 
 import java.util.UUID;
 
-// 현재 요청 사용자의 기본 인증/소속 정보를 담는 객체
 public record CurrentUser(
     UUID userId,
     String role,
