@@ -1,0 +1,259 @@
+= TENTEN HUB - 주문 API 문서
+:doctype: book
+:icons: font
+:source-highlighter: highlightjs
+:toc: left
+:toclevels: 3
+:sectlinks:
+
+== 개요
+
+주문 서비스 REST API 문서입니다.
+
+=== 공통 요청 헤더
+
+|===
+|헤더명|필수|설명
+
+|X-User-Id
+|조건부 필수
+|요청자 UUID (인증 필요 API에서 필수)
+
+|X-User-Role
+|조건부 필수
+|요청자 권한 (MASTER_ADMIN, HUB_ADMIN, HUB_DELIVERY_MANAGER, COMPANY_MANAGER, COM_DELIVERY_MANAGER)
+|===
+
+=== 권한 정책
+
+|===
+|API|허용 권한
+
+|주문 생성
+|MASTER_ADMIN, HUB_ADMIN, HUB_DELIVERY_MANAGER, COMPANY_MANAGER
+
+|주문 조회
+|MASTER_ADMIN, HUB_ADMIN, HUB_DELIVERY_MANAGER, COMPANY_MANAGER
+
+|주문 수정
+|MASTER_ADMIN, HUB_ADMIN
+
+|주문 취소
+|MASTER_ADMIN, HUB_ADMIN
+
+|주문 삭제
+|MASTER_ADMIN, HUB_ADMIN
+|===
+
+=== 주문 상태
+
+|===
+|상태|설명
+
+|CREATED
+|주문 생성
+
+|CONFIRMED
+|주문 확인
+
+|READY_FOR_DELIVERY
+|배송 준비 완료
+
+|IN_DELIVERY
+|배송 중
+
+|CANCELLED
+|주문 취소
+
+|COMPLETED
+|주문 완료
+|===
+
+=== 공통 에러 응답
+
+==== 인증 실패 (401)
+헤더에 X-User-Id, X-User-Role이 없을 때 발생합니다.
+
+include::{snippets}/order-create-unauthorized/http-response.adoc[]
+
+==== 권한 없음 (403)
+허용되지 않은 역할로 요청할 때 발생합니다.
+
+include::{snippets}/order-create-forbidden/http-response.adoc[]
+
+==== 유효성 검증 실패 (400)
+
+include::{snippets}/order-create-validation-fail/http-response.adoc[]
+include::{snippets}/order-create-validation-fail/response-fields.adoc[]
+
+== 주문 API
+
+=== 주문 생성
+
+==== 요청
+
+include::{snippets}/order-create/http-request.adoc[]
+
+==== 요청 헤더
+
+include::{snippets}/order-create/request-headers.adoc[]
+
+==== 요청 필드
+
+include::{snippets}/order-create/request-fields.adoc[]
+
+==== 응답
+
+include::{snippets}/order-create/http-response.adoc[]
+
+==== 응답 필드
+
+include::{snippets}/order-create/response-fields.adoc[]
+
+==== 에러 응답
+
+===== 상품 없음 (404)
+
+include::{snippets}/order-create-product-not-found/http-response.adoc[]
+include::{snippets}/order-create-product-not-found/response-fields.adoc[]
+
+===== 재고 차감 실패 (500)
+
+include::{snippets}/order-create-stock-deduct-failed/http-response.adoc[]
+include::{snippets}/order-create-stock-deduct-failed/response-fields.adoc[]
+
+---
+
+=== 주문 단건 조회
+
+==== 요청
+
+include::{snippets}/order-get/http-request.adoc[]
+
+==== 경로 파라미터
+
+include::{snippets}/order-get/path-parameters.adoc[]
+
+==== 응답
+
+include::{snippets}/order-get/http-response.adoc[]
+
+==== 응답 필드
+
+include::{snippets}/order-get/response-fields.adoc[]
+
+==== 에러 응답
+
+===== 주문 없음 (404)
+
+include::{snippets}/order-get-not-found/http-response.adoc[]
+include::{snippets}/order-get-not-found/response-fields.adoc[]
+
+---
+
+=== 주문 목록 조회
+
+==== 요청
+
+include::{snippets}/order-list/http-request.adoc[]
+
+==== 쿼리 파라미터
+
+include::{snippets}/order-list/query-parameters.adoc[]
+
+==== 응답
+
+include::{snippets}/order-list/http-response.adoc[]
+
+==== 응답 필드
+
+include::{snippets}/order-list/response-fields.adoc[]
+
+---
+
+=== 주문 수정
+
+==== 요청
+
+include::{snippets}/order-update/http-request.adoc[]
+
+==== 요청 헤더
+
+include::{snippets}/order-update/request-headers.adoc[]
+
+==== 경로 파라미터
+
+include::{snippets}/order-update/path-parameters.adoc[]
+
+==== 요청 필드
+
+include::{snippets}/order-update/request-fields.adoc[]
+
+==== 응답
+
+include::{snippets}/order-update/http-response.adoc[]
+
+==== 응답 필드
+
+include::{snippets}/order-update/response-fields.adoc[]
+
+==== 에러 응답
+
+===== 주문 없음 (404)
+
+include::{snippets}/order-update-not-found/http-response.adoc[]
+include::{snippets}/order-update-not-found/response-fields.adoc[]
+
+---
+
+=== 주문 취소
+
+==== 요청
+
+include::{snippets}/order-cancel/http-request.adoc[]
+
+==== 요청 헤더
+
+include::{snippets}/order-cancel/request-headers.adoc[]
+
+==== 경로 파라미터
+
+include::{snippets}/order-cancel/path-parameters.adoc[]
+
+==== 응답
+
+include::{snippets}/order-cancel/http-response.adoc[]
+
+==== 에러 응답
+
+===== 취소 불가 상태 (400)
+
+include::{snippets}/order-cancel-not-cancellable/http-response.adoc[]
+include::{snippets}/order-cancel-not-cancellable/response-fields.adoc[]
+
+---
+
+=== 주문 삭제
+
+==== 요청
+
+include::{snippets}/order-delete/http-request.adoc[]
+
+==== 요청 헤더
+
+include::{snippets}/order-delete/request-headers.adoc[]
+
+==== 경로 파라미터
+
+include::{snippets}/order-delete/path-parameters.adoc[]
+
+==== 응답
+
+include::{snippets}/order-delete/http-response.adoc[]
+
+==== 에러 응답
+
+===== 삭제 불가 상태 (400)
+
+include::{snippets}/order-delete-not-deletable/http-response.adoc[]
+include::{snippets}/order-delete-not-deletable/response-fields.adoc[]

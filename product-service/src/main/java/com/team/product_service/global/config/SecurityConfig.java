@@ -15,10 +15,15 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     @Bean
+    public AuthenticationFilter authenticationFilter() {
+        return new AuthenticationFilter();
+    }
+
+    @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             .csrf(AbstractHttpConfigurer::disable)
-            .addFilterBefore(new AuthenticationFilter(),
+            .addFilterBefore(authenticationFilter(),
                 UsernamePasswordAuthenticationFilter.class)
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -38,6 +43,9 @@ public class SecurityConfig {
 
                 // 내부 API - 서비스 간 통신 (인증 불필요)
                 .requestMatchers("/internal/**").permitAll()
+
+                // 문서 접근 허용
+                .requestMatchers("/docs/**").permitAll()
 
                 // 상품 생성
                 .requestMatchers(HttpMethod.POST, "/api/v1/products")
