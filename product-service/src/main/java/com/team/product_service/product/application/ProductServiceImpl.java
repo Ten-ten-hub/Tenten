@@ -14,6 +14,7 @@ import com.team.product_service.product.infrastructure.client.CompanyClient;
 import com.team.product_service.product.infrastructure.client.HubClient;
 import feign.FeignException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -22,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -41,19 +43,29 @@ public class ProductServiceImpl implements ProductService {
         try {
             companyClient.checkCompanyExists(command.companyId());
         } catch (FeignException.NotFound e) {
+            log.warn("[상품 생성] 업체 없음 companyId={}", command.companyId(), e);
             throw new BusinessException(ProductErrorCode.COMPANY_NOT_FOUND);
         } catch (FeignException e) {
+            log.error("[상품 생성] 업체 서비스 호출 실패 companyId={}, status={}", command.companyId(), e.status(), e);
+            throw new BusinessException(ProductErrorCode.SERVICE_UNAVAILABLE);
+        } catch (Exception e) {
+            log.error("[상품 생성] 업체 서비스 연결 실패 companyId={}", command.companyId(), e);
             throw new BusinessException(ProductErrorCode.SERVICE_UNAVAILABLE);
         }
 
-        // hubId 존재 여부 확인
-        try {
-            hubClient.checkHubExists(command.hubId());
-        } catch (FeignException.NotFound e) {
-            throw new BusinessException(ProductErrorCode.HUB_NOT_FOUND);
-        } catch (FeignException e) {
-            throw new BusinessException(ProductErrorCode.SERVICE_UNAVAILABLE);
-        }
+//        // hubId 존재 여부 확인 (허브 서비스 연결 해결 후 주석 해제)
+//        try {
+//            hubClient.checkHubExists(command.hubId());
+//        } catch (FeignException.NotFound e) {
+//            log.warn("[상품 생성] 허브 없음 hubId={}", command.hubId(), e);
+//            throw new BusinessException(ProductErrorCode.HUB_NOT_FOUND);
+//        } catch (FeignException e) {
+//            log.error("[상품 생성] 허브 서비스 호출 실패 hubId={}, status={}", command.hubId(), e.status(), e);
+//            throw new BusinessException(ProductErrorCode.SERVICE_UNAVAILABLE);
+//        } catch (Exception e) {
+//            log.error("[상품 생성] 허브 서비스 연결 실패 hubId={}", command.hubId(), e);
+//            throw new BusinessException(ProductErrorCode.SERVICE_UNAVAILABLE);
+//        }
 
         Product product = Product.create(
             command.name(),
@@ -72,7 +84,6 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public ProductResult getProduct(UUID productId) {
-
         Product product = findActiveProductById(productId);
         return ProductResult.from(product);
     }
@@ -94,7 +105,6 @@ public class ProductServiceImpl implements ProductService {
 
         product.update(command.name(), command.unitPrice(), command.description(), command.status());
         return ProductResult.from(product);
-
     }
 
     @Override
@@ -112,7 +122,6 @@ public class ProductServiceImpl implements ProductService {
     }
 
     private void validateDuplicateName(UUID companyId, String name, UUID excludedId) {
-
         if (productRepository.existsDuplicateName(companyId, name, excludedId)) {
             throw new BusinessException(ProductErrorCode.DUPLICATE_PRODUCT_NAME);
         }
