@@ -33,15 +33,31 @@ public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolve
             throw new ServiceException(DeliveryErrorCode.COMMON_INTERNAL_ERROR);
         }
 
+        String userIdHeader = request.getHeader("X-User-Id");
+        String roleHeader = request.getHeader("X-User-Role");
+
+        if (userIdHeader == null || userIdHeader.isBlank()
+            || roleHeader == null || roleHeader.isBlank()) {
+            throw new ServiceException(DeliveryErrorCode.COMMON_UNAUTHORIZED);
+        }
+
         return new CurrentUser(
-            parseUuid(request.getHeader("X-User-Id")),
-            request.getHeader("X-User-Role"),
-            parseUuid(request.getHeader("X-Hub-Id")),
-            parseUuid(request.getHeader("X-Company-Id"))
+            parseRequiredUuid(userIdHeader),
+            roleHeader,
+            parseOptionalUuid(request.getHeader("X-Hub-Id")),
+            parseOptionalUuid(request.getHeader("X-Company-Id"))
         );
     }
 
-    private UUID parseUuid(String value) {
+    private UUID parseRequiredUuid(String value) {
+        try {
+            return UUID.fromString(value);
+        } catch (IllegalArgumentException e) {
+            throw new ServiceException(DeliveryErrorCode.COMMON_UNAUTHORIZED);
+        }
+    }
+
+    private UUID parseOptionalUuid(String value) {
         if (value == null || value.isBlank()) {
             return null;
         }
