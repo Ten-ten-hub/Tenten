@@ -5,10 +5,13 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.util.List;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.annotation.Order;
+import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Component;
@@ -27,8 +30,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final long WINDOW_SECONDS = 60;
 
     @Override
-    @NonNull
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+    protected void doFilterInternal(HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain)
         throws ServletException, IOException {
 
             // 로그인 경로 아니면 게이트웨이로 넘김
@@ -47,7 +49,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
                     List.of(key), // KEYS 배열 : Lua 스크립트 안의 KEYS[1]에 매핑됨
                     String.valueOf(WINDOW_SECONDS) // Lua 스크립트 안의 ARGV[1]에 매핑
                 );
-            }catch (DagaAccessException e){
+            }catch (DataAccessException e){
                 filterChain.doFilter(request, response);
                 return;
             }
