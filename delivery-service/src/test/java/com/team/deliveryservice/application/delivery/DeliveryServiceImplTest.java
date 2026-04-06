@@ -52,6 +52,12 @@ class DeliveryServiceImplTest {
     private static final UUID SYSTEM_ACTOR_ID =
         UUID.fromString("00000000-0000-0000-0000-000000000000");
 
+    private static final UUID FIXED_ORIGIN_HUB_ID =
+        UUID.fromString("550e8400-e29b-41d4-a716-446655440001");
+
+    private static final UUID FIXED_DESTINATION_HUB_ID =
+        UUID.fromString("550e8400-e29b-41d4-a716-446655440013");
+
     @Mock
     private DeliveryRepository deliveryRepository;
 
@@ -80,8 +86,6 @@ class DeliveryServiceImplTest {
         UUID orderedBy = UUID.randomUUID();
         UUID supplierCompanyId = UUID.randomUUID();
         UUID receiverCompanyId = UUID.randomUUID();
-        UUID supplierHubId = UUID.randomUUID();
-        UUID receiverHubId = UUID.randomUUID();
 
         CreateDeliveryRequest request = new CreateDeliveryRequest(
             orderId,
@@ -93,11 +97,14 @@ class DeliveryServiceImplTest {
         );
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
+        givenReadyForDeliveryOrder(orderId, supplierCompanyId, receiverCompanyId);
         given(companyClient.getCompany(supplierCompanyId))
-            .willReturn(activeSupplierCompanyResponse(supplierCompanyId, supplierHubId));
+            .willReturn(activeSupplierCompanyResponse(supplierCompanyId, UUID.randomUUID()));
         given(companyClient.getCompany(receiverCompanyId))
-            .willReturn(activeReceiverCompanyResponse(receiverCompanyId, receiverHubId));
+            .willReturn(activeReceiverCompanyResponse(receiverCompanyId, UUID.randomUUID()));
         given(deliveryRepository.save(any(Delivery.class)))
+            .willAnswer(invocation -> invocation.getArgument(0));
+        given(deliveryRepository.saveAndFlush(any(Delivery.class)))
             .willAnswer(invocation -> invocation.getArgument(0));
         given(deliveryRouteLogRepository.findAllByDeliveryIdAndDeletedAtIsNullOrderBySequenceNoAsc(any()))
             .willReturn(List.of());
@@ -106,6 +113,8 @@ class DeliveryServiceImplTest {
 
         assertThat(response.orderId()).isEqualTo(orderId);
         assertThat(response.receiverCompanyId()).isEqualTo(receiverCompanyId);
+        assertThat(response.originHubId()).isEqualTo(FIXED_ORIGIN_HUB_ID);
+        assertThat(response.destinationHubId()).isEqualTo(FIXED_DESTINATION_HUB_ID);
         assertThat(response.deliveryAddress()).isEqualTo("서울시 강남구 테헤란로 123");
         assertThat(response.deliveryAddressDetail()).isEqualTo("101호");
         assertThat(response.recipientName()).isEqualTo("홍길동");
@@ -152,6 +161,7 @@ class DeliveryServiceImplTest {
         );
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
+        givenReadyForDeliveryOrder(orderId, supplierCompanyId, receiverCompanyId);
         given(companyClient.getCompany(supplierCompanyId))
             .willReturn(new CompanyInternalResponse(
                 supplierCompanyId,
@@ -176,7 +186,6 @@ class DeliveryServiceImplTest {
         UUID orderId = UUID.randomUUID();
         UUID supplierCompanyId = UUID.randomUUID();
         UUID receiverCompanyId = UUID.randomUUID();
-        UUID supplierHubId = UUID.randomUUID();
 
         CreateDeliveryRequest request = new CreateDeliveryRequest(
             orderId,
@@ -188,8 +197,9 @@ class DeliveryServiceImplTest {
         );
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
+        givenReadyForDeliveryOrder(orderId, supplierCompanyId, receiverCompanyId);
         given(companyClient.getCompany(supplierCompanyId))
-            .willReturn(activeSupplierCompanyResponse(supplierCompanyId, supplierHubId));
+            .willReturn(activeSupplierCompanyResponse(supplierCompanyId, UUID.randomUUID()));
         given(companyClient.getCompany(receiverCompanyId))
             .willReturn(new CompanyInternalResponse(
                 receiverCompanyId,
@@ -214,7 +224,6 @@ class DeliveryServiceImplTest {
         UUID orderId = UUID.randomUUID();
         UUID supplierCompanyId = UUID.randomUUID();
         UUID receiverCompanyId = UUID.randomUUID();
-        UUID receiverHubId = UUID.randomUUID();
 
         CreateDeliveryRequest request = new CreateDeliveryRequest(
             orderId,
@@ -226,6 +235,7 @@ class DeliveryServiceImplTest {
         );
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
+        givenReadyForDeliveryOrder(orderId, supplierCompanyId, receiverCompanyId);
         given(companyClient.getCompany(supplierCompanyId))
             .willReturn(new CompanyInternalResponse(
                 supplierCompanyId,
@@ -239,7 +249,7 @@ class DeliveryServiceImplTest {
                 true
             ));
         given(companyClient.getCompany(receiverCompanyId))
-            .willReturn(activeReceiverCompanyResponse(receiverCompanyId, receiverHubId));
+            .willReturn(activeReceiverCompanyResponse(receiverCompanyId, UUID.randomUUID()));
 
         assertThatThrownBy(() -> deliveryService.createDelivery(request))
             .isInstanceOf(ServiceException.class)
@@ -252,7 +262,6 @@ class DeliveryServiceImplTest {
         UUID orderId = UUID.randomUUID();
         UUID supplierCompanyId = UUID.randomUUID();
         UUID receiverCompanyId = UUID.randomUUID();
-        UUID supplierHubId = UUID.randomUUID();
 
         CreateDeliveryRequest request = new CreateDeliveryRequest(
             orderId,
@@ -264,8 +273,9 @@ class DeliveryServiceImplTest {
         );
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
+        givenReadyForDeliveryOrder(orderId, supplierCompanyId, receiverCompanyId);
         given(companyClient.getCompany(supplierCompanyId))
-            .willReturn(activeSupplierCompanyResponse(supplierCompanyId, supplierHubId));
+            .willReturn(activeSupplierCompanyResponse(supplierCompanyId, UUID.randomUUID()));
         given(companyClient.getCompany(receiverCompanyId))
             .willReturn(new CompanyInternalResponse(
                 receiverCompanyId,
@@ -290,8 +300,6 @@ class DeliveryServiceImplTest {
         UUID orderId = UUID.randomUUID();
         UUID supplierCompanyId = UUID.randomUUID();
         UUID receiverCompanyId = UUID.randomUUID();
-        UUID supplierHubId = UUID.randomUUID();
-        UUID receiverHubId = UUID.randomUUID();
 
         CreateDeliveryRequest request = new CreateDeliveryRequest(
             orderId,
@@ -303,14 +311,15 @@ class DeliveryServiceImplTest {
         );
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
+        givenReadyForDeliveryOrder(orderId, supplierCompanyId, receiverCompanyId);
         given(companyClient.getCompany(supplierCompanyId))
-            .willReturn(activeSupplierCompanyResponse(supplierCompanyId, supplierHubId));
+            .willReturn(activeSupplierCompanyResponse(supplierCompanyId, UUID.randomUUID()));
         given(companyClient.getCompany(receiverCompanyId))
             .willReturn(new CompanyInternalResponse(
                 receiverCompanyId,
                 "수령 업체",
                 "RECEIVER",
-                receiverHubId,
+                UUID.randomUUID(),
                 "",
                 "101호",
                 "홍길동",
@@ -329,8 +338,6 @@ class DeliveryServiceImplTest {
         UUID orderId = UUID.randomUUID();
         UUID supplierCompanyId = UUID.randomUUID();
         UUID receiverCompanyId = UUID.randomUUID();
-        UUID supplierHubId = UUID.randomUUID();
-        UUID receiverHubId = UUID.randomUUID();
 
         CreateDeliveryRequest request = new CreateDeliveryRequest(
             orderId,
@@ -342,14 +349,15 @@ class DeliveryServiceImplTest {
         );
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
+        givenReadyForDeliveryOrder(orderId, supplierCompanyId, receiverCompanyId);
         given(companyClient.getCompany(supplierCompanyId))
-            .willReturn(activeSupplierCompanyResponse(supplierCompanyId, supplierHubId));
+            .willReturn(activeSupplierCompanyResponse(supplierCompanyId, UUID.randomUUID()));
         given(companyClient.getCompany(receiverCompanyId))
             .willReturn(new CompanyInternalResponse(
                 receiverCompanyId,
                 "수령 업체",
                 "RECEIVER",
-                receiverHubId,
+                UUID.randomUUID(),
                 "서울시 강남구 테헤란로 123",
                 "101호",
                 "",
@@ -368,8 +376,6 @@ class DeliveryServiceImplTest {
         UUID orderId = UUID.randomUUID();
         UUID supplierCompanyId = UUID.randomUUID();
         UUID receiverCompanyId = UUID.randomUUID();
-        UUID supplierHubId = UUID.randomUUID();
-        UUID receiverHubId = UUID.randomUUID();
 
         CreateDeliveryRequest request = new CreateDeliveryRequest(
             orderId,
@@ -381,14 +387,15 @@ class DeliveryServiceImplTest {
         );
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
+        givenReadyForDeliveryOrder(orderId, supplierCompanyId, receiverCompanyId);
         given(companyClient.getCompany(supplierCompanyId))
-            .willReturn(activeSupplierCompanyResponse(supplierCompanyId, supplierHubId));
+            .willReturn(activeSupplierCompanyResponse(supplierCompanyId, UUID.randomUUID()));
         given(companyClient.getCompany(receiverCompanyId))
             .willReturn(new CompanyInternalResponse(
                 receiverCompanyId,
                 "수령 업체",
                 "RECEIVER",
-                receiverHubId,
+                UUID.randomUUID(),
                 "서울시 강남구 테헤란로 123",
                 "101호",
                 "홍길동",
@@ -418,6 +425,7 @@ class DeliveryServiceImplTest {
         );
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
+        givenReadyForDeliveryOrder(orderId, supplierCompanyId, receiverCompanyId);
         given(companyClient.getCompany(supplierCompanyId))
             .willThrow(feignBadRequestException());
 
@@ -432,8 +440,6 @@ class DeliveryServiceImplTest {
         UUID orderId = UUID.randomUUID();
         UUID supplierCompanyId = UUID.randomUUID();
         UUID receiverCompanyId = UUID.randomUUID();
-        UUID supplierHubId = UUID.randomUUID();
-        UUID receiverHubId = UUID.randomUUID();
 
         CreateDeliveryRequest request = new CreateDeliveryRequest(
             orderId,
@@ -445,10 +451,11 @@ class DeliveryServiceImplTest {
         );
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
+        givenReadyForDeliveryOrder(orderId, supplierCompanyId, receiverCompanyId);
         given(companyClient.getCompany(supplierCompanyId))
-            .willReturn(activeSupplierCompanyResponse(supplierCompanyId, supplierHubId));
+            .willReturn(activeSupplierCompanyResponse(supplierCompanyId, UUID.randomUUID()));
         given(companyClient.getCompany(receiverCompanyId))
-            .willReturn(activeReceiverCompanyResponse(receiverCompanyId, receiverHubId));
+            .willReturn(activeReceiverCompanyResponse(receiverCompanyId, UUID.randomUUID()));
         given(deliveryRepository.save(any(Delivery.class)))
             .willThrow(new DataIntegrityViolationException(
                 "duplicate key value violates unique constraint uk_p_delivery_order_id_active"
@@ -465,8 +472,6 @@ class DeliveryServiceImplTest {
         UUID orderId = UUID.randomUUID();
         UUID supplierCompanyId = UUID.randomUUID();
         UUID receiverCompanyId = UUID.randomUUID();
-        UUID supplierHubId = UUID.randomUUID();
-        UUID receiverHubId = UUID.randomUUID();
 
         CreateDeliveryRequest request = new CreateDeliveryRequest(
             orderId,
@@ -478,10 +483,11 @@ class DeliveryServiceImplTest {
         );
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
+        givenReadyForDeliveryOrder(orderId, supplierCompanyId, receiverCompanyId);
         given(companyClient.getCompany(supplierCompanyId))
-            .willReturn(activeSupplierCompanyResponse(supplierCompanyId, supplierHubId));
+            .willReturn(activeSupplierCompanyResponse(supplierCompanyId, UUID.randomUUID()));
         given(companyClient.getCompany(receiverCompanyId))
-            .willReturn(activeReceiverCompanyResponse(receiverCompanyId, receiverHubId));
+            .willReturn(activeReceiverCompanyResponse(receiverCompanyId, UUID.randomUUID()));
         given(deliveryRepository.save(any(Delivery.class)))
             .willThrow(new DataIntegrityViolationException("other constraint"));
 
@@ -565,17 +571,7 @@ class DeliveryServiceImplTest {
         UUID destinationHubId = UUID.randomUUID();
         CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), "HUB_ADMIN", destinationHubId, null);
 
-        Delivery delivery = Delivery.create(
-            UUID.randomUUID(),
-            UUID.randomUUID(),
-            destinationHubId,
-            UUID.randomUUID(),
-            "서울시 강남구 테헤란로 123",
-            "101호",
-            "홍길동",
-            "U12345678",
-            LocalDateTime.of(2026, 4, 1, 18, 0)
-        );
+        Delivery delivery = createDeliveryWithDestinationHub(destinationHubId);
 
         DeliveryManager manager = createCompanyDeliveryManager(destinationHubId);
         AssignCompanyDeliveryManagerRequest request = new AssignCompanyDeliveryManagerRequest(manager.getId());
@@ -597,9 +593,16 @@ class DeliveryServiceImplTest {
     void assign_company_delivery_manager_fail_not_found() {
         UUID deliveryId = UUID.randomUUID();
         UUID managerId = UUID.randomUUID();
-        CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), "HUB_ADMIN", UUID.randomUUID(), null);
+        UUID destinationHubId = UUID.randomUUID();
 
-        Delivery delivery = createDelivery();
+        CurrentUser currentUser = new CurrentUser(
+            UUID.randomUUID(),
+            "HUB_ADMIN",
+            destinationHubId,
+            null
+        );
+
+        Delivery delivery = createDeliveryWithDestinationHub(destinationHubId);
         AssignCompanyDeliveryManagerRequest request = new AssignCompanyDeliveryManagerRequest(managerId);
 
         given(deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)).willReturn(Optional.of(delivery));
@@ -618,19 +621,9 @@ class DeliveryServiceImplTest {
         UUID destinationHubId = UUID.randomUUID();
         CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), "HUB_ADMIN", destinationHubId, null);
 
-        Delivery delivery = Delivery.create(
-            UUID.randomUUID(),
-            UUID.randomUUID(),
-            destinationHubId,
-            UUID.randomUUID(),
-            "서울시 강남구 테헤란로 123",
-            "101호",
-            "홍길동",
-            "U12345678",
-            LocalDateTime.of(2026, 4, 1, 18, 0)
-        );
+        Delivery delivery = createDeliveryWithDestinationHub(destinationHubId);
 
-        DeliveryManager manager = createHubDeliveryManager();
+        DeliveryManager manager = createHubDeliveryManager(destinationHubId);
         AssignCompanyDeliveryManagerRequest request = new AssignCompanyDeliveryManagerRequest(manager.getId());
 
         given(deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)).willReturn(Optional.of(delivery));
@@ -650,17 +643,7 @@ class DeliveryServiceImplTest {
         UUID anotherHubId = UUID.randomUUID();
         CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), "HUB_ADMIN", destinationHubId, null);
 
-        Delivery delivery = Delivery.create(
-            UUID.randomUUID(),
-            UUID.randomUUID(),
-            destinationHubId,
-            UUID.randomUUID(),
-            "서울시 강남구 테헤란로 123",
-            "101호",
-            "홍길동",
-            "U12345678",
-            LocalDateTime.of(2026, 4, 1, 18, 0)
-        );
+        Delivery delivery = createDeliveryWithDestinationHub(destinationHubId);
 
         DeliveryManager manager = createCompanyDeliveryManager(anotherHubId);
         AssignCompanyDeliveryManagerRequest request = new AssignCompanyDeliveryManagerRequest(manager.getId());
@@ -681,17 +664,7 @@ class DeliveryServiceImplTest {
         UUID destinationHubId = UUID.randomUUID();
         CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), "HUB_ADMIN", destinationHubId, null);
 
-        Delivery delivery = Delivery.create(
-            UUID.randomUUID(),
-            UUID.randomUUID(),
-            destinationHubId,
-            UUID.randomUUID(),
-            "서울시 강남구 테헤란로 123",
-            "101호",
-            "홍길동",
-            "U12345678",
-            LocalDateTime.of(2026, 4, 1, 18, 0)
-        );
+        Delivery delivery = createDeliveryWithDestinationHub(destinationHubId);
         delivery.cancel();
 
         DeliveryManager manager = createCompanyDeliveryManager(destinationHubId);
@@ -710,6 +683,7 @@ class DeliveryServiceImplTest {
     @DisplayName("허브 배송 담당자 배정 성공")
     void assign_hub_delivery_manager_success() {
         UUID deliveryId = UUID.randomUUID();
+        UUID hubId = UUID.randomUUID();
         CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), "MASTER_ADMIN", null, null);
 
         Delivery delivery = createDelivery();
@@ -723,7 +697,7 @@ class DeliveryServiceImplTest {
             null
         );
 
-        DeliveryManager manager = createHubDeliveryManager();
+        DeliveryManager manager = createHubDeliveryManager(hubId);
         AssignHubDeliveryManagerRequest request =
             new AssignHubDeliveryManagerRequest(routeLog.getId(), manager.getId());
 
@@ -746,6 +720,7 @@ class DeliveryServiceImplTest {
     @DisplayName("허브 배송 담당자 배정 실패 - routeLog 가 해당 배송 소속이 아님")
     void assign_hub_delivery_manager_fail_route_log_delivery_mismatch() {
         UUID deliveryId = UUID.randomUUID();
+        UUID hubId = UUID.randomUUID();
         CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), "MASTER_ADMIN", null, null);
 
         Delivery delivery = createDelivery();
@@ -759,7 +734,7 @@ class DeliveryServiceImplTest {
             null
         );
 
-        DeliveryManager manager = createHubDeliveryManager();
+        DeliveryManager manager = createHubDeliveryManager(hubId);
         AssignHubDeliveryManagerRequest request =
             new AssignHubDeliveryManagerRequest(anotherDeliveryRouteLog.getId(), manager.getId());
 
@@ -809,6 +784,7 @@ class DeliveryServiceImplTest {
     @DisplayName("허브 배송 담당자 배정 실패 - 완료된 배송 경로에는 배정할 수 없음")
     void assign_hub_delivery_manager_fail_when_route_delivered() {
         UUID deliveryId = UUID.randomUUID();
+        UUID hubId = UUID.randomUUID();
         CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), "MASTER_ADMIN", null, null);
 
         Delivery delivery = createDelivery();
@@ -820,13 +796,14 @@ class DeliveryServiceImplTest {
             .arrivalHubId(UUID.randomUUID())
             .expectedDistanceKm(BigDecimal.valueOf(12.5))
             .expectedDurationMinutes(30)
+            .realDurationMinutes(30)
             .routeStatus(DeliveryRouteStatus.DELIVERED)
             .deliveryManagerId(null)
             .departedAt(LocalDateTime.now().minusHours(1))
             .arrivedAt(LocalDateTime.now())
             .build();
 
-        DeliveryManager manager = createHubDeliveryManager();
+        DeliveryManager manager = createHubDeliveryManager(hubId);
         AssignHubDeliveryManagerRequest request =
             new AssignHubDeliveryManagerRequest(routeLog.getId(), manager.getId());
 
@@ -904,13 +881,13 @@ class DeliveryServiceImplTest {
                 "신선 전복 세트",
                 "READY_FOR_DELIVERY"
             ));
-        given(hubClient.getHub(eq(originHubId), any()))
+        given(hubClient.getHub(originHubId, "true"))
             .willReturn(new HubInternalResponse(
                 originHubId,
                 "서울 허브",
                 "서울특별시 송파구 송파동"
             ));
-        given(hubClient.getHub(eq(destinationHubId), any()))
+        given(hubClient.getHub(destinationHubId, "true"))
             .willReturn(new HubInternalResponse(
                 destinationHubId,
                 "부산 허브",
@@ -993,7 +970,7 @@ class DeliveryServiceImplTest {
                 "신선 전복 세트",
                 "READY_FOR_DELIVERY"
             ));
-        given(hubClient.getHub(eq(delivery.getOriginHubId()), any()))
+        given(hubClient.getHub(delivery.getOriginHubId(), "true"))
             .willThrow(feignNotFoundException());
 
         assertThatThrownBy(() -> deliveryService.getAiDeliveryInfo(deliveryId))
@@ -1020,7 +997,7 @@ class DeliveryServiceImplTest {
                 "신선 전복 세트",
                 "READY_FOR_DELIVERY"
             ));
-        given(hubClient.getHub(eq(delivery.getOriginHubId()), any()))
+        given(hubClient.getHub(delivery.getOriginHubId(), "true"))
             .willThrow(feignBadRequestException());
 
         assertThatThrownBy(() -> deliveryService.getAiDeliveryInfo(deliveryId))
@@ -1028,11 +1005,40 @@ class DeliveryServiceImplTest {
             .hasMessage(DeliveryErrorCode.HUB_SERVICE_UNAVAILABLE.getMessage());
     }
 
+    private void givenReadyForDeliveryOrder(UUID orderId, UUID supplierCompanyId, UUID receiverCompanyId) {
+        given(orderClient.getOrder(orderId))
+            .willReturn(new OrderInternalResponse(
+                orderId,
+                UUID.randomUUID(),
+                supplierCompanyId,
+                receiverCompanyId,
+                null,
+                LocalDateTime.of(2026, 4, 1, 18, 0),
+                "요청사항",
+                "테스트 상품",
+                "READY_FOR_DELIVERY"
+            ));
+    }
+
     private Delivery createDelivery() {
         return Delivery.create(
             UUID.randomUUID(),
             UUID.randomUUID(),
             UUID.randomUUID(),
+            UUID.randomUUID(),
+            "서울시 강남구 테헤란로 123",
+            "101호",
+            "홍길동",
+            "U12345678",
+            LocalDateTime.of(2026, 4, 1, 18, 0)
+        );
+    }
+
+    private Delivery createDeliveryWithDestinationHub(UUID destinationHubId) {
+        return Delivery.create(
+            UUID.randomUUID(),
+            UUID.randomUUID(),
+            destinationHubId,
             UUID.randomUUID(),
             "서울시 강남구 테헤란로 123",
             "101호",
@@ -1052,10 +1058,10 @@ class DeliveryServiceImplTest {
         );
     }
 
-    private DeliveryManager createHubDeliveryManager() {
+    private DeliveryManager createHubDeliveryManager(UUID hubId) {
         return DeliveryManager.create(
             UUID.randomUUID(),
-            null,
+            hubId,
             "U123HUB",
             DeliveryManagerType.HUB_DELIVERY_MANAGER,
             1

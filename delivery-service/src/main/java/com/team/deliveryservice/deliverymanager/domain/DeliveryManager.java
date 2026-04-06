@@ -22,7 +22,7 @@ public class DeliveryManager extends BaseEntity {
     @Id
     private UUID id;
 
-    @Column(name = "hub_id")
+    @Column(name = "hub_id", nullable = false)
     private UUID hubId;
 
     @Column(name = "slack_id", nullable = false, length = 100)
@@ -57,7 +57,7 @@ public class DeliveryManager extends BaseEntity {
         DeliveryManagerType type,
         Integer deliverySequence
     ) {
-        validate(type, hubId);
+        validate(type, hubId, slackId, deliverySequence);
 
         return DeliveryManager.builder()
             .id(id)
@@ -69,23 +69,32 @@ public class DeliveryManager extends BaseEntity {
     }
 
     public void update(UUID hubId, String slackId, DeliveryManagerType type) {
-        validate(type, hubId);
+        validate(type, hubId, slackId, this.deliverySequence);
         this.hubId = hubId;
         this.slackId = slackId;
         this.type = type;
     }
 
-    private static void validate(DeliveryManagerType type, UUID hubId) {
+    private static void validate(
+        DeliveryManagerType type,
+        UUID hubId,
+        String slackId,
+        Integer deliverySequence
+    ) {
         if (type == null) {
             throw new IllegalArgumentException("배송 담당자 타입은 필수입니다.");
         }
 
-        if (type == DeliveryManagerType.COMPANY_DELIVERY_MANAGER && hubId == null) {
-            throw new IllegalArgumentException("업체 배송 담당자는 소속 허브 ID가 필요합니다.");
+        if (hubId == null) {
+            throw new IllegalArgumentException("배송 담당자의 소속 허브 ID는 필수입니다.");
         }
 
-        if (type == DeliveryManagerType.HUB_DELIVERY_MANAGER && hubId != null) {
-            throw new IllegalArgumentException("허브 배송 담당자는 소속 허브 ID를 가지면 안 됩니다.");
+        if (slackId == null || slackId.isBlank()) {
+            throw new IllegalArgumentException("슬랙 ID는 필수입니다.");
+        }
+
+        if (deliverySequence == null || deliverySequence < 0) {
+            throw new IllegalArgumentException("배송 순번은 0 이상이어야 합니다.");
         }
     }
 }

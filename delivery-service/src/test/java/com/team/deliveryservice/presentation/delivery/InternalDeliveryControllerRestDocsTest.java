@@ -75,6 +75,7 @@ class InternalDeliveryControllerRestDocsTest {
             .arrivalHubId(UUID.fromString("40000000-0000-0000-0000-000000000002"))
             .expectedDistanceKm(new BigDecimal("12.50"))
             .expectedDurationMinutes(30)
+            .realDurationMinutes(35)
             .routeStatus(DeliveryRouteStatus.WAITING_AT_HUB)
             .deliveryManagerId(UUID.fromString("50000000-0000-0000-0000-000000000001"))
             .departedAt(null)
@@ -108,12 +109,12 @@ class InternalDeliveryControllerRestDocsTest {
     @DisplayName("내부 배송 생성 API 문서화")
     void createDeliveryDocs() throws Exception {
         CreateDeliveryRequest request = new CreateDeliveryRequest(
-            UUID.randomUUID(), // orderId
-            UUID.randomUUID(), // orderedBy
-            UUID.randomUUID(), // supplierCompanyId
-            UUID.randomUUID(), // receiverCompanyId
-            LocalDateTime.of(2026, 4, 1, 18, 0), // deadlineAt
-            "문 앞에 놓아주세요" // requestNote
+            UUID.randomUUID(),
+            UUID.randomUUID(),
+            UUID.randomUUID(),
+            UUID.randomUUID(),
+            LocalDateTime.of(2026, 4, 1, 18, 0),
+            "문 앞에 놓아주세요"
         );
 
         when(deliveryService.createDelivery(any())).thenReturn(mockDeliveryResponse());
@@ -255,6 +256,7 @@ class InternalDeliveryControllerRestDocsTest {
             fieldWithPath("data.routeLogs[].arrivalHubId").type(JsonFieldType.STRING).description("도착 허브 ID"),
             fieldWithPath("data.routeLogs[].expectedDistanceKm").type(JsonFieldType.NUMBER).description("예상 거리(km)"),
             fieldWithPath("data.routeLogs[].expectedDurationMinutes").type(JsonFieldType.NUMBER).description("예상 소요 시간(분)"),
+            fieldWithPath("data.routeLogs[].realDurationMinutes").type(JsonFieldType.NUMBER).optional().description("실제 소요 시간(분)"),
             fieldWithPath("data.routeLogs[].routeStatus").type(JsonFieldType.STRING).description("배송 경로 상태"),
             fieldWithPath("data.routeLogs[].deliveryManagerId").type(JsonFieldType.STRING).optional().description("허브 배송 담당자 ID"),
             fieldWithPath("data.routeLogs[].departedAt").type(JsonFieldType.NULL).optional().description("출발 시각"),

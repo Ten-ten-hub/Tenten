@@ -6,7 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.UUID;
 
 public record UpdateDeliveryManagerRequest(
-    UUID hubId,
+    @NotNull UUID hubId,
     @NotBlank String slackId,
     @NotNull DeliveryManagerType type
 ) {

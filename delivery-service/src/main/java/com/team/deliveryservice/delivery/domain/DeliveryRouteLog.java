@@ -1,6 +1,5 @@
 package com.team.deliveryservice.delivery.domain;
 
-import com.team.common.BaseEntity;
 import com.team.deliveryservice.global.error.DeliveryErrorCode;
 import com.team.deliveryservice.global.error.ServiceException;
 import jakarta.persistence.Column;
@@ -21,7 +20,7 @@ import lombok.NoArgsConstructor;
 @Entity
 @Table(name = "p_delivery_route_log")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class DeliveryRouteLog extends BaseEntity {
+public class DeliveryRouteLog extends com.team.common.BaseEntity {
 
     @Id
     private UUID id;
@@ -43,6 +42,9 @@ public class DeliveryRouteLog extends BaseEntity {
 
     @Column(nullable = false)
     private Integer expectedDurationMinutes;
+
+    @Column
+    private Integer realDurationMinutes;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, columnDefinition = "delivery_route_status")
@@ -66,18 +68,20 @@ public class DeliveryRouteLog extends BaseEntity {
         UUID arrivalHubId,
         BigDecimal expectedDistanceKm,
         Integer expectedDurationMinutes,
+        Integer realDurationMinutes,
         DeliveryRouteStatus routeStatus,
         UUID deliveryManagerId,
         LocalDateTime departedAt,
         LocalDateTime arrivedAt
     ) {
-        this.id = id;
+        this.id = id == null ? UUID.randomUUID() : id;
         this.deliveryId = deliveryId;
         this.sequenceNo = sequenceNo;
         this.departureHubId = departureHubId;
         this.arrivalHubId = arrivalHubId;
         this.expectedDistanceKm = expectedDistanceKm;
         this.expectedDurationMinutes = expectedDurationMinutes;
+        this.realDurationMinutes = realDurationMinutes;
         this.routeStatus = routeStatus;
         this.deliveryManagerId = deliveryManagerId;
         this.departedAt = departedAt;
@@ -96,13 +100,13 @@ public class DeliveryRouteLog extends BaseEntity {
         validate(deliveryId, sequenceNo, departureHubId, arrivalHubId, expectedDistanceKm, expectedDurationMinutes);
 
         return DeliveryRouteLog.builder()
-            .id(UUID.randomUUID())
             .deliveryId(deliveryId)
             .sequenceNo(sequenceNo)
             .departureHubId(departureHubId)
             .arrivalHubId(arrivalHubId)
             .expectedDistanceKm(expectedDistanceKm)
             .expectedDurationMinutes(expectedDurationMinutes)
+            .realDurationMinutes(null)
             .routeStatus(DeliveryRouteStatus.WAITING_AT_HUB)
             .deliveryManagerId(deliveryManagerId)
             .build();
