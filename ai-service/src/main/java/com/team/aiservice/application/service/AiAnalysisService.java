@@ -4,50 +4,38 @@ import com.team.aiservice.application.dto.AiRequest;
 import com.team.aiservice.domain.model.AiAnalysis;
 import com.team.aiservice.domain.model.AnalysisType;
 import com.team.aiservice.domain.repository.AiAnalysisRepository;
-import com.team.aiservice.infrastructure.client.HubClient;
 import com.team.aiservice.infrastructure.client.NotificationClient;
+import com.team.aiservice.presentation.common.ErrorCode;
+import com.team.common.exception.BusinessException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatModel;
-import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
-//@RequiredArgsConstructor //TODO mock 제거 후 활성화
+@RequiredArgsConstructor
 public class AiAnalysisService {
 
     private static final Pattern SCHEDULE_TIME_PATTERN = Pattern.compile("\\[TIME: (.*?)\\]");
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     private final OpenAiChatModel chatModel;
-    @Qualifier("mockHubClient") //TODO 임시
-    private final HubClient hubClient;
     private final NaverNewsService naverNewsService;
     private final AiAnalysisRepository aiAnalysisRepository;
     private final NotificationClient notificationClient;
-
-    // 생성자를 직접 작성하여 mockHubClient를 주입받도록 지정 TODO mock 제거 후 지우기
-    public AiAnalysisService(
-        OpenAiChatModel chatModel,
-        @Qualifier("mockHubClient") HubClient hubClient, // 명시적 지정
-        NaverNewsService naverNewsService,
-        AiAnalysisRepository aiAnalysisRepository,
-        NotificationClient notificationClient
-    ) {
-        this.chatModel = chatModel;
-        this.hubClient = hubClient;
-        this.naverNewsService = naverNewsService;
-        this.aiAnalysisRepository = aiAnalysisRepository;
-        this.notificationClient = notificationClient;
-    }
+    private final HubRouteCacheService hubRouteCacheService;
 
     @Transactional
     public AiAnalysis analyzeDeadline(AiRequest request) {
@@ -56,20 +44,21 @@ public class AiAnalysisService {
         String currentTimeStr = now.format(DATE_TIME_FORMATTER);
 
         // 1. 허브 경로 소요시간 조회 (외부 호출)
-        var route = hubClient.getRoute(request.originHubId(), request.destinationHubId());
+        var route = hubRouteCacheService.getCachedRoute(request.originHubId(), request.destinationHubId());
 
         if (route == null || route.duration() == null) {
-            log.error("[HUB CLIENT ERROR] 경로 정보를 가져올 수 없습니다. Origin: {}, Dest: {}",
-                request.originHubId(), request.destinationHubId());
-            throw new RuntimeException("배송 경로 정보(소요 시간)가 유효하지 않아 AI 분석이 불가능합니다.");
+            log.error("[HUB ERROR] 유효하지 않은 경로 정보");
+            throw new BusinessException(ErrorCode.COMMON_INVALID_INPUT_VALUE);
         }
 
-        // 2. 광역 뉴스 검색 (외부 호출) (시/구 단위)
+        // 2. 광역 뉴스 검색 쿼리 최적화
         String originArea = extractArea(request.originAddress());
         String destArea = extractArea(request.destinationAddress());
 
-        String query = String.format("%s %s 날씨 교통사고", originArea, destArea);
-        log.info("[NAVER NEWS SEARCH] Query: {}", query);
+        // 현재 날짜를 쿼리에 포함하여 최신 정보를 강제함
+        String today = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy년 MM월 dd일"));
+        String query = String.format("%s %s %s 실시간 날씨 교통사고", originArea, destArea, today);
+        log.info("[NAVER NEWS SEARCH] Optimized Query: {}", query);
 
         // 인라인 로직을 fetchNewsContext 호출로 대체
         String newsAndWeatherContext = naverNewsService.fetchNewsContext(query);
@@ -184,5 +173,22 @@ public class AiAnalysisService {
             log.warn("Failed to parse time from AI result: {}", e.getMessage());
         }
         return LocalDateTime.now().plusHours(2);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<AiAnalysis> search(UUID orderId, Pageable pageable) {
+        if (orderId != null) {
+            return aiAnalysisRepository.findByOrderIdAndDeletedAtIsNull(orderId, pageable);
+        }
+        return aiAnalysisRepository.findAllByDeletedAtIsNull(pageable);
+    }
+
+    @Transactional
+    public void softDelete(UUID id, UUID deletedBy) {
+        AiAnalysis analysis = aiAnalysisRepository.findByIdAndDeletedAtIsNull(id)
+            .orElseThrow(() -> new BusinessException(ErrorCode.AI_NOT_FOUND));
+
+        analysis.softDelete(deletedBy);
+        aiAnalysisRepository.save(analysis);
     }
 }
