@@ -65,6 +65,7 @@ public class AuthServiceImpl implements AuthService {
 
         // compareAndReplace: 원자적으로 "기존 RT == Redis RT"이면 새 RT로 교체
         if (!redisTokenRepository.compareAndReplace(userId, refreshToken, newRefreshToken)) {
+            redisTokenRepository.delete(userId);// 탈취자 감지시 해당 유저 아이디로 활성화된 세션 종료
             throw new AuthException(AuthErrorCode.INVALID_TOKEN);
             // -> 이미 다른 요청이 RT를 교체했거나, RT가 일치하지 않는 경우
         }
