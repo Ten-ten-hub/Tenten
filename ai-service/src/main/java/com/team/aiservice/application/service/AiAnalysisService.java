@@ -138,13 +138,12 @@ public class AiAnalysisService {
     }
 
     /**
-     * 알림 서비스 호출 및 도메인 매핑 (AnalysisType -> MsgType)
+     * 알림 서비스 호출 및 도메인 매핑 (AnalysisType -> MsgType) Kafka 전송 결과(boolean)를 확인하여 실패 시 예외를 발생시킴
      */
     private void sendNotification(AiRequest request, String rawResult, AiAnalysis savedAnalysis) {
         LocalDateTime scheduledAt = parseScheduledTime(rawResult);
         String cleanResult = rawResult.replaceAll("\\[TIME:.*?\\]", "").trim();
 
-        // 분석 타입에 따른 알림 서비스용 메시지 타입 결정
         String targetMsgType = determineMsgType(savedAnalysis.getAnalysisType());
 
         try {
@@ -158,11 +157,24 @@ public class AiAnalysisService {
                 targetMsgType
             );
 
-            // application.properties에서 설정한 binding 이름: "ai-notification-out-0"
-            streamBridge.send("ai-notification-out-0", kafkaPayload);
+            // 1. 전송 결과(boolean)를 캡처
+            boolean isSent = streamBridge.send("ai-notification-out-0", kafkaPayload);
+
+            // 2. 결과가 false인 경우 에러 처리
+            if (!isSent) {
+                log.error("[KAFKA PUBLISH FAILED] StreamBridge returned false. AnalysisID: {}, OrderID: {}",
+                    savedAnalysis.getId(), request.orderId());
+                // 비즈니스 로직상 전송 실패를 알리기 위해 예외 발생
+                throw new BusinessException(ErrorCode.COMMON_SYSTEM_ERROR);
+            }
+
             log.info("Kafka 알림 메시지 발행 성공: AnalysisID={}", savedAnalysis.getId());
+
         } catch (Exception e) {
-            log.error("Kafka 알림 메시지 발행 실패: {}", e.getMessage());
+            log.error("[KAFKA ERROR] 메시지 발행 중 예외 발생: AnalysisID={}, Message={}",
+                savedAnalysis.getId(), e.getMessage());
+            // 기존과 동일하게 예외를 다시 던져서 트랜잭션 롤백 등을 유도하거나 상위에서 인지하게 함
+            throw e;
         }
     }
 

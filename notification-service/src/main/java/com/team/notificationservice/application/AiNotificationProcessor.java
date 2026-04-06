@@ -20,6 +20,12 @@ public class AiNotificationProcessor {
 
     @Transactional
     public void processAiNotification(AiNotificationRequest aiRequest, String msgType) {
+        // 1. 멱등성 체크: 동일한 refId(AiAnalysis ID)로 이미 처리된 내역이 있는지 확인
+        if (notificationRepository.existsByRefId(aiRequest.refId())) {
+            log.info(">>>> [중복 메시지 스킵] 이미 처리된 RefID 입니다: {}", aiRequest.refId());
+            return; // 이미 저장/발송되었으므로 로직 종료
+        }
+        
         log.info(">>>> [DB 저장 및 슬랙 발송 시작] RefID: {}", aiRequest.refId());
 
         MsgType type;
