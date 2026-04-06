@@ -24,14 +24,7 @@ public class HubInternalController {
     }
 
     @GetMapping("/{hubId}/exists")
-    public ResponseEntity<Map<String, Object>> checkHubExists(
-        @PathVariable UUID hubId,
-        @RequestHeader(value = "X-Internal-Request", required = true) String internalHeader
-    ) {
-        if (!"true".equals(internalHeader)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
-
+    public ResponseEntity<Map<String, Object>> checkHubExists(@PathVariable UUID hubId) {
         boolean isExists = hubService.checkHubExists(hubId);
 
         Map<String, Object> data = new HashMap<>();
@@ -57,14 +50,7 @@ public class HubInternalController {
     }
 
     @GetMapping("/{hubId}")
-    public ResponseEntity<HubInternalResponse> getHubInternal(
-        @PathVariable UUID hubId,
-        @RequestHeader(value = "X-Internal-Request", required = true) String internalHeader
-    ) {
-        if (!"true".equals(internalHeader)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
-
+    public ResponseEntity<HubInternalResponse> getHubInternal(@PathVariable UUID hubId) {
         var hub = hubService.getHubInternal(hubId);
 
         return ResponseEntity.ok(new HubInternalResponse(
