@@ -53,7 +53,7 @@ public class Notification extends BaseEntity {
     @Column(name = "scheduled_at")
     private LocalDateTime scheduledAt;
 
-    @Column(name = "ref_id")
+    @Column(name = "ref_id", unique = true)
     private UUID refId;
 
     public void markAsSuccess() {
