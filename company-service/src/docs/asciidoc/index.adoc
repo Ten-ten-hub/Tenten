@@ -1,0 +1,112 @@
+= Company Service API 문서
+:doctype: book
+:icons: font
+:source-highlighter: highlightjs
+:toc: left
+:toclevels: 3
+:sectlinks:
+
+== 업체 서비스 개요
+
+업체 서비스는 업체 생성, 조회, 검색, 수정, 삭제 및 업체 관리자 지정 기능을 제공합니다.
+
+본 문서는 Spring RestDocs 기반으로 생성되며,
+테스트를 통과한 API만 문서에 반영됩니다.
+
+== 외부 API
+
+=== 업체 생성
+
+`POST /api/v1/companies`
+
+==== 요청
+
+include::{snippets}/companies/create/http-request.adoc[]
+include::{snippets}/companies/create/request-fields.adoc[]
+
+==== 응답
+
+include::{snippets}/companies/create/http-response.adoc[]
+include::{snippets}/companies/create/response-fields.adoc[]
+
+---
+
+=== 업체 단건 조회
+
+`GET /api/v1/companies/{companyId}`
+
+==== 요청
+
+include::{snippets}/companies/get/http-request.adoc[]
+include::{snippets}/companies/get/path-parameters.adoc[]
+
+==== 응답
+
+include::{snippets}/companies/get/http-response.adoc[]
+include::{snippets}/companies/get/response-fields.adoc[]
+
+---
+
+=== 업체 검색
+
+`GET /api/v1/companies`
+
+==== 요청
+
+include::{snippets}/companies/search/http-request.adoc[]
+include::{snippets}/companies/search/query-parameters.adoc[]
+
+==== 응답
+
+include::{snippets}/companies/search/http-response.adoc[]
+include::{snippets}/companies/search/response-fields.adoc[]
+
+---
+
+=== 업체 수정
+
+`PUT /api/v1/companies/{companyId}`
+
+==== 요청
+
+include::{snippets}/companies/update/http-request.adoc[]
+include::{snippets}/companies/update/path-parameters.adoc[]
+include::{snippets}/companies/update/request-fields.adoc[]
+
+==== 응답
+
+include::{snippets}/companies/update/http-response.adoc[]
+include::{snippets}/companies/update/response-fields.adoc[]
+
+---
+
+=== 업체 삭제
+
+`DELETE /api/v1/companies/{companyId}`
+
+==== 요청
+
+include::{snippets}/companies/delete/http-request.adoc[]
+include::{snippets}/companies/delete/path-parameters.adoc[]
+
+==== 응답
+
+include::{snippets}/companies/delete/http-response.adoc[]
+include::{snippets}/companies/delete/response-fields.adoc[]
+
+---
+
+=== 업체 관리자 지정
+
+`PATCH /api/v1/companies/{companyId}/manager`
+
+==== 요청
+
+include::{snippets}/companies/assign-manager/http-request.adoc[]
+include::{snippets}/companies/assign-manager/path-parameters.adoc[]
+include::{snippets}/companies/assign-manager/request-fields.adoc[]
+
+==== 응답
+
+include::{snippets}/companies/assign-manager/http-response.adoc[]
+include::{snippets}/companies/assign-manager/response-fields.adoc[]
