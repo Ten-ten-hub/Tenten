@@ -518,7 +518,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div class="content">
 <pre class="highlightjs highlight nowrap"><code class="language-http hljs" data-lang="http">POST /api/v1/companies HTTP/1.1
 Content-Type: application/json
-X-User-Id: 2818a86b-2120-4d37-ba71-1af842f65b71
+X-User-Id: 324eae4f-759d-48dd-bed5-b74449543d22
 X-User-Role: MASTER_ADMIN
 Content-Length: 328
 Host: localhost:8080
@@ -526,7 +526,7 @@ Host: localhost:8080
 {
   "name" : "서울 생산업체",
   "companyType" : "PRODUCER",
-  "hubId" : "d9e829d0-db5d-4f7f-9ece-20fff628e567",
+  "hubId" : "9145ea87-fe0f-441a-b00d-a90671ea48b9",
   "address" : "서울특별시 강남구 테헤란로 123",
   "addressDetail" : "5층",
   "zipcode" : "06234",
@@ -609,10 +609,10 @@ Content-Length: 591
 {
   "success" : true,
   "data" : {
-    "id" : "2d14fc07-f1d8-4dba-9ab9-ebe59f1fa75b",
+    "id" : "2a19273f-5d61-4388-bf6b-a45e191fdbc2",
     "name" : "서울 생산업체",
     "companyType" : "PRODUCER",
-    "hubId" : "d9e829d0-db5d-4f7f-9ece-20fff628e567",
+    "hubId" : "9145ea87-fe0f-441a-b00d-a90671ea48b9",
     "address" : "서울특별시 강남구 테헤란로 123",
     "addressDetail" : "5층",
     "zipcode" : "06234",
@@ -736,7 +736,7 @@ Content-Length: 591
 <h4 id="_요청_2"><a class="link" href="#_요청_2">요청</a></h4>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight nowrap"><code class="language-http hljs" data-lang="http">GET /api/v1/companies/06642394-c8c6-4aba-b7a1-e1d39169697f HTTP/1.1
+<pre class="highlightjs highlight nowrap"><code class="language-http hljs" data-lang="http">GET /api/v1/companies/53388d7e-6a39-4743-997b-720c4e26d802 HTTP/1.1
 Host: localhost:8080</code></pre>
 </div>
 </div>
@@ -771,10 +771,10 @@ Content-Length: 608
 {
   "success" : true,
   "data" : {
-    "id" : "06642394-c8c6-4aba-b7a1-e1d39169697f",
+    "id" : "53388d7e-6a39-4743-997b-720c4e26d802",
     "name" : "서울 생산업체",
     "companyType" : "PRODUCER",
-    "hubId" : "ca94f5fd-3c5e-49c1-a8eb-06126675c45e",
+    "hubId" : "482dfe7c-910e-4834-92bc-3508454eb3c8",
     "address" : "서울특별시 강남구 테헤란로 123",
     "addressDetail" : "5층",
     "zipcode" : "06234",
@@ -899,7 +899,7 @@ Content-Length: 608
 <div class="listingblock">
 <div class="content">
 <pre class="highlightjs highlight nowrap"><code class="language-http hljs" data-lang="http">GET /api/v1/companies?keyword=%EC%84%9C%EC%9A%B8&amp;companyType=PRODUCER&amp;page=0&amp;size=10&amp;sortBy=createdAt&amp;direction=DESC HTTP/1.1
-X-User-Id: 030a80e7-95fb-409a-a91b-b921fe6cea2b
+X-User-Id: 54d9a968-6648-4732-9d32-fc73cf06535e
 X-User-Role: MASTER_ADMIN
 Host: localhost:8080</code></pre>
 </div>
@@ -963,10 +963,10 @@ Content-Length: 781
   "success" : true,
   "data" : {
     "content" : [ {
-      "id" : "dc4a0e68-b6c1-4893-bec9-8748edc91547",
+      "id" : "f6ce5303-c38e-4f70-9b5f-0ecc48b9c777",
       "name" : "서울 생산업체",
       "companyType" : "PRODUCER",
-      "hubId" : "37ebe199-8b47-468c-b0af-1c31111e9e3d",
+      "hubId" : "5183694c-3bf8-4892-8b5c-ec6e267226af",
       "address" : "서울특별시 강남구 테헤란로 123",
       "addressDetail" : "5층",
       "zipcode" : "06234",
@@ -1127,9 +1127,9 @@ Content-Length: 781
 <h4 id="_요청_4"><a class="link" href="#_요청_4">요청</a></h4>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight nowrap"><code class="language-http hljs" data-lang="http">PUT /api/v1/companies/eb879ccf-9fa5-4449-aa0f-f464e90d8f48 HTTP/1.1
+<pre class="highlightjs highlight nowrap"><code class="language-http hljs" data-lang="http">PUT /api/v1/companies/82b8f76d-251f-4f58-a35d-dfa7120411ee HTTP/1.1
 Content-Type: application/json
-X-User-Id: 4108af0c-7524-45a6-aaa9-efdf21a48442
+X-User-Id: 89c89c92-5750-4ee5-9e57-a72ca9747427
 X-User-Role: MASTER_ADMIN
 Content-Length: 324
 Host: localhost:8080
@@ -1137,7 +1137,7 @@ Host: localhost:8080
 {
   "name" : "수정된 업체",
   "companyType" : "RECEIVER",
-  "hubId" : "6415d3af-0fb3-4e73-95af-4093adbe0abb",
+  "hubId" : "8403de27-c73f-442a-bc34-e965e5223b44",
   "address" : "서울특별시 송파구 올림픽로 77",
   "addressDetail" : "7층",
   "zipcode" : "05510",
@@ -1239,10 +1239,10 @@ Content-Length: 604
 {
   "success" : true,
   "data" : {
-    "id" : "eb879ccf-9fa5-4449-aa0f-f464e90d8f48",
+    "id" : "82b8f76d-251f-4f58-a35d-dfa7120411ee",
     "name" : "수정된 업체",
     "companyType" : "RECEIVER",
-    "hubId" : "6415d3af-0fb3-4e73-95af-4093adbe0abb",
+    "hubId" : "8403de27-c73f-442a-bc34-e965e5223b44",
     "address" : "서울특별시 송파구 올림픽로 77",
     "addressDetail" : "7층",
     "zipcode" : "05510",
@@ -1366,8 +1366,8 @@ Content-Length: 604
 <h4 id="_요청_5"><a class="link" href="#_요청_5">요청</a></h4>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight nowrap"><code class="language-http hljs" data-lang="http">DELETE /api/v1/companies/3333f28c-b243-4803-ba0c-09e348644be1 HTTP/1.1
-X-User-Id: 306236a1-3b59-4a89-94bb-81fc9bde00de
+<pre class="highlightjs highlight nowrap"><code class="language-http hljs" data-lang="http">DELETE /api/v1/companies/a6cd5b2f-e1e6-4083-8849-9d4e68515b26 HTTP/1.1
+X-User-Id: e75b1b31-5e8a-4833-8cfb-7a38fddff1fb
 X-User-Role: MASTER_ADMIN
 Host: localhost:8080</code></pre>
 </div>
@@ -1456,15 +1456,15 @@ Content-Length: 108
 <h4 id="_요청_6"><a class="link" href="#_요청_6">요청</a></h4>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight nowrap"><code class="language-http hljs" data-lang="http">PATCH /api/v1/companies/61a3cb27-2af7-4b42-870f-b7ba6afb2b87/manager HTTP/1.1
+<pre class="highlightjs highlight nowrap"><code class="language-http hljs" data-lang="http">PATCH /api/v1/companies/c60a027c-01e1-4f6d-892d-8bfefaa743a4/manager HTTP/1.1
 Content-Type: application/json
-X-User-Id: f1042599-3d48-44f9-aa0a-08f0ab206db8
+X-User-Id: 34087ca7-fc26-40b3-91c1-ae9755885532
 X-User-Role: MASTER_ADMIN
 Content-Length: 55
 Host: localhost:8080
 
 {
-  "userId" : "0e1dd0ab-7759-4b79-ba14-f74ff44e5591"
+  "userId" : "289b3a3e-4689-4862-b22d-17e2e9059424"
 }</code></pre>
 </div>
 </div>
