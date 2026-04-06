@@ -45,4 +45,16 @@ public class AiAnalysisController {
         aiAnalysisService.softDelete(id, userId);
         return ApiResponse.ok();
     }
+
+    @GetMapping("/{id}")
+    public ApiResponse<AiAnalysisResponse> getAnalysis(
+        @PathVariable UUID id
+    ) {
+        AiAnalysis analysis = aiAnalysisService.findById(id);
+        return ApiResponse.success(
+            new AiAnalysisResponse(
+                analysis.getId(),
+                analysis.getAiResult()
+            ));
+    }
 }
