@@ -11,6 +11,6 @@ public record CompanyInternalResponse(
     String addressDetail,
     String contactName,
     String contactSlackId,
-    boolean isActive
+    boolean active
 ) {
 }

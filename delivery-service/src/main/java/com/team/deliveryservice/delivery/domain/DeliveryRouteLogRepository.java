@@ -3,7 +3,6 @@ package com.team.deliveryservice.delivery.domain;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface DeliveryRouteLogRepository extends JpaRepository<DeliveryRouteLog, UUID> {
@@ -13,4 +12,9 @@ public interface DeliveryRouteLogRepository extends JpaRepository<DeliveryRouteL
     List<DeliveryRouteLog> findAllByDeliveryIdAndDeletedAtIsNullOrderBySequenceNoAsc(UUID deliveryId);
 
     List<DeliveryRouteLog> findAllByDeliveryIdInAndDeletedAtIsNullOrderBySequenceNoAsc(List<UUID> deliveryIds);
+
+    long countByDeliveryManagerIdAndDeletedAtIsNullAndRouteStatusNotIn(
+        UUID deliveryManagerId,
+        List<DeliveryRouteStatus> routeStatuses
+    );
 }

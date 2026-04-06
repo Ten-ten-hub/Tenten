@@ -5,11 +5,21 @@
 :toc: left
 :toclevels: 3
 :sectlinks:
+:lang: ko
 
 == 배송 서비스 개요
 
 배송 서비스는 배송 생성, 조회, 검색, 수정, 상태 변경, 취소, 삭제 기능과
 업체 배송 담당자 / 허브 배송 담당자 배정 기능을 제공합니다.
+
+배송 생성 시 허브 서비스의 최적 경로 정보를 기반으로 다구간 배송 경로(`route log`)를 생성하며,
+각 구간의 출발 허브 기준으로 허브 배송 담당자를 자동 배정하고,
+최종 도착 허브 기준으로 업체 배송 담당자를 자동 배정합니다.
+
+자동 배정 정책은 다음 순서를 따릅니다.
+
+* 활성 작업량이 적은 담당자 우선
+* 활성 작업량이 같으면 deliverySequence가 작은 담당자 우선
 
 외부 API와 내부 API를 분리하여 문서화하며,
 Spring RestDocs 테스트를 통과한 API만 문서에 반영됩니다.
@@ -30,6 +40,9 @@ include::{snippets}/deliveries/get/path-parameters.adoc[]
 include::{snippets}/deliveries/get/http-response.adoc[]
 include::{snippets}/deliveries/get/response-fields.adoc[]
 
+응답에는 업체 배송 담당자 ID(`companyDeliveryManagerId`)와
+각 배송 경로별 허브 배송 담당자 ID(`routeLogs[].deliveryManagerId`)가 포함됩니다.
+
 ---
 
 === 배송 검색
@@ -45,6 +58,9 @@ include::{snippets}/deliveries/search/query-parameters.adoc[]
 
 include::{snippets}/deliveries/search/http-response.adoc[]
 include::{snippets}/deliveries/search/response-fields.adoc[]
+
+응답의 각 배송 항목에는 업체 배송 담당자 ID와
+배송 경로별 허브 배송 담당자 ID가 포함될 수 있습니다.
 
 ---
 
@@ -193,6 +209,9 @@ include::{snippets}/internal-deliveries/create/request-fields.adoc[]
 
 include::{snippets}/internal-deliveries/create/http-response.adoc[]
 include::{snippets}/internal-deliveries/create/response-fields.adoc[]
+
+내부 배송 생성 응답에는 자동 생성된 다구간 route log와
+자동 배정된 업체 / 허브 배송 담당자 정보가 포함될 수 있습니다.
 
 ---
 

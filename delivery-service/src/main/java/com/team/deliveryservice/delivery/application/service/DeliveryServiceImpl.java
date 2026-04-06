@@ -55,6 +55,7 @@ public class DeliveryServiceImpl implements DeliveryService {
     private final DeliveryRepository deliveryRepository;
     private final DeliveryManagerRepository deliveryManagerRepository;
     private final DeliveryRouteLogRepository deliveryRouteLogRepository;
+    private final DeliveryManagerAutoAssignService deliveryManagerAutoAssignService;
     private final HubClient hubClient;
     private final CompanyClient companyClient;
     private final OrderClient orderClient;
@@ -99,6 +100,7 @@ public class DeliveryServiceImpl implements DeliveryService {
         try {
             Delivery savedDelivery = deliveryRepository.save(delivery);
             createRouteLogs(savedDelivery);
+            deliveryManagerAutoAssignService.autoAssign(savedDelivery);
             return DeliveryResponse.from(savedDelivery, getRouteLogs(savedDelivery.getId()));
         } catch (DataIntegrityViolationException e) {
             if (isOrderIdUniqueViolation(e)) {
@@ -357,7 +359,7 @@ public class DeliveryServiceImpl implements DeliveryService {
         try {
             CompanyInternalResponse company = companyClient.getCompany(companyId);
 
-            if (company == null || company.id() == null || !company.isActive()) {
+            if (company == null || company.id() == null || !company.active()) {
                 log.warn("[배송 생성] 업체 없음 또는 비활성 companyId={}", companyId);
                 throw new ServiceException(DeliveryErrorCode.COMPANY_NOT_FOUND);
             }
