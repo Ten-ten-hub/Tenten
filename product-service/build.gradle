@@ -90,8 +90,11 @@ tasks.named('build') {
     dependsOn copyDocument
 }
 
-tasks.named('bootJar') {
-    mustRunAfter copyDocument
+bootJar {
+    dependsOn asciidoctor
+    from("${asciidoctor.outputDir}") {
+        into 'static/docs'
+    }
 }
 
 // IntelliJ Kotlin 플러그인 오류 해결을 위한 태스크 등록
