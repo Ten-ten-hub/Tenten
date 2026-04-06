@@ -32,7 +32,7 @@ public class AuthServiceImpl implements AuthService {
         redisTokenRepository.save(userInfo.userId(), refreshToken);
 
         try{
-            userInternalClient.lastLoginAt(userInfo.userId()); // 부가기능이므로 실패해도 로그인은 정사응로 되어야함
+             userInternalClient.lastLoginAt(userInfo.userId()); // 부가기능이므로 실패해도 로그인은 정상으로 되어야함
         }catch (Exception e){
             log.warn("lastLoginAt 업데이트 실패 (userId = {}): {}", userInfo.userId(), e.getMessage());
         }
