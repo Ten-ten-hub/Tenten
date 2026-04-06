@@ -88,3 +88,7 @@ tasks.register('copyDocument', Copy) { // 생성된 html 파일을 옮긴다
 tasks.named('build') {
     dependsOn copyDocument
 }
+
+tasks.named('bootJar') {
+    mustRunAfter copyDocument
+}
