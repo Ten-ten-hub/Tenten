@@ -22,10 +22,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team.deliveryservice.deliverymanager.application.dto.request.CreateDeliveryManagerRequest;
+import com.team.deliveryservice.deliverymanager.application.dto.request.UpdateDeliveryManagerRequest;
 import com.team.deliveryservice.deliverymanager.application.dto.response.DeliveryManagerPageResponse;
 import com.team.deliveryservice.deliverymanager.application.dto.response.DeliveryManagerResponse;
 import com.team.deliveryservice.deliverymanager.application.service.DeliveryManagerService;
-import com.team.deliveryservice.deliverymanager.application.dto.request.UpdateDeliveryManagerRequest;
 import com.team.deliveryservice.deliverymanager.domain.DeliveryManagerType;
 import com.team.deliveryservice.deliverymanager.presentation.DeliveryManagerController;
 import com.team.deliveryservice.global.config.CurrentUserArgumentResolver;
@@ -130,7 +130,8 @@ class DeliveryManagerControllerRestDocsTest {
                     fieldWithPath("userId").type(JsonFieldType.STRING).description("사용자 ID"),
                     fieldWithPath("hubId").type(JsonFieldType.STRING).optional().description("소속 허브 ID"),
                     fieldWithPath("slackId").type(JsonFieldType.STRING).description("슬랙 ID"),
-                    fieldWithPath("type").type(JsonFieldType.STRING).description("배송 담당자 타입(HUB_DELIVERY_MANAGER, COMPANY_DELIVERY_MANAGER)")
+                    fieldWithPath("type").type(JsonFieldType.STRING)
+                        .description("배송 담당자 타입(HUB_DELIVERY_MANAGER, COMPANY_DELIVERY_MANAGER)")
                 ),
                 commonDeliveryManagerResponseFields()
             ));

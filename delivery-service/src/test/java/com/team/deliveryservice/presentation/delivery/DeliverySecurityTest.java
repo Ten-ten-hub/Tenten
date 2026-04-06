@@ -59,7 +59,8 @@ class DeliverySecurityTest {
 
         mockMvc.perform(get("/api/v1/deliveries/{deliveryId}", deliveryId)
                 .header("X-User-Id", UUID.randomUUID().toString())
-                .header("X-User-Role", "HUB_ADMIN"))
+                .header("X-User-Role", "HUB_ADMIN")
+                .header("X-Hub-Id", UUID.randomUUID().toString()))
             .andExpect(status().isOk());
     }
 

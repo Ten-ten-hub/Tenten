@@ -7,7 +7,7 @@ import java.util.UUID;
 
 public record CreateDeliveryManagerRequest(
     @NotNull UUID userId,
-    UUID hubId,
+    @NotNull UUID hubId,
     @NotBlank String slackId,
     @NotNull DeliveryManagerType type
 ) {
