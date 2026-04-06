@@ -2,6 +2,7 @@ package com.team.notificationservice.application;
 
 import com.team.notificationservice.domain.Notification;
 import com.team.notificationservice.domain.NotificationRepository;
+import com.team.notificationservice.domain.SendStatus;
 import com.team.notificationservice.infrastructure.SlackClient;
 import com.team.notificationservice.infrastructure.SlackSendResult;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,11 @@ public class NotificationEventListener {
             .findByIdAndDeletedAtIsNull(event.notificationId())
             .orElse(null);
         if (notification == null) {
+            return;
+        }
+
+        if (notification.getSendStatus() != SendStatus.PENDING) {
+            log.debug(">>>> [이미 처리된 알림] ID: {}, Status: {}", event.notificationId(), notification.getSendStatus());
             return;
         }
 
