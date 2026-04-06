@@ -19,12 +19,12 @@
 
 `POST /api/v1/companies`
 
-===== 요청
+==== 요청
 
 include::{snippets}/companies/create/http-request.adoc[]
 include::{snippets}/companies/create/request-fields.adoc[]
 
-===== 응답
+==== 응답
 
 include::{snippets}/companies/create/http-response.adoc[]
 include::{snippets}/companies/create/response-fields.adoc[]
@@ -35,12 +35,12 @@ include::{snippets}/companies/create/response-fields.adoc[]
 
 `GET /api/v1/companies/{companyId}`
 
-===== 요청
+==== 요청
 
 include::{snippets}/companies/get/http-request.adoc[]
 include::{snippets}/companies/get/path-parameters.adoc[]
 
-===== 응답
+==== 응답
 
 include::{snippets}/companies/get/http-response.adoc[]
 include::{snippets}/companies/get/response-fields.adoc[]
@@ -51,12 +51,12 @@ include::{snippets}/companies/get/response-fields.adoc[]
 
 `GET /api/v1/companies`
 
-===== 요청
+==== 요청
 
 include::{snippets}/companies/search/http-request.adoc[]
 include::{snippets}/companies/search/query-parameters.adoc[]
 
-===== 응답
+==== 응답
 
 include::{snippets}/companies/search/http-response.adoc[]
 include::{snippets}/companies/search/response-fields.adoc[]
@@ -67,33 +67,16 @@ include::{snippets}/companies/search/response-fields.adoc[]
 
 `PUT /api/v1/companies/{companyId}`
 
-===== 요청
+==== 요청
 
 include::{snippets}/companies/update/http-request.adoc[]
 include::{snippets}/companies/update/path-parameters.adoc[]
 include::{snippets}/companies/update/request-fields.adoc[]
 
-===== 응답
+==== 응답
 
 include::{snippets}/companies/update/http-response.adoc[]
 include::{snippets}/companies/update/response-fields.adoc[]
-
----
-
-=== 업체 활성 상태 변경
-
-`PATCH /api/v1/companies/{companyId}/active`
-
-===== 요청
-
-include::{snippets}/companies/update-active/http-request.adoc[]
-include::{snippets}/companies/update-active/path-parameters.adoc[]
-include::{snippets}/companies/update-active/request-fields.adoc[]
-
-===== 응답
-
-include::{snippets}/companies/update-active/http-response.adoc[]
-include::{snippets}/companies/update-active/response-fields.adoc[]
 
 ---
 
@@ -101,12 +84,12 @@ include::{snippets}/companies/update-active/response-fields.adoc[]
 
 `DELETE /api/v1/companies/{companyId}`
 
-===== 요청
+==== 요청
 
 include::{snippets}/companies/delete/http-request.adoc[]
 include::{snippets}/companies/delete/path-parameters.adoc[]
 
-===== 응답
+==== 응답
 
 include::{snippets}/companies/delete/http-response.adoc[]
 include::{snippets}/companies/delete/response-fields.adoc[]
@@ -117,29 +100,13 @@ include::{snippets}/companies/delete/response-fields.adoc[]
 
 `PATCH /api/v1/companies/{companyId}/manager`
 
-===== 요청
+==== 요청
 
 include::{snippets}/companies/assign-manager/http-request.adoc[]
 include::{snippets}/companies/assign-manager/path-parameters.adoc[]
 include::{snippets}/companies/assign-manager/request-fields.adoc[]
 
-===== 응답
+==== 응답
 
 include::{snippets}/companies/assign-manager/http-response.adoc[]
 include::{snippets}/companies/assign-manager/response-fields.adoc[]
-
-== 내부 API
-
-=== 업체 단건 조회
-
-`GET /internal/v1/companies/{companyId}`
-
-===== 요청
-
-include::{snippets}/internal-companies/get/http-request.adoc[]
-include::{snippets}/internal-companies/get/path-parameters.adoc[]
-
-===== 응답
-
-include::{snippets}/internal-companies/get/http-response.adoc[]
-include::{snippets}/internal-companies/get/response-fields.adoc[]

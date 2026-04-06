@@ -20,12 +20,12 @@ Spring RestDocs 테스트를 통과한 API만 문서에 반영됩니다.
 
 `GET /api/v1/deliveries/{deliveryId}`
 
-===== 요청
+==== 요청
 
 include::{snippets}/deliveries/get/http-request.adoc[]
 include::{snippets}/deliveries/get/path-parameters.adoc[]
 
-===== 응답
+==== 응답
 
 include::{snippets}/deliveries/get/http-response.adoc[]
 include::{snippets}/deliveries/get/response-fields.adoc[]
@@ -36,12 +36,12 @@ include::{snippets}/deliveries/get/response-fields.adoc[]
 
 `GET /api/v1/deliveries`
 
-===== 요청
+==== 요청
 
 include::{snippets}/deliveries/search/http-request.adoc[]
 include::{snippets}/deliveries/search/query-parameters.adoc[]
 
-===== 응답
+==== 응답
 
 include::{snippets}/deliveries/search/http-response.adoc[]
 include::{snippets}/deliveries/search/response-fields.adoc[]
@@ -52,13 +52,13 @@ include::{snippets}/deliveries/search/response-fields.adoc[]
 
 `PUT /api/v1/deliveries/{deliveryId}`
 
-===== 요청
+==== 요청
 
 include::{snippets}/deliveries/update/http-request.adoc[]
 include::{snippets}/deliveries/update/path-parameters.adoc[]
 include::{snippets}/deliveries/update/request-fields.adoc[]
 
-===== 응답
+==== 응답
 
 include::{snippets}/deliveries/update/http-response.adoc[]
 include::{snippets}/deliveries/update/response-fields.adoc[]
@@ -69,13 +69,13 @@ include::{snippets}/deliveries/update/response-fields.adoc[]
 
 `PATCH /api/v1/deliveries/{deliveryId}/assign-company-manager`
 
-===== 요청
+==== 요청
 
 include::{snippets}/deliveries/assign-company-manager/http-request.adoc[]
 include::{snippets}/deliveries/assign-company-manager/path-parameters.adoc[]
 include::{snippets}/deliveries/assign-company-manager/request-fields.adoc[]
 
-===== 응답
+==== 응답
 
 include::{snippets}/deliveries/assign-company-manager/http-response.adoc[]
 include::{snippets}/deliveries/assign-company-manager/response-fields.adoc[]
@@ -86,13 +86,13 @@ include::{snippets}/deliveries/assign-company-manager/response-fields.adoc[]
 
 `PATCH /api/v1/deliveries/{deliveryId}/assign-delivery-manager`
 
-===== 요청
+==== 요청
 
 include::{snippets}/deliveries/assign-delivery-manager/http-request.adoc[]
 include::{snippets}/deliveries/assign-delivery-manager/path-parameters.adoc[]
 include::{snippets}/deliveries/assign-delivery-manager/request-fields.adoc[]
 
-===== 응답
+==== 응답
 
 include::{snippets}/deliveries/assign-delivery-manager/http-response.adoc[]
 include::{snippets}/deliveries/assign-delivery-manager/response-fields.adoc[]
@@ -103,12 +103,12 @@ include::{snippets}/deliveries/assign-delivery-manager/response-fields.adoc[]
 
 `POST /api/v1/delivery-managers`
 
-===== 요청
+==== 요청
 
 include::{snippets}/delivery-managers/create/http-request.adoc[]
 include::{snippets}/delivery-managers/create/request-fields.adoc[]
 
-===== 응답
+==== 응답
 
 include::{snippets}/delivery-managers/create/http-response.adoc[]
 include::{snippets}/delivery-managers/create/response-fields.adoc[]
@@ -119,12 +119,12 @@ include::{snippets}/delivery-managers/create/response-fields.adoc[]
 
 `GET /api/v1/delivery-managers/{deliveryManagerId}`
 
-===== 요청
+==== 요청
 
 include::{snippets}/delivery-managers/get/http-request.adoc[]
 include::{snippets}/delivery-managers/get/path-parameters.adoc[]
 
-===== 응답
+==== 응답
 
 include::{snippets}/delivery-managers/get/http-response.adoc[]
 include::{snippets}/delivery-managers/get/response-fields.adoc[]
@@ -135,12 +135,12 @@ include::{snippets}/delivery-managers/get/response-fields.adoc[]
 
 `GET /api/v1/delivery-managers`
 
-===== 요청
+==== 요청
 
 include::{snippets}/delivery-managers/search/http-request.adoc[]
 include::{snippets}/delivery-managers/search/query-parameters.adoc[]
 
-===== 응답
+==== 응답
 
 include::{snippets}/delivery-managers/search/http-response.adoc[]
 include::{snippets}/delivery-managers/search/response-fields.adoc[]
@@ -151,13 +151,13 @@ include::{snippets}/delivery-managers/search/response-fields.adoc[]
 
 `PUT /api/v1/delivery-managers/{deliveryManagerId}`
 
-===== 요청
+==== 요청
 
 include::{snippets}/delivery-managers/update/http-request.adoc[]
 include::{snippets}/delivery-managers/update/path-parameters.adoc[]
 include::{snippets}/delivery-managers/update/request-fields.adoc[]
 
-===== 응답
+==== 응답
 
 include::{snippets}/delivery-managers/update/http-response.adoc[]
 include::{snippets}/delivery-managers/update/response-fields.adoc[]
@@ -168,12 +168,12 @@ include::{snippets}/delivery-managers/update/response-fields.adoc[]
 
 `DELETE /api/v1/delivery-managers/{deliveryManagerId}`
 
-===== 요청
+==== 요청
 
 include::{snippets}/delivery-managers/delete/http-request.adoc[]
 include::{snippets}/delivery-managers/delete/path-parameters.adoc[]
 
-===== 응답
+==== 응답
 
 include::{snippets}/delivery-managers/delete/http-response.adoc[]
 include::{snippets}/delivery-managers/delete/response-fields.adoc[]
@@ -184,12 +184,12 @@ include::{snippets}/delivery-managers/delete/response-fields.adoc[]
 
 `POST /internal/v1/deliveries`
 
-===== 요청
+==== 요청
 
 include::{snippets}/internal-deliveries/create/http-request.adoc[]
 include::{snippets}/internal-deliveries/create/request-fields.adoc[]
 
-===== 응답
+==== 응답
 
 include::{snippets}/internal-deliveries/create/http-response.adoc[]
 include::{snippets}/internal-deliveries/create/response-fields.adoc[]
@@ -200,12 +200,12 @@ include::{snippets}/internal-deliveries/create/response-fields.adoc[]
 
 `GET /internal/v1/deliveries/{deliveryId}`
 
-===== 요청
+==== 요청
 
 include::{snippets}/internal-deliveries/get/http-request.adoc[]
 include::{snippets}/internal-deliveries/get/path-parameters.adoc[]
 
-===== 응답
+==== 응답
 
 include::{snippets}/internal-deliveries/get/http-response.adoc[]
 include::{snippets}/internal-deliveries/get/response-fields.adoc[]
@@ -216,13 +216,13 @@ include::{snippets}/internal-deliveries/get/response-fields.adoc[]
 
 `PATCH /internal/v1/deliveries/{deliveryId}/status`
 
-===== 요청
+==== 요청
 
 include::{snippets}/internal-deliveries/change-status/http-request.adoc[]
 include::{snippets}/internal-deliveries/change-status/path-parameters.adoc[]
 include::{snippets}/internal-deliveries/change-status/request-fields.adoc[]
 
-===== 응답
+==== 응답
 
 include::{snippets}/internal-deliveries/change-status/http-response.adoc[]
 include::{snippets}/internal-deliveries/change-status/response-fields.adoc[]
@@ -233,12 +233,12 @@ include::{snippets}/internal-deliveries/change-status/response-fields.adoc[]
 
 `PATCH /internal/v1/deliveries/{deliveryId}/cancel`
 
-===== 요청
+==== 요청
 
 include::{snippets}/internal-deliveries/cancel/http-request.adoc[]
 include::{snippets}/internal-deliveries/cancel/path-parameters.adoc[]
 
-===== 응답
+==== 응답
 
 include::{snippets}/internal-deliveries/cancel/http-response.adoc[]
 include::{snippets}/internal-deliveries/cancel/response-fields.adoc[]
@@ -249,12 +249,12 @@ include::{snippets}/internal-deliveries/cancel/response-fields.adoc[]
 
 `DELETE /internal/v1/deliveries/{deliveryId}`
 
-===== 요청
+==== 요청
 
 include::{snippets}/internal-deliveries/delete/http-request.adoc[]
 include::{snippets}/internal-deliveries/delete/path-parameters.adoc[]
 
-===== 응답
+==== 응답
 
 include::{snippets}/internal-deliveries/delete/http-response.adoc[]
 include::{snippets}/internal-deliveries/delete/response-fields.adoc[]
