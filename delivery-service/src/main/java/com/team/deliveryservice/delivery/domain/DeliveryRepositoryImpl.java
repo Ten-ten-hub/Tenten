@@ -171,25 +171,6 @@ public class DeliveryRepositoryImpl implements DeliveryRepositoryCustom {
             return;
         }
 
-        if (currentUser.isHubDeliveryManager()) {
-            if (currentUser.userId() == null) {
-                throw new ServiceException(DeliveryErrorCode.COMMON_ACCESS_DENIED);
-            }
-
-            Subquery<UUID> subquery = query.subquery(UUID.class);
-            Root<DeliveryRouteLog> routeRoot = subquery.from(DeliveryRouteLog.class);
-
-            subquery.select(routeRoot.get("deliveryId"));
-            subquery.where(
-                cb.equal(routeRoot.get("deliveryId"), root.get("id")),
-                cb.equal(routeRoot.get("deliveryManagerId"), currentUser.userId()),
-                cb.isNull(routeRoot.get("deletedAt"))
-            );
-
-            predicates.add(cb.exists(subquery));
-            return;
-        }
-
         throw new ServiceException(DeliveryErrorCode.COMMON_ACCESS_DENIED);
     }
 }
