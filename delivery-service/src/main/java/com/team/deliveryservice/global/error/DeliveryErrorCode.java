@@ -45,6 +45,18 @@ public enum DeliveryErrorCode implements com.team.common.exception.ErrorCode {
         "주문 정보를 찾을 수 없습니다."
     ),
 
+    HUB_DELIVERY_MANAGER_CANDIDATE_NOT_FOUND(
+        HttpStatus.NOT_FOUND,
+        "HUB_DELIVERY_MANAGER_CANDIDATE_NOT_FOUND",
+        "자동 배정 가능한 허브 배송 담당자가 없습니다."
+    ),
+
+    COMPANY_DELIVERY_MANAGER_CANDIDATE_NOT_FOUND(
+        HttpStatus.NOT_FOUND,
+        "COMPANY_DELIVERY_MANAGER_CANDIDATE_NOT_FOUND",
+        "자동 배정 가능한 업체 배송 담당자가 없습니다."
+    ),
+
     /*
      * =========================================================
      * 409 CONFLICT
