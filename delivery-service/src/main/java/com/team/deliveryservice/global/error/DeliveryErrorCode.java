@@ -45,7 +45,6 @@ public enum DeliveryErrorCode implements com.team.common.exception.ErrorCode {
         "주문 정보를 찾을 수 없습니다."
     ),
 
-
     /*
      * =========================================================
      * 409 CONFLICT
@@ -62,7 +61,6 @@ public enum DeliveryErrorCode implements com.team.common.exception.ErrorCode {
         "DELIVERY_MANAGER_SEQUENCE_CONFLICT",
         "배송 담당자 순번 할당 중 충돌이 발생했습니다. 다시 시도해주세요."
     ),
-
 
     /*
      * =========================================================
@@ -129,6 +127,11 @@ public enum DeliveryErrorCode implements com.team.common.exception.ErrorCode {
         "잘못된 요청입니다."
     ),
 
+    COMMON_UNAUTHORIZED(
+        HttpStatus.UNAUTHORIZED,
+        "COMMON_UNAUTHORIZED",
+        "인증이 필요합니다."
+    ),
 
     /*
      * =========================================================
@@ -140,7 +143,6 @@ public enum DeliveryErrorCode implements com.team.common.exception.ErrorCode {
         "COMMON_ACCESS_DENIED",
         "접근 권한이 없습니다."
     ),
-
 
     /*
      * =========================================================
@@ -164,7 +166,6 @@ public enum DeliveryErrorCode implements com.team.common.exception.ErrorCode {
         "ORDER_SERVICE_UNAVAILABLE",
         "주문 서비스와 통신할 수 없습니다."
     ),
-
 
     /*
      * =========================================================

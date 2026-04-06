@@ -12,6 +12,7 @@ public enum OrderErrorCode implements ErrorCode {
     //400
     ORDER_NOT_CANCELLABLE("ORDER_NOT_CANCELLABLE", "취소할 수 없는 주문 상태입니다", HttpStatus.BAD_REQUEST),
     ORDER_STATUS_NOT_UPDATABLE("ORDER_STATUS_NOT_UPDATABLE", "변경할 수 없는 주문 상태입니다", HttpStatus.BAD_REQUEST),
+    ORDER_NOT_DELETABLE("ORDER_NOT_DELETABLE", "취소된 주문만 삭제할 수 있습니다", HttpStatus.BAD_REQUEST),
 
     // 404
     ORDER_NOT_FOUND("ORDER_NOT_FOUND", "주문을 찾을 수 없습니다", HttpStatus.NOT_FOUND),

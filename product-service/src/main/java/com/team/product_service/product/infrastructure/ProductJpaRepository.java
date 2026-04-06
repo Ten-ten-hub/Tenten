@@ -21,19 +21,19 @@ public interface ProductJpaRepository extends JpaRepository<Product, UUID> {
 
     // 검색 - 나중에 QueryDSL로 교체
     @Query("""
-            SELECT p FROM Product p
-            WHERE p.deletedAt IS NULL
-              AND (:name IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%')))
-              AND (:companyId IS NULL OR p.companyId = :companyId)
-              AND (:hubId IS NULL OR p.hubId = :hubId)
-              AND (CAST(:status AS string) IS NULL OR p.status = :status)
-            """)
+        SELECT p FROM Product p
+        WHERE p.deletedAt IS NULL
+          AND (CAST(:name AS string) IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', CAST(:name AS string), '%')))
+          AND (:companyId IS NULL OR p.companyId = :companyId)
+          AND (:hubId IS NULL OR p.hubId = :hubId)
+          AND (CAST(:status AS string) IS NULL OR p.status = :status)
+        """)
     Page<Product> search(
-            @Param("name") String name,
-            @Param("companyId") UUID companyId,
-            @Param("hubId") UUID hubId,
-            @Param("status") ProductStatus status,
-            Pageable pageable
+        @Param("name") String name,
+        @Param("companyId") UUID companyId,
+        @Param("hubId") UUID hubId,
+        @Param("status") ProductStatus status,
+        Pageable pageable
     );
 
 }
