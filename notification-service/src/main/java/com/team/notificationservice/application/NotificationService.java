@@ -31,6 +31,7 @@ public class NotificationService {
     private final SlackClient slackClient;// Listener로 옮길 예정이지만, ID 조회 로직 때문에 유지
     private final NotificationSaver notificationSaver;
     private final StringRedisTemplate redisTemplate; // Redis 추가
+    private final AiNotificationProcessor aiNotificationProcessor;
 
     /**
      * 알림 생성 및 전송 엔트리 포인트 네트워크 호출(Slack API)을 포함하므로 @Transactional을 붙이지 않음!
@@ -91,22 +92,23 @@ public class NotificationService {
     }
 
     /**
-     * Kafka Consumer 설정 (AI 서비스의 메시지를 소비)
+     * Kafka Consumer 설정
      */
     @Bean
     public Consumer<AiNotificationRequest> consumeAiNotification() {
-        // 애플리케이션 시작 시 딱 한 번 찍혀야 함
         log.info("[CHECK] consumeAiNotification Bean Initialized");
 
         return request -> {
-            // 메시지를 받으면 무조건 이 로그가 찍혀야 함
             log.info(">>>> [KAFKA 수신 성공] OrderID: {}, RefID: {}", request.orderId(), request.refId());
 
             try {
                 String msgType = (request.msgType() != null) ? request.msgType() : "ORDER_ALERT";
-                createWithAiAnalysis(request, msgType);
+                // 신규 프로세서 호출
+                aiNotificationProcessor.processAiNotification(request, msgType);
             } catch (Exception e) {
-                log.error(">>>> [KAFKA 처리 중 에러] : {}", e.getMessage(), e);
+                log.error(">>>> [KAFKA 처리 중 에러 발생 - 재시도 및 DLQ 처리 진행] : {}", e.getMessage(), e);
+                // 에러를 던져야 Kafka Binder가 재시도(Retry) 및 DLQ 이동을 수행함
+                throw e;
             }
         };
     }
