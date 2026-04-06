@@ -16,10 +16,12 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 @Component
+@Order(2)
 public class AuthFilter extends OncePerRequestFilter {
 
     @Value("${jwt.secret}")

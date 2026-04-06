@@ -40,6 +40,7 @@ dependencies {
     implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+    implementation 'io.github.openfeign:feign-hc5' // GET, POST, PUT 외의 http 메서드를 사용하기 위해 feign 기본 클라이언트가 아닌 Apache HttpClient 5로 교체
 
     implementation 'org.flywaydb:flyway-core'
     implementation 'org.flywaydb:flyway-database-postgresql'
