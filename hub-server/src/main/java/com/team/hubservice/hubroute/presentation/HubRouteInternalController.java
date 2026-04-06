@@ -19,7 +19,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -37,11 +36,11 @@ public class HubRouteInternalController {
         HubRouteOptimalService hubRouteOptimalService,
         HubRouteAiService hubRouteAiService,
         HubRouteTmapSyncService hubRouteTmapSyncService
-    )
-    { 
+    ) {
         this.hubRouteOptimalService = hubRouteOptimalService;
         this.hubRouteAiService = hubRouteAiService;
         this.hubRouteTmapSyncService = hubRouteTmapSyncService;
+    }
 
     @GetMapping("/optimal")
     public ResponseEntity<Map<String, Object>> getOptimalRoute(
@@ -63,7 +62,8 @@ public class HubRouteInternalController {
     @GetMapping
     public ResponseEntity<AiRouteResponse> getRouteForAi(
         @RequestParam UUID originId,
-        @RequestParam UUID destinationId,
+        @RequestParam UUID destinationId
+    ) {
 
         AiRouteResponse response = hubRouteAiService.getRouteInfoForAi(originId, destinationId);
 
@@ -80,9 +80,7 @@ public class HubRouteInternalController {
     public ResponseEntity<Map<String, Object>> syncRoutesFromTmap(
         @RequestParam(required = false) UUID departureHubId,
         @RequestParam(required = false) UUID arrivalHubId
-    )
-    {
-
+    ) {
         Map<String, Object> body = new HashMap<>();
         if (departureHubId != null ^ arrivalHubId != null) {
             body.put("code", HttpStatus.BAD_REQUEST.value());
