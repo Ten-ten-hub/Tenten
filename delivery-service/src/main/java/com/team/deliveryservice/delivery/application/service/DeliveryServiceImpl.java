@@ -1,11 +1,7 @@
 package com.team.deliveryservice.delivery.application.service;
 
 import com.team.common.page.PageSizeUtils;
-import com.team.deliveryservice.delivery.application.dto.request.AssignCompanyDeliveryManagerRequest;
-import com.team.deliveryservice.delivery.application.dto.request.AssignHubDeliveryManagerRequest;
-import com.team.deliveryservice.delivery.application.dto.request.ChangeDeliveryStatusRequest;
-import com.team.deliveryservice.delivery.application.dto.request.CreateDeliveryRequest;
-import com.team.deliveryservice.delivery.application.dto.request.UpdateDeliveryRequest;
+import com.team.deliveryservice.delivery.application.dto.request.*;
 import com.team.deliveryservice.delivery.application.dto.response.AiDeliveryResponse;
 import com.team.deliveryservice.delivery.application.dto.response.DeliveryPageResponse;
 import com.team.deliveryservice.delivery.application.dto.response.DeliveryResponse;
@@ -24,23 +20,20 @@ import com.team.deliveryservice.global.error.ServiceException;
 import com.team.deliveryservice.infrastructure.client.CompanyClient;
 import com.team.deliveryservice.infrastructure.client.HubClient;
 import com.team.deliveryservice.infrastructure.client.OrderClient;
-import com.team.deliveryservice.infrastructure.client.dto.CompanyInternalResponse;
-import com.team.deliveryservice.infrastructure.client.dto.HubExistsResponse;
-import com.team.deliveryservice.infrastructure.client.dto.HubInternalResponse;
-import com.team.deliveryservice.infrastructure.client.dto.OptimalRouteResponseWrapper;
-import com.team.deliveryservice.infrastructure.client.dto.OrderInternalResponse;
+import com.team.deliveryservice.infrastructure.client.dto.*;
 import feign.FeignException;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -68,11 +61,13 @@ public class DeliveryServiceImpl implements DeliveryService {
             throw new ServiceException(DeliveryErrorCode.DELIVERY_ALREADY_EXISTS);
         }
 
-        validateOrderExistsAndStatus(
-            request.orderId(),
-            request.supplierCompanyId(),
-            request.receiverCompanyId()
-        );
+//        // create order 트랜잭션 내에서 order가 commit되기 전에 create delivery를 호출하고 있기 때문에 delivery에서 order를 검증할 수 없음
+//        // rest 방식에서는 구현 불가능하며 메시징 방식으로 바꿔야 함
+//        validateOrderExistsAndStatus(
+//            request.orderId(),
+//            request.supplierCompanyId(),
+//            request.receiverCompanyId()
+//        );
 
         CompanyInternalResponse supplierCompany = getActiveCompany(request.supplierCompanyId());
         CompanyInternalResponse receiverCompany = getActiveCompany(request.receiverCompanyId());
