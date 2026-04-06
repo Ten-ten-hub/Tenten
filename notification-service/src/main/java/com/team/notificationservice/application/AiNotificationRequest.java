@@ -9,6 +9,7 @@ public record AiNotificationRequest(
     String receiverSlackId,      // 발송 허브 담당자 슬랙 ID
     String msgContent,      // AI가 생성한 최종 배송 가이드 문구
     LocalDateTime scheduledAt, // AI가 계산한 발송 예정 시각
-    UUID refId
+    UUID refId,
+    String msgType
 ) {
 }
