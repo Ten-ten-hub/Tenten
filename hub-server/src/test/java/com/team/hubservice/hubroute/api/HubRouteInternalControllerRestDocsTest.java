@@ -3,9 +3,12 @@ package com.team.hubservice.hubroute.api;
 import com.team.hubservice.global.security.HubSecurityConfig;
 import com.team.hubservice.hubroute.application.HubRouteAiService;
 import com.team.hubservice.hubroute.application.HubRouteOptimalService;
+import com.team.hubservice.hubroute.application.HubRouteTmapSyncService;
 import com.team.hubservice.hubroute.application.OptimalRouteQuery;
 import com.team.hubservice.hubroute.application.OptimalRouteResult;
 import com.team.hubservice.hubroute.application.RoutePathInfo;
+import com.team.hubservice.hubroute.application.TmapHubRouteSyncResult;
+import com.team.hubservice.hubroute.infrastructure.tmap.TmapRouteMetrics;
 import com.team.hubservice.hubroute.presentation.HubRouteInternalController;
 import com.team.hubservice.hubroute.presentation.dto.AiRouteResponse;
 import org.junit.jupiter.api.DisplayName;
@@ -26,10 +29,10 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.springframework.restdocs.headers.HeaderDocumentation.headerWithName;
-import static org.springframework.restdocs.headers.HeaderDocumentation.requestHeaders;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders.get;
+import static org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders.post;
 import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
 import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
@@ -50,6 +53,9 @@ class HubRouteInternalControllerRestDocsTest {
 
     @MockitoBean
     private HubRouteAiService hubRouteAiService;
+
+    @MockitoBean
+    private HubRouteTmapSyncService hubRouteTmapSyncService;
 
     @MockitoBean
     private JpaMetamodelMappingContext jpaMetamodelMappingContext;
@@ -131,6 +137,41 @@ class HubRouteInternalControllerRestDocsTest {
                     fieldWithPath("data.originLng").description("출발 허브 경도"),
                     fieldWithPath("data.destLat").description("도착 허브 위도"),
                     fieldWithPath("data.destLng").description("도착 허브 경도")
+                )
+            ));
+    }
+
+    @Test
+    @DisplayName("티맵 기준 허브 경로 단건 동기화 내부 API 테스트")
+    void syncRoutesFromTmap_singlePair() throws Exception {
+        UUID departureHubId = UUID.randomUUID();
+        UUID arrivalHubId = UUID.randomUUID();
+        TmapHubRouteSyncResult syncResult = TmapHubRouteSyncResult.updated(
+            departureHubId,
+            arrivalHubId,
+            new TmapRouteMetrics(40, 18.5)
+        );
+        Mockito.when(hubRouteTmapSyncService.syncOnePair(eq(departureHubId), eq(arrivalHubId)))
+            .thenReturn(syncResult);
+
+        mockMvc.perform(post("/internal/v1/hub-route/sync-from-tmap")
+                .param("departureHubId", departureHubId.toString())
+                .param("arrivalHubId", arrivalHubId.toString())
+                .contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk())
+            .andDo(document("hub-route-tmap-sync-post",
+                queryParameters(
+                    parameterWithName("departureHubId").description("출발 허브 ID (단건 동기화 시 필수)").optional(),
+                    parameterWithName("arrivalHubId").description("도착 허브 ID (단건 동기화 시 필수)").optional()
+                ),
+                responseFields(
+                    fieldWithPath("code").description("응답 코드"),
+                    fieldWithPath("message").description("응답 메시지"),
+                    fieldWithPath("data.departureHubId").description("출발 허브 ID"),
+                    fieldWithPath("data.arrivalHubId").description("도착 허브 ID"),
+                    fieldWithPath("data.durationMinutes").description("소요 시간(분), 티맵 totalTime(초)/60 반올림"),
+                    fieldWithPath("data.distanceKm").description("이동 거리(km), 티맵 totalDistance(m)/1000"),
+                    fieldWithPath("data.action").description("CREATED 또는 UPDATED")
                 )
             ));
     }
