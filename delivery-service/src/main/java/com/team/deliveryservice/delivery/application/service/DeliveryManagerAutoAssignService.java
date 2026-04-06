@@ -1,4 +1,7 @@
 package com.team.deliveryservice.delivery.application.service;
 
-public class DeliveryManagerAutoAssignService {
+import com.team.deliveryservice.delivery.domain.Delivery;
+
+public interface DeliveryManagerAutoAssignService {
+    void autoAssign(Delivery delivery);
 }

@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.verify;
 
 import com.team.deliveryservice.delivery.application.dto.request.AssignCompanyDeliveryManagerRequest;
 import com.team.deliveryservice.delivery.application.dto.request.AssignHubDeliveryManagerRequest;
@@ -12,6 +14,7 @@ import com.team.deliveryservice.delivery.application.dto.request.ChangeDeliveryS
 import com.team.deliveryservice.delivery.application.dto.request.CreateDeliveryRequest;
 import com.team.deliveryservice.delivery.application.dto.response.AiDeliveryResponse;
 import com.team.deliveryservice.delivery.application.dto.response.DeliveryResponse;
+import com.team.deliveryservice.delivery.application.service.DeliveryManagerAutoAssignService;
 import com.team.deliveryservice.delivery.application.service.DeliveryServiceImpl;
 import com.team.deliveryservice.delivery.domain.Delivery;
 import com.team.deliveryservice.delivery.domain.DeliveryRepository;
@@ -78,6 +81,9 @@ class DeliveryServiceImplTest {
     @Mock
     private OrderClient orderClient;
 
+    @Mock
+    private DeliveryManagerAutoAssignService deliveryManagerAutoAssignService;
+
     @InjectMocks
     private DeliveryServiceImpl deliveryService;
 
@@ -143,18 +149,30 @@ class DeliveryServiceImplTest {
 
         // 중복 배송 없음 설정
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
-        
+
         // 모든 유효 의존성 설정 (헬퍼 사용)
-        givenCommonCreateDependencies(orderId, supplierCompanyId, receiverCompanyId, FIXED_ORIGIN_HUB_ID, FIXED_DESTINATION_HUB_ID);
+        givenCommonCreateDependencies(
+            orderId,
+            supplierCompanyId,
+            receiverCompanyId,
+            FIXED_ORIGIN_HUB_ID,
+            FIXED_DESTINATION_HUB_ID
+        );
         givenOptimalRoute(FIXED_ORIGIN_HUB_ID, FIXED_DESTINATION_HUB_ID);
 
-        // 배송 저장 모킹 (서비스는 save()를 사용함)
+        // 배송 저장 모킹
         given(deliveryRepository.save(any(Delivery.class)))
             .willAnswer(invocation -> invocation.getArgument(0));
-        
-        // 생성된 경로 로그 조회 모킹 (경로 생성 로직 검증을 위해 1개의 로그 반환)
+
+        // 생성된 경로 로그 조회 모킹
         DeliveryRouteLog mockRouteLog = DeliveryRouteLog.create(
-            UUID.randomUUID(), 1, FIXED_ORIGIN_HUB_ID, FIXED_DESTINATION_HUB_ID, BigDecimal.valueOf(10.0), 30, null
+            UUID.randomUUID(),
+            1,
+            FIXED_ORIGIN_HUB_ID,
+            FIXED_DESTINATION_HUB_ID,
+            BigDecimal.valueOf(10.0),
+            30,
+            null
         );
         given(deliveryRouteLogRepository.findAllByDeliveryIdAndDeletedAtIsNullOrderBySequenceNoAsc(any()))
             .willReturn(List.of(mockRouteLog));
@@ -168,10 +186,95 @@ class DeliveryServiceImplTest {
         assertThat(response.originHubId()).isEqualTo(FIXED_ORIGIN_HUB_ID);
         assertThat(response.destinationHubId()).isEqualTo(FIXED_DESTINATION_HUB_ID);
         assertThat(response.deliveryStatus()).isEqualTo(DeliveryStatus.WAITING_AT_HUB);
-        
-        // 비즈니스 로직 핵심: 경로 로그가 실제로 생성되어 응답에 포함되었는지 검증
+
+        // 경로 로그 생성 확인
         assertThat(response.routeLogs()).hasSize(1);
         assertThat(response.routeLogs().get(0).sequenceNo()).isEqualTo(1);
+
+        // 자동 배정 서비스 호출 검증
+        verify(deliveryManagerAutoAssignService).autoAssign(any(Delivery.class));
+    }
+
+    @Test
+    @DisplayName("배송 생성 실패 - 자동 배정 가능한 허브 배송 담당자가 없으면 예외 발생")
+    void create_delivery_fail_when_no_hub_delivery_manager_candidate() {
+        // given
+        UUID orderId = UUID.randomUUID();
+        UUID orderedBy = UUID.randomUUID();
+        UUID supplierCompanyId = UUID.randomUUID();
+        UUID receiverCompanyId = UUID.randomUUID();
+
+        CreateDeliveryRequest request = new CreateDeliveryRequest(
+            orderId,
+            orderedBy,
+            supplierCompanyId,
+            receiverCompanyId,
+            LocalDateTime.of(2026, 4, 1, 18, 0),
+            "문 앞에 놓아주세요"
+        );
+
+        given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
+        givenCommonCreateDependencies(
+            orderId,
+            supplierCompanyId,
+            receiverCompanyId,
+            FIXED_ORIGIN_HUB_ID,
+            FIXED_DESTINATION_HUB_ID
+        );
+        givenOptimalRoute(FIXED_ORIGIN_HUB_ID, FIXED_DESTINATION_HUB_ID);
+
+        given(deliveryRepository.save(any(Delivery.class)))
+            .willAnswer(invocation -> invocation.getArgument(0));
+
+        willThrow(new ServiceException(DeliveryErrorCode.HUB_DELIVERY_MANAGER_CANDIDATE_NOT_FOUND))
+            .given(deliveryManagerAutoAssignService)
+            .autoAssign(any(Delivery.class));
+
+        // when & then
+        assertThatThrownBy(() -> deliveryService.createDelivery(request))
+            .isInstanceOf(ServiceException.class)
+            .hasMessage(DeliveryErrorCode.HUB_DELIVERY_MANAGER_CANDIDATE_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    @DisplayName("배송 생성 실패 - 자동 배정 가능한 업체 배송 담당자가 없으면 예외 발생")
+    void create_delivery_fail_when_no_company_delivery_manager_candidate() {
+        // given
+        UUID orderId = UUID.randomUUID();
+        UUID orderedBy = UUID.randomUUID();
+        UUID supplierCompanyId = UUID.randomUUID();
+        UUID receiverCompanyId = UUID.randomUUID();
+
+        CreateDeliveryRequest request = new CreateDeliveryRequest(
+            orderId,
+            orderedBy,
+            supplierCompanyId,
+            receiverCompanyId,
+            LocalDateTime.of(2026, 4, 1, 18, 0),
+            "문 앞에 놓아주세요"
+        );
+
+        given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
+        givenCommonCreateDependencies(
+            orderId,
+            supplierCompanyId,
+            receiverCompanyId,
+            FIXED_ORIGIN_HUB_ID,
+            FIXED_DESTINATION_HUB_ID
+        );
+        givenOptimalRoute(FIXED_ORIGIN_HUB_ID, FIXED_DESTINATION_HUB_ID);
+
+        given(deliveryRepository.save(any(Delivery.class)))
+            .willAnswer(invocation -> invocation.getArgument(0));
+
+        willThrow(new ServiceException(DeliveryErrorCode.COMPANY_DELIVERY_MANAGER_CANDIDATE_NOT_FOUND))
+            .given(deliveryManagerAutoAssignService)
+            .autoAssign(any(Delivery.class));
+
+        // when & then
+        assertThatThrownBy(() -> deliveryService.createDelivery(request))
+            .isInstanceOf(ServiceException.class)
+            .hasMessage(DeliveryErrorCode.COMPANY_DELIVERY_MANAGER_CANDIDATE_NOT_FOUND.getMessage());
     }
 
     @Test

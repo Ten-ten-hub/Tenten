@@ -5,6 +5,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import java.util.List;
 
 public interface DeliveryManagerRepository
     extends JpaRepository<DeliveryManager, UUID>, DeliveryManagerRepositoryCustom {
@@ -21,6 +22,11 @@ public interface DeliveryManagerRepository
     // 업체 배송 담당자(COMPANY_DELIVERY_MANAGER) 마지막 순번 조회 + 비관적 락
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<DeliveryManager> findTopByTypeAndHubIdAndDeletedAtIsNullOrderByDeliverySequenceDesc(
+        DeliveryManagerType type,
+        UUID hubId
+    );
+
+    List<DeliveryManager> findAllByTypeAndHubIdAndDeletedAtIsNullOrderByDeliverySequenceAsc(
         DeliveryManagerType type,
         UUID hubId
     );
