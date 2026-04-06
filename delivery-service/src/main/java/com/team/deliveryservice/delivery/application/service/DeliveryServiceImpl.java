@@ -359,7 +359,7 @@ public class DeliveryServiceImpl implements DeliveryService {
         try {
             CompanyInternalResponse company = companyClient.getCompany(companyId);
 
-            if (company == null || company.id() == null || !company.isActive()) {
+            if (company == null || company.id() == null || !company.active()) {
                 log.warn("[배송 생성] 업체 없음 또는 비활성 companyId={}", companyId);
                 throw new ServiceException(DeliveryErrorCode.COMPANY_NOT_FOUND);
             }
