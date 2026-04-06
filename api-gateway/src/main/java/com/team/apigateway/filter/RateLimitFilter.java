@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
+import jdk.jshell.spi.ExecutionControl.UserException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.annotation.Order;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -39,11 +40,17 @@ public class RateLimitFilter extends OncePerRequestFilter {
             String ip = request.getRemoteAddr();
             String key = "rate_limit:login:" + ip;
 
-            Long count = redisTemplate.execute(
-                rateLimitScript, // 실행할 Lua 스크립트
-                List.of(key), // KEYS 배열 : Lua 스크립트 안의 KEYS[1]에 매핑됨
-                String.valueOf(WINDOW_SECONDS) // Lua 스크립트 안의 ARGV[1]에 매핑
-            );
+            Long count;
+            try{
+                count = redisTemplate.execute(
+                    rateLimitScript, // 실행할 Lua 스크립트
+                    List.of(key), // KEYS 배열 : Lua 스크립트 안의 KEYS[1]에 매핑됨
+                    String.valueOf(WINDOW_SECONDS) // Lua 스크립트 안의 ARGV[1]에 매핑
+                );
+            }catch (DagaAccessException e){
+                filterChain.doFilter(request, response);
+                return;
+            }
 
             // 서비스 가용이 우선인 경우 : count == null -> Redis 장애 시 일단 통과
             // 보안이 우선일 때 : count == null -> Redis 장애 시에도 차단
