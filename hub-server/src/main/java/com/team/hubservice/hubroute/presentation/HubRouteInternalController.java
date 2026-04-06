@@ -9,6 +9,7 @@ import com.team.hubservice.hubroute.presentation.dto.OptimalRouteResponse;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+@Slf4j
 @RestController
 @RequestMapping("/internal/v1/hub-route")
 public class HubRouteInternalController {
@@ -59,10 +61,10 @@ public class HubRouteInternalController {
         AiRouteResponse response = hubRouteAiService.getRouteInfoForAi(originId, destinationId);
 
         if (response == null) {
-            System.out.println("[HUB-DEBUG] 해당 경로 데이터가 DB에 없습니다.");
+            log.warn("[HUB ROUTE] 경로 정보를 찾을 수 없습니다.");
             return ResponseEntity.notFound().build();
         }
-        System.out.println("[HUB-DEBUG] 데이터 조회 성공: duration=" + response.duration());
+        log.info("[HUB ROUTE] 데이터 조회 성공 - 소요 시간: {}분", response.duration());
 
         return ResponseEntity.ok(response);
     }
