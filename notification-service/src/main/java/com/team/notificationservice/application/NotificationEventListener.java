@@ -3,6 +3,7 @@ package com.team.notificationservice.application;
 import com.team.notificationservice.domain.Notification;
 import com.team.notificationservice.domain.NotificationRepository;
 import com.team.notificationservice.infrastructure.SlackClient;
+import com.team.notificationservice.infrastructure.SlackSendResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -20,31 +21,34 @@ public class NotificationEventListener {
     private final SlackClient slackClient;
     private final NotificationRepository notificationRepository;
 
-    @Async // 비동기 실행
-    @Transactional(propagation = Propagation.REQUIRES_NEW) // 새 트랜잭션에서 상태 업데이트
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT) // DB 저장 성공 후 실행
+    @Async
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleNotificationSavedEvent(NotificationSavedEvent event) {
-        log.info(">>>> [이벤트 수신] 슬랙 발송 시작: ID={}", event.notificationId());
-
-        Notification notification = notificationRepository.findById(event.notificationId())
-            .orElse(null);
-
+        Notification notification = notificationRepository.findById(event.notificationId()).orElse(null);
         if (notification == null) {
             return;
         }
 
         try {
-            // 실제 슬랙 발송 호출
-            slackClient.sendDirectMessage(event.receiverSlackId(), event.msgContent());
+            // 1. 결과값(SlackSendResult) 캡처
+            SlackSendResult result = slackClient.sendDirectMessage(event.receiverSlackId(), event.msgContent());
 
-            // 성공 상태 기록
-            notification.markAsSentImmediately();
-            log.info(">>>> [슬랙 발송 성공] ID={}", event.notificationId());
+            // 2. 결과에 따른 분기 처리
+            if (result == SlackSendResult.SUCCESS) {
+                notification.markAsSentImmediately();
+                log.info(">>>> [슬랙 발송 성공] ID: {}", event.notificationId());
+            } else if (result == SlackSendResult.RETRYABLE_FAILURE) {
+                log.warn(">>>> [슬랙 재시도 가능 실패] ID: {}", event.notificationId());
+                notification.markAsFailed(); // 재시도 로직이 없다면 우선 실패 처리
+            } else {
+                log.error(">>>> [슬랙 발송 알 수 없는 에러] ID: {}, Result: {}", event.notificationId(), result);
+                notification.markAsFailed();
+            }
         } catch (Exception e) {
-            log.error(">>>> [슬랙 발송 실패] ID={}, 사유={}", event.notificationId(), e.getMessage());
+            log.error(">>>> [슬랙 호출 중 예외 발생] ID: {}, Message: {}", event.notificationId(), e.getMessage());
             notification.markAsFailed();
         }
-
         notificationRepository.save(notification);
     }
 }

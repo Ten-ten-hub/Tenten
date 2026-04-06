@@ -19,10 +19,13 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.cloud.stream.function.StreamBridge;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 @Slf4j
 @Service
@@ -37,6 +40,7 @@ public class AiAnalysisService {
     private final AiAnalysisRepository aiAnalysisRepository;
     private final HubRouteCacheService hubRouteCacheService;
     private final StreamBridge streamBridge;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public AiAnalysis analyzeDeadline(AiRequest request) {
@@ -132,7 +136,7 @@ public class AiAnalysisService {
             .build());
 
         // 6. 알림 서비스 호출 (외부 호출)
-        sendNotification(request, rawResult, savedAnalysis);
+        publishKafkaEvent(request, rawResult, savedAnalysis);
 
         return savedAnalysis;
     }
@@ -235,5 +239,34 @@ public class AiAnalysisService {
     public AiAnalysis findById(UUID id) {
         return aiAnalysisRepository.findByIdAndDeletedAtIsNull(id)
             .orElseThrow(() -> new BusinessException(ErrorCode.AI_NOT_FOUND));
+    }
+
+    private void publishKafkaEvent(AiRequest request, String rawResult, AiAnalysis savedAnalysis) {
+        LocalDateTime scheduledAt = parseScheduledTime(rawResult);
+        String cleanResult = rawResult.replaceAll("\\[TIME:.*?\\]", "").trim();
+        String targetMsgType = determineMsgType(savedAnalysis.getAnalysisType());
+
+        NotificationClient.AiNotificationRequest kafkaPayload = new NotificationClient.AiNotificationRequest(
+            request.orderId(), request.receiverId(), request.receiverSlackId(),
+            cleanResult, scheduledAt, savedAnalysis.getId(), targetMsgType
+        );
+
+        // 스프링 내부 이벤트 발행
+        eventPublisher.publishEvent(new NotificationPublishedEvent(savedAnalysis.getId(), kafkaPayload));
+    }
+
+    // DB 커밋 성공 후 실행될 리스너
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handleKafkaPublish(NotificationPublishedEvent event) {
+        try {
+            boolean isSent = streamBridge.send("ai-notification-out-0", event.payload());
+            if (!isSent) {
+                log.error("[KAFKA PUBLISH FAILED] StreamBridge returned false. AnalysisID: {}", event.analysisId());
+            } else {
+                log.info("[KAFKA PUBLISH SUCCESS] AnalysisID: {}", event.analysisId());
+            }
+        } catch (Exception e) {
+            log.error("[KAFKA ERROR] After commit publish failed: {}", e.getMessage());
+        }
     }
 }
