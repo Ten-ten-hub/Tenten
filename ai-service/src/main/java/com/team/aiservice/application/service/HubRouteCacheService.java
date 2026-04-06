@@ -17,10 +17,19 @@ public class HubRouteCacheService {
     /**
      * Redis에서 경로 데이터를 먼저 찾고, 없으면 API 호출 후 캐싱 (RAG 최적화)
      */
-    @Cacheable(cacheNames = "hubRoutes", key = "#originId.toString() + ':' + #destId.toString()")
+    @Cacheable(cacheNames = "hubRoutes", key = "#originId.toString() + ':' + #destId.toString()", unless = "#result == null")
     public HubClient.HubRouteResponse getCachedRoute(UUID originId, UUID destId) {
-        log.info("[RAG Cache Miss] 허브 서비스 호출 (Internal Header 포함): {} -> {}", originId, destId);
+        log.info("[RAG Cache Miss] 허브 서비스 호출: {} -> {}", originId, destId);
 
-        return hubClient.getRoute(originId, destId);
+        try {
+            return hubClient.getRoute(originId, destId);
+        } catch (feign.FeignException.NotFound e) {
+            // 404 발생 시 에러를 던지지 않고 null을 반환하여 서비스 로직에서 예외 처리하게 함
+            log.warn("[HUB NOT FOUND] 해당 경로 정보가 없습니다: {} -> {}", originId, destId);
+            return null;
+        } catch (Exception e) {
+            log.error("[HUB ERROR] 허브 서비스 호출 중 알 수 없는 오류 발생", e);
+            throw e;
+        }
     }
 }
