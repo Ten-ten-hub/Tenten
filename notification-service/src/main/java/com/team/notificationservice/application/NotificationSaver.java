@@ -20,18 +20,14 @@ public class NotificationSaver {
 
     /**
      * 실제 DB 저장 및 이벤트를 발행하는 로직
-     *
-     * @param dto           알림 요청 정보
-     * @param targetSlackId 식별된 슬랙 ID
-     * @param receiverId    식별된 수신자 UUID (없을 경우 null 전달)
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void saveAndPublish(NotificationRequest dto, String targetSlackId, UUID receiverId) {
+    public void saveAndPublish(NotificationRequest dto,
+                               String targetSlackId,
+                               UUID receiverId) {
 
-        //TODO: 수신자 ID 연동 완료 시 아래 블록을 삭제하고 에러 처리로 변경할 것
         if (receiverId == null) {
             receiverId = Constants.SYSTEM_UUID;
-            // 나중에 엄격하게 하려면 여기서 throw new ServiceException(...)을 던지도록 수정해야함
         }
 
         Notification notification = Notification.builder()
@@ -45,7 +41,36 @@ public class NotificationSaver {
 
         notificationRepository.saveAndFlush(notification);
 
-        // 슬랙 발송을 위한 이벤트 발행
+        eventPublisher.publishEvent(new NotificationCreatedEvent(
+            notification.getId(),
+            targetSlackId,
+            notification.getMsgContent()
+        ));
+    }
+
+    /**
+     * AI 분석 ID(refId)를 포함하여 저장하고 이벤트를 발행하는 로직
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void saveWithAiRef(NotificationRequest dto, String targetSlackId, UUID receiverId, UUID aiAnalysisId) {
+
+        if (receiverId == null) {
+            receiverId = Constants.SYSTEM_UUID;
+        }
+
+        Notification notification = Notification.builder()
+            .receiverId(receiverId)
+            .receiverSlackId(targetSlackId)
+            .orderId(dto.orderId())
+            .msgContent(dto.message())
+            .msgType(dto.msgType())
+            .sendStatus(SendStatus.PENDING)
+            .refId(aiAnalysisId) // AI 서비스의 분석 ID 저장
+            .build();
+
+        notificationRepository.saveAndFlush(notification);
+
+        // 슬랙 발송 이벤트 발행 (동일한 리스너가 처리)
         eventPublisher.publishEvent(new NotificationCreatedEvent(
             notification.getId(),
             targetSlackId,

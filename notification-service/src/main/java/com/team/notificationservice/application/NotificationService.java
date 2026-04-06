@@ -1,8 +1,11 @@
 package com.team.notificationservice.application;
 
 import com.team.common.Constants;
+import com.team.notificationservice.domain.MsgType;
 import com.team.notificationservice.domain.Notification;
 import com.team.notificationservice.domain.NotificationRepository;
+import com.team.notificationservice.domain.SendStatus;
+import com.team.notificationservice.infrastructure.AiClient;
 import com.team.notificationservice.infrastructure.SlackClient;
 import com.team.notificationservice.presentation.NotificationResponse;
 import com.team.notificationservice.presentation.common.ErrorCode;
@@ -27,6 +30,7 @@ public class NotificationService {
     private final SlackClient slackClient;// Listener로 옮길 예정이지만, ID 조회 로직 때문에 유지
     private final NotificationSaver notificationSaver;
     private final StringRedisTemplate redisTemplate; // Redis 추가
+    private final AiClient aiClient;
 
     /**
      * 알림 생성 및 전송 엔트리 포인트 네트워크 호출(Slack API)을 포함하므로 @Transactional을 붙이지 않음!
@@ -54,6 +58,46 @@ public class NotificationService {
 
         // 3. 별도 트랜잭션 컴포넌트(Saver)를 통해 저장 및 이벤트 발행
         notificationSaver.saveAndPublish(dto, targetSlackId, receiverUuid);
+    }
+
+    /**
+     * AI 연동을 통해 허브 담당자에게 상세 알림을 생성하는 로직
+     */
+    @Transactional
+    public void createWithAiAnalysis(AiNotificationRequest aiRequest, String msgType) {
+
+        MsgType type;
+        try {
+            // 유효하지 않은 msgType 입력에 대한 방어 로직
+            type = MsgType.valueOf(msgType);
+        } catch (IllegalArgumentException | NullPointerException e) {
+            log.error("[INVALID MSG_TYPE] 요청된 메시지 타입이 올바르지 않습니다: '{}'. OrderID: {}", msgType, aiRequest.orderId());
+            throw new ServiceException(ErrorCode.COMMON_INVALID_INPUT_VALUE);
+        }
+
+        Notification notification = Notification.builder()
+            .receiverId(aiRequest.receiverId())
+            .receiverSlackId(aiRequest.receiverSlackId())
+            .orderId(aiRequest.orderId())
+            .msgType(type)
+            .msgContent(aiRequest.msgContent())
+            .sendStatus(SendStatus.PENDING)
+            .scheduledAt(aiRequest.scheduledAt())
+            .refId(aiRequest.refId())
+            .build();
+
+        Notification saved = notificationRepository.save(notification);
+
+        // 2. 실제 슬랙 즉시 전송 호출
+        try {
+            slackClient.sendDirectMessage(saved.getReceiverSlackId(), saved.getMsgContent());
+            saved.markAsSentImmediately();
+            log.info("AI 알림 즉시 발송 성공: ID={}, 상태=SENT_IMMEDIATELY", saved.getId());
+        } catch (Exception e) {
+            log.error("슬랙 즉시 전송 실패: {}", e.getMessage());
+            saved.markAsFailed(); // 실패 시 상태를 FAIL로 변경
+        }
+        notificationRepository.save(saved);
     }
 
     /**

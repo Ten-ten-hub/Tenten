@@ -48,6 +48,7 @@ public class NotificationController {
         return ApiResponse.success("OK");
     }
 
+    //TODO 삭제? 확인하기
     // 내부 시스템 호출용 (게이트웨이 설정 없이 서비스명:8085/internal/v1/... 으로 직접 호출)
     @PostMapping("/internal/v1/notifications/slack")
     public ApiResponse<String> internalSend(
