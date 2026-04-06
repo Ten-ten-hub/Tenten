@@ -61,13 +61,13 @@ public class UserInternalController {
     }
 
     @GetMapping("/v1/users/{userId}/role")
-    public CommonResponse<GetRoleRes> getUserRoleInternal(@PathVariable("userId") UUID userId) {
-        return CommonResponse.onSuccess(new GetRoleRes(userService.getUserRole(userId)));
+    public GetRoleRes getUserRoleInternal(@PathVariable("userId") UUID userId) {
+        return new GetRoleRes(userService.getUserRole(userId));
     }
 
     //슬랙아이디 조회 내부api
     @GetMapping("/v1/users/{userId}/slack")
-    public CommonResponse<SlackIdRes> getSlackInternal(@PathVariable("userId") UUID userId) {
-        return CommonResponse.onSuccess(new SlackIdRes(userService.getUserSlackId(userId)));
+    public SlackIdRes getSlackInternal(@PathVariable("userId") UUID userId) {
+        return new SlackIdRes(userService.getUserSlackId(userId));
     }
 }

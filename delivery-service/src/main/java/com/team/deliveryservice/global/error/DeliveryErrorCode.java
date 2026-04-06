@@ -85,6 +85,12 @@ public enum DeliveryErrorCode implements com.team.common.exception.ErrorCode {
         "현재 상태에서는 배송 담당자를 배정할 수 없습니다."
     ),
 
+    DELIVERY_UPDATE_NOT_ALLOWED(
+        HttpStatus.BAD_REQUEST,
+        "DELIVERY_UPDATE_NOT_ALLOWED",
+        "현재 상태에서는 배송 정보를 수정할 수 없습니다."
+    ),
+
     DELIVERY_ALREADY_COMPLETED(
         HttpStatus.BAD_REQUEST,
         "DELIVERY_ALREADY_COMPLETED",

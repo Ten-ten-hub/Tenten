@@ -13,7 +13,6 @@ import static org.springframework.restdocs.payload.PayloadDocumentation.response
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
 import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 import static org.springframework.restdocs.request.RequestDocumentation.queryParameters;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -22,13 +21,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team.deliveryservice.delivery.application.dto.request.AssignCompanyDeliveryManagerRequest;
 import com.team.deliveryservice.delivery.application.dto.request.AssignHubDeliveryManagerRequest;
-import com.team.deliveryservice.delivery.application.dto.request.ChangeDeliveryStatusRequest;
-import com.team.deliveryservice.delivery.application.dto.request.CreateDeliveryRequest;
+import com.team.deliveryservice.delivery.application.dto.request.UpdateDeliveryRequest;
 import com.team.deliveryservice.delivery.application.dto.response.DeliveryPageResponse;
 import com.team.deliveryservice.delivery.application.dto.response.DeliveryResponse;
 import com.team.deliveryservice.delivery.application.dto.response.DeliveryRouteLogResponse;
 import com.team.deliveryservice.delivery.application.service.DeliveryService;
-import com.team.deliveryservice.delivery.application.dto.request.UpdateDeliveryRequest;
 import com.team.deliveryservice.delivery.domain.DeliveryRouteStatus;
 import com.team.deliveryservice.delivery.domain.DeliveryStatus;
 import com.team.deliveryservice.delivery.presentation.ExternalDeliveryController;
@@ -94,6 +91,7 @@ class ExternalDeliveryControllerRestDocsTest {
             .arrivalHubId(UUID.fromString("40000000-0000-0000-0000-000000000002"))
             .expectedDistanceKm(new BigDecimal("12.50"))
             .expectedDurationMinutes(30)
+            .realDurationMinutes(35)
             .routeStatus(DeliveryRouteStatus.WAITING_AT_HUB)
             .deliveryManagerId(UUID.fromString("50000000-0000-0000-0000-000000000001"))
             .departedAt(null)
@@ -214,8 +212,9 @@ class ExternalDeliveryControllerRestDocsTest {
                     fieldWithPath("data.content[].routeLogs[].arrivalHubId").type(JsonFieldType.STRING).description("도착 허브 ID"),
                     fieldWithPath("data.content[].routeLogs[].expectedDistanceKm").type(JsonFieldType.NUMBER).description("예상 거리(km)"),
                     fieldWithPath("data.content[].routeLogs[].expectedDurationMinutes").type(JsonFieldType.NUMBER).description("예상 소요 시간(분)"),
+                    fieldWithPath("data.content[].routeLogs[].realDurationMinutes").type(JsonFieldType.NUMBER).optional().description("실제 소요 시간(분)"),
                     fieldWithPath("data.content[].routeLogs[].routeStatus").type(JsonFieldType.STRING).description("배송 경로 상태"),
-                    fieldWithPath("data.content[].routeLogs[].deliveryManagerId").type(JsonFieldType.STRING).description("허브 배송 담당자 ID").optional(),
+                    fieldWithPath("data.content[].routeLogs[].deliveryManagerId").type(JsonFieldType.STRING).optional().description("허브 배송 담당자 ID"),
                     fieldWithPath("data.content[].routeLogs[].departedAt").type(JsonFieldType.NULL).optional().description("출발 시각"),
                     fieldWithPath("data.content[].routeLogs[].arrivedAt").type(JsonFieldType.NULL).optional().description("도착 시각"),
                     fieldWithPath("data.page").type(JsonFieldType.NUMBER).description("현재 페이지"),
@@ -327,7 +326,6 @@ class ExternalDeliveryControllerRestDocsTest {
             ));
     }
 
-
     private org.springframework.restdocs.payload.ResponseFieldsSnippet commonDeliveryResponseFields() {
         return responseFields(
             fieldWithPath("success").type(JsonFieldType.BOOLEAN).description("요청 성공 여부"),
@@ -355,6 +353,7 @@ class ExternalDeliveryControllerRestDocsTest {
             fieldWithPath("data.routeLogs[].arrivalHubId").type(JsonFieldType.STRING).description("도착 허브 ID"),
             fieldWithPath("data.routeLogs[].expectedDistanceKm").type(JsonFieldType.NUMBER).description("예상 거리(km)"),
             fieldWithPath("data.routeLogs[].expectedDurationMinutes").type(JsonFieldType.NUMBER).description("예상 소요 시간(분)"),
+            fieldWithPath("data.routeLogs[].realDurationMinutes").type(JsonFieldType.NUMBER).optional().description("실제 소요 시간(분)"),
             fieldWithPath("data.routeLogs[].routeStatus").type(JsonFieldType.STRING).description("배송 경로 상태"),
             fieldWithPath("data.routeLogs[].deliveryManagerId").type(JsonFieldType.STRING).optional().description("허브 배송 담당자 ID"),
             fieldWithPath("data.routeLogs[].departedAt").type(JsonFieldType.NULL).optional().description("출발 시각"),

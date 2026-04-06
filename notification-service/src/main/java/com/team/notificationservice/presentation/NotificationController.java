@@ -6,12 +6,8 @@ import com.team.common.page.PageSizeUtils;
 import com.team.notificationservice.application.NotificationRequest;
 import com.team.notificationservice.application.NotificationSearchCondition;
 import com.team.notificationservice.application.NotificationService;
-import com.team.notificationservice.presentation.common.ErrorCode;
 import com.team.notificationservice.presentation.common.RequireRole;
-import com.team.notificationservice.presentation.common.ServiceException;
 import jakarta.validation.Valid;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,30 +41,6 @@ public class NotificationController {
     public ApiResponse<String> send(@RequestHeader(value = "X-User-Id", required = false) String userId, // 게이트웨이 전달 헤더
                                     @RequestBody @Valid NotificationRequest request) {
         notificationService.createAndSend(request, userId);
-        return ApiResponse.success("OK");
-    }
-
-    //TODO 삭제? 확인하기
-    // 내부 시스템 호출용 (게이트웨이 설정 없이 서비스명:8085/internal/v1/... 으로 직접 호출)
-    @PostMapping("/internal/v1/notifications/slack")
-    public ApiResponse<String> internalSend(
-        @RequestHeader(value = "X-Internal-Token", required = false) String token,
-        @RequestBody @Valid NotificationRequest request) {
-
-        // 1. 서버 설정 체크 (5xx)
-        if (internalAuthToken == null || internalAuthToken.isBlank()) {
-            log.error("Internal Auth Token is not configured in server.");
-            throw new ServiceException(ErrorCode.SERVER_CONFIG_ERROR);
-        }
-
-        // 2. 타이밍 공격 방지 및 null-safe 비교 (401)
-        if (token == null || !MessageDigest.isEqual(token.getBytes(StandardCharsets.UTF_8),
-            internalAuthToken.getBytes(StandardCharsets.UTF_8))) {
-            throw new ServiceException(ErrorCode.AUTH_INVALID_TOKEN);
-        }
-
-        // 내부 시스템 호출 시에는 별도 유저 ID가 없을 수 있으므로 null 전달
-        notificationService.createAndSend(request, null);
         return ApiResponse.success("OK");
     }
 

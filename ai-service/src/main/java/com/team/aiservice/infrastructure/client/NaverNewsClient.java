@@ -9,8 +9,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 @FeignClient(name = "naver-news", url = "https://openapi.naver.com", configuration = NaverFeignConfig.class)
 public interface NaverNewsClient {
     @GetMapping("/v1/search/news.json")
-    NaverNewsResponse searchNews(@RequestParam("query") String query,
-                                 @RequestParam("display") int display);
+    NaverNewsResponse searchNews(
+        @RequestParam("query") String query,
+        @RequestParam("display") int display,
+        @RequestParam("start") int start,
+        @RequestParam("sort") String sort
+    );
 
     record NaverNewsResponse(List<NewsItem> items) {
     }

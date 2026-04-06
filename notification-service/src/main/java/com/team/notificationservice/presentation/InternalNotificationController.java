@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/notifications/internal")
+@RequestMapping("/internal/v1/notifications")
 @RequiredArgsConstructor
 public class InternalNotificationController {
     private final NotificationService notificationService;

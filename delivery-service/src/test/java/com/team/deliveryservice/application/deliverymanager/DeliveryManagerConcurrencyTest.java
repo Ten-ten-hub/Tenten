@@ -1,4 +1,3 @@
-// 통합테스트 - 업체 배송담당자 동시성 테스트
 package com.team.deliveryservice.application.deliverymanager;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -21,10 +20,10 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Propagation;
@@ -78,11 +77,9 @@ class DeliveryManagerConcurrencyTest {
     @DisplayName("동시 요청 시 업체 배송담당자는 저장된 데이터 기준으로 deliverySequence 중복이 없어야 한다")
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void company_deliveryManager_sequence_concurrency_test() throws Exception {
-        // given
         int threadCount = 10;
         UUID hubId = UUID.randomUUID();
 
-        // 비관적 락 검증을 위해 seed row를 하나 먼저 생성
         deliveryManagerRepository.saveAndFlush(
             DeliveryManager.create(
                 UUID.randomUUID(),
@@ -105,10 +102,8 @@ class DeliveryManagerConcurrencyTest {
         CountDownLatch startLatch = new CountDownLatch(1);
         CountDownLatch doneLatch = new CountDownLatch(threadCount);
 
-        // 실패 예외도 수집하지만, 이 테스트에서는 "예외가 0개여야 한다"를 강제하지 않음
         ConcurrentLinkedQueue<Throwable> exceptions = new ConcurrentLinkedQueue<>();
 
-        // when
         for (int i = 0; i < threadCount; i++) {
             final int idx = i;
             executor.submit(() -> {
@@ -137,31 +132,22 @@ class DeliveryManagerConcurrencyTest {
         doneLatch.await();
         executor.shutdown();
 
-        // then
         List<DeliveryManager> result = deliveryManagerRepository.findAll().stream()
             .filter(manager -> manager.getType() == DeliveryManagerType.COMPANY_DELIVERY_MANAGER)
             .filter(manager -> hubId.equals(manager.getHubId()))
             .toList();
 
-        // 최소한 seed 데이터는 존재해야 함
         assertThat(result).isNotEmpty();
 
-        // 저장된 데이터들끼리는 sequence 중복이 없어야 함
         Set<Integer> sequences = result.stream()
             .map(DeliveryManager::getDeliverySequence)
             .collect(Collectors.toSet());
 
         assertThat(sequences).hasSize(result.size());
-
-        // 모든 row는 동일 허브 / 동일 타입이어야 함
         assertThat(result)
             .allMatch(manager -> manager.getType() == DeliveryManagerType.COMPANY_DELIVERY_MANAGER)
             .allMatch(manager -> hubId.equals(manager.getHubId()));
-
-        // 시퀀스는 최소 0번(seed)부터 시작해야 함
         assertThat(sequences).contains(0);
-
-        // 예외가 발생할 수는 있지만, 저장된 데이터 무결성이 깨지면 안 됨
         assertThat(result.size()).isGreaterThanOrEqualTo(1);
     }
 
@@ -169,14 +155,13 @@ class DeliveryManagerConcurrencyTest {
     @DisplayName("동시 요청 시 허브 배송담당자는 저장된 데이터 기준으로 deliverySequence 중복이 없어야 한다")
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void hub_deliveryManager_sequence_concurrency_test() throws Exception {
-        // given
         int threadCount = 10;
+        UUID hubId = UUID.randomUUID();
 
-        // 비관적 락 검증을 위해 seed row를 하나 먼저 생성
         deliveryManagerRepository.saveAndFlush(
             DeliveryManager.create(
                 UUID.randomUUID(),
-                null,
+                hubId,
                 "U-SEED-HUB",
                 DeliveryManagerType.HUB_DELIVERY_MANAGER,
                 0
@@ -195,10 +180,8 @@ class DeliveryManagerConcurrencyTest {
         CountDownLatch startLatch = new CountDownLatch(1);
         CountDownLatch doneLatch = new CountDownLatch(threadCount);
 
-        // 실패 예외 수집
         ConcurrentLinkedQueue<Throwable> exceptions = new ConcurrentLinkedQueue<>();
 
-        // when
         for (int i = 0; i < threadCount; i++) {
             final int idx = i;
             executor.submit(() -> {
@@ -208,7 +191,7 @@ class DeliveryManagerConcurrencyTest {
 
                     CreateDeliveryManagerRequest request = new CreateDeliveryManagerRequest(
                         UUID.randomUUID(),
-                        null,
+                        hubId,
                         "U-HUB-" + idx,
                         DeliveryManagerType.HUB_DELIVERY_MANAGER
                     );
@@ -227,30 +210,22 @@ class DeliveryManagerConcurrencyTest {
         doneLatch.await();
         executor.shutdown();
 
-        // then
         List<DeliveryManager> result = deliveryManagerRepository.findAll().stream()
             .filter(manager -> manager.getType() == DeliveryManagerType.HUB_DELIVERY_MANAGER)
+            .filter(manager -> hubId.equals(manager.getHubId()))
             .toList();
 
-        // 최소한 seed 데이터는 존재해야 함
         assertThat(result).isNotEmpty();
 
-        // 저장된 데이터들끼리는 sequence 중복이 없어야 함
         Set<Integer> sequences = result.stream()
             .map(DeliveryManager::getDeliverySequence)
             .collect(Collectors.toSet());
 
         assertThat(sequences).hasSize(result.size());
-
-        // 모든 row는 HUB_DELIVERY_MANAGER 이고 hubId 는 null 이어야 함
         assertThat(result)
             .allMatch(manager -> manager.getType() == DeliveryManagerType.HUB_DELIVERY_MANAGER)
-            .allMatch(manager -> manager.getHubId() == null);
-
-        // seed sequence 확인
+            .allMatch(manager -> hubId.equals(manager.getHubId()));
         assertThat(sequences).contains(0);
-
-        // 예외가 있더라도 저장된 데이터의 sequence 무결성이 깨지면 안 됨
         assertThat(result.size()).isGreaterThanOrEqualTo(1);
     }
 }

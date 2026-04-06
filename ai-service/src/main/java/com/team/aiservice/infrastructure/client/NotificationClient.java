@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 @FeignClient(name = "notification-service")
 public interface NotificationClient {
 
-    @PostMapping("/api/v1/notifications/internal/ai-slack")
+    @PostMapping("/internal/v1/notifications/ai-slack")
     void sendWithAi(
         @RequestBody AiNotificationRequest request,
         @RequestParam("msgType") String msgType
