@@ -15,7 +15,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Slf4j
 @RestController
-@RequestMapping("/internal/v1/ai")
+@RequestMapping("/internal/v1/ais")
 @RequiredArgsConstructor
 public class InternalAiController {
     private final AiAnalysisService aiAnalysisService;
