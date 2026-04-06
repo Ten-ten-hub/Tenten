@@ -41,9 +41,9 @@ public class NotificationSaver {
 
         notificationRepository.saveAndFlush(notification);
 
-        eventPublisher.publishEvent(new NotificationCreatedEvent(
+        eventPublisher.publishEvent(new NotificationSavedEvent(
             notification.getId(),
-            targetSlackId,
+            notification.getReceiverSlackId(),
             notification.getMsgContent()
         ));
     }
@@ -71,9 +71,9 @@ public class NotificationSaver {
         notificationRepository.saveAndFlush(notification);
 
         // 슬랙 발송 이벤트 발행 (동일한 리스너가 처리)
-        eventPublisher.publishEvent(new NotificationCreatedEvent(
+        eventPublisher.publishEvent(new NotificationSavedEvent(
             notification.getId(),
-            targetSlackId,
+            notification.getReceiverSlackId(),
             notification.getMsgContent()
         ));
     }
