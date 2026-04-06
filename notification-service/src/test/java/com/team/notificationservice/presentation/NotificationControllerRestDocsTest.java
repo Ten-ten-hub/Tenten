@@ -7,6 +7,9 @@ import static org.springframework.restdocs.headers.HeaderDocumentation.headerWit
 import static org.springframework.restdocs.headers.HeaderDocumentation.requestHeaders;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.documentationConfiguration;
+import static org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders.delete;
+import static org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders.get;
+import static org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders.post;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessResponse;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.prettyPrint;
 import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
@@ -15,9 +18,6 @@ import static org.springframework.restdocs.payload.PayloadDocumentation.response
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
 import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 import static org.springframework.restdocs.request.RequestDocumentation.queryParameters;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -72,7 +72,10 @@ public class NotificationControllerRestDocsTest {
             LocalDateTime.now());
         given(notificationService.searchNotifications(any(), any())).willReturn(new PageImpl<>(List.of(res)));
 
-        mockMvc.perform(get("/api/v1/notifications").param("slackId", "U123").param("page", "1").param("size", "10"))
+        mockMvc.perform(get("/api/v1/notifications")
+                .param("slackId", "U123")
+                .param("page", "1")
+                .param("size", "10"))
             .andExpect(status().isOk())
             .andDo(document("notifications/list",
                 preprocessResponse(prettyPrint()),
@@ -134,7 +137,7 @@ public class NotificationControllerRestDocsTest {
         given(notificationService.getNotification(id)).willReturn(
             new NotificationResponse(id, "내용", SendStatus.SUCCESS, LocalDateTime.now()));
 
-        mockMvc.perform(get("/api/v1/notifications/{id}", id))
+        mockMvc.perform(get("/api/v1/notifications/{id}", id)) // RestDocumentationRequestBuilders 사용
             .andExpect(status().isOk())
             .andDo(document("notifications/get",
                 pathParameters(parameterWithName("id").description("조회할 알림 ID")),
@@ -153,12 +156,22 @@ public class NotificationControllerRestDocsTest {
     @DisplayName("알림 삭제 API 문서화")
     void deleteNotification_Docs() throws Exception {
         UUID id = UUID.randomUUID();
-        mockMvc.perform(delete("/api/v1/notifications/{id}", id).header("X-User-Id", UUID.randomUUID().toString())
+        mockMvc.perform(delete("/api/v1/notifications/{id}", id) // RestDocumentationRequestBuilders 사용
+                .header("X-User-Id", UUID.randomUUID().toString())
                 .header("X-User-Role", "MASTER_ADMIN"))
             .andExpect(status().isOk())
             .andDo(document("notifications/delete",
                 pathParameters(parameterWithName("id").description("삭제할 알림 ID")),
-                requestHeaders(headerWithName("X-User-Role").description("사용자 권한 (MASTER_ADMIN 필요)"))
+                requestHeaders(
+                    headerWithName("X-User-Id").description("요청 유저 ID"),
+                    headerWithName("X-User-Role").description("사용자 권한 (MASTER_ADMIN 필요)")
+                ),
+                responseFields(
+                    fieldWithPath("success").description("성공 여부"),
+                    fieldWithPath("code").description("상태 코드"),
+                    fieldWithPath("message").description("메시지"),
+                    fieldWithPath("data").description("결과 (null)")
+                )
             ));
     }
 }

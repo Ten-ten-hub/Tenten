@@ -1,11 +1,14 @@
 package com.team.notificationservice;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -46,54 +49,89 @@ class NotificationServiceApplicationTests {
     @Mock
     private ValueOperations<String, String> valueOps;
 
+    //1. 정상 작동
     @Test
-    @DisplayName("성공: Redis에 슬랙 ID 캐시가 있을 경우 외부 API 호출 없이 저장 로직 수행")
-    void createAndSend_WithRedisCacheSuccess() {
-        // Given
-        NotificationRequest req = new NotificationRequest(null, "user@test.com", UUID.randomUUID(), "테스트",
+    @DisplayName("성공: Redis 캐시가 있을 때 슬랙 ID 조회 없이 발송 처리")
+    void createAndSend_CacheHit_Success() {
+        NotificationRequest req = new NotificationRequest(null, "user@test.com", UUID.randomUUID(), "메시지",
             MsgType.ORDER_ALERT);
         given(redisTemplate.opsForValue()).willReturn(valueOps);
+        // thenReturn 대신 willReturn 사용
         given(valueOps.get("slack:email:user@test.com")).willReturn("U_CACHED_ID");
 
-        // When
-        notificationService.createAndSend(req, UUID.randomUUID().toString());
+        notificationService.createAndSend(req, "USER_ID");
 
-        // Then
         verify(slackClient, never()).findSlackIdByEmail(anyString());
-        verify(notificationSaver, times(1)).saveAndPublish(any(), eq("U_CACHED_ID"), any());
+        verify(notificationSaver).saveAndPublish(any(), eq("U_CACHED_ID"), any());
     }
 
     @Test
-    @DisplayName("성공: Redis 캐시가 없을 때 Slack API를 통해 ID를 조회하고 캐싱 처리 확인")
-    void createAndSend_WithoutCacheApiSuccess() {
-        // Given
+    @DisplayName("성공: Redis 캐시가 없으면 슬랙 API 호출 및 결과 캐싱")
+    void createAndSend_CacheMiss_Success() {
         NotificationRequest req = new NotificationRequest(null, "new@test.com", null, "메시지", MsgType.ORDER_ALERT);
         given(redisTemplate.opsForValue()).willReturn(valueOps);
         given(valueOps.get(anyString())).willReturn(null);
         given(slackClient.findSlackIdByEmail("new@test.com")).willReturn("U_API_ID");
 
-        // When
         notificationService.createAndSend(req, null);
 
-        // Then
         verify(slackClient).findSlackIdByEmail("new@test.com");
         verify(valueOps).set(eq("slack:email:new@test.com"), eq("U_API_ID"), anyLong(), any());
     }
 
+    //2. 장애 대응 (Fail-open 테스트)
     @Test
-    @DisplayName("Kafka: AI 분석 완료 이벤트 수신 시 알림 프로세서 호출 확인")
-    void kafkaConsumer_ProcessorExecutionCheck() {
+    @DisplayName("장애대응: Redis 조회 장애 발생 시에도 Slack API를 통해 알림 발송")
+    void createAndSend_RedisGetFailure_FallbackToApi() {
+        NotificationRequest req = new NotificationRequest(null, "fail@test.com", null, "메시지", MsgType.ORDER_ALERT);
+        given(redisTemplate.opsForValue()).willReturn(valueOps);
+        // Redis 조회 시 예외 발생 (willReturn 대신 willThrow 사용)
+        given(valueOps.get(anyString())).willThrow(new RuntimeException("Redis Down"));
+        given(slackClient.findSlackIdByEmail("fail@test.com")).willReturn("U_API_ID");
+
+        assertDoesNotThrow(() -> notificationService.createAndSend(req, null));
+        verify(slackClient).findSlackIdByEmail("fail@test.com");
+        verify(notificationSaver).saveAndPublish(any(), eq("U_API_ID"), any());
+    }
+
+    @Test
+    @DisplayName("장애대응: Slack ID 조회 후 Redis 저장 장애 발생해도 발송 완료")
+    void createAndSend_RedisSetFailure_Success() {
+        NotificationRequest req = new NotificationRequest(null, "setfail@test.com", null, "메시지", MsgType.ORDER_ALERT);
+        given(redisTemplate.opsForValue()).willReturn(valueOps);
+        given(valueOps.get(anyString())).willReturn(null);
+        given(slackClient.findSlackIdByEmail("setfail@test.com")).willReturn("U_API_ID");
+        // Redis 저장(set) 시 예외 발생 시나리오
+        doThrow(new RuntimeException("Redis Set Error")).when(valueOps).set(anyString(), anyString(), anyLong(), any());
+
+        assertDoesNotThrow(() -> notificationService.createAndSend(req, null));
+        verify(notificationSaver).saveAndPublish(any(), eq("U_API_ID"), any());
+    }
+
+    //3. Kafka 및 기타
+    @Test
+    @DisplayName("Kafka: AI 알림 수신 시 프로세서 작동 확인")
+    void consumeKafka_Success() {
         AiNotificationRequest aiReq = new AiNotificationRequest(UUID.randomUUID(), UUID.randomUUID(), "U1", "결과", null,
             UUID.randomUUID(), "ORDER_ALERT");
-
         notificationService.consumeAiNotification().accept(aiReq);
-
         verify(aiNotificationProcessor, times(1)).processAiNotification(eq(aiReq), eq("ORDER_ALERT"));
     }
 
     @Test
-    @DisplayName("성공: 특정 알림 ID로 조회 시 도메인 객체 반환 확인")
-    void getNotification_BusinessLogicSuccess() {
+    @DisplayName("엣지케이스: AI 프로세서에서 예외 발생 시 전파 확인")
+    void kafkaConsumer_ProcessorExceptionPath() {
+        AiNotificationRequest aiReq = new AiNotificationRequest(UUID.randomUUID(), UUID.randomUUID(), "U1", "결과", null,
+            UUID.randomUUID(), "ORDER_ALERT");
+        doThrow(new RuntimeException("Processing Failed")).when(aiNotificationProcessor)
+            .processAiNotification(any(), anyString());
+
+        assertThrows(RuntimeException.class, () -> notificationService.consumeAiNotification().accept(aiReq));
+    }
+
+    @Test
+    @DisplayName("성공: 알림 단건 조회 로직 확인")
+    void getNotification_Success() {
         UUID id = UUID.randomUUID();
         com.team.notificationservice.domain.Notification mockNoti =
             com.team.notificationservice.domain.Notification.builder().msgContent("내용").receiverSlackId("U1").build();
