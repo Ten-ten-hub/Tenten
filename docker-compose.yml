@@ -1,35 +1,353 @@
+version: '3.8'
+
+# ──────────────────────────────────────────────
+# 공통 환경 변수
+# ──────────────────────────────────────────────
+x-common-env: &common-env
+    DB_HOST: postgres
+    DB_PORT: 5432
+    DB_USERNAME: ${DB_USERNAME}
+    DB_PASSWORD: ${DB_PASSWORD}
+    JPA_DDL_AUTO: ${JPA_DDL_AUTO}
+    JPA_SHOW_SQL: ${JPA_SHOW_SQL}
+    EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
+    REDIS_HOST: redis
+    REDIS_PORT: 6379
+    KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    REDIS_PASSWORD: ${REDIS_PASSWORD}
+    ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+    JWT_SECRET: ${JWT_SECRET}
+    JWT_ACCESS_TOKEN_VALIDITY: 1h
+    JWT_REFRESH_TOKEN_VALIDITY: 7d
+
 services:
+
+    # ──────────────────────────────────────────────
+    # Infrastructure
+    # ──────────────────────────────────────────────
+
     postgres:
-        image: postgres:16
+        image: postgres:16-alpine
         container_name: tenten-postgres
         restart: always
         environment:
-            POSTGRES_USER: postgres
-            POSTGRES_PASSWORD: postgres
+            POSTGRES_USER: ${DB_USERNAME}
+            POSTGRES_PASSWORD: ${DB_PASSWORD}
             POSTGRES_DB: postgres
         ports:
             - "5432:5432"
         volumes:
-            - tenten_pgdata:/var/lib/postgresql/data
+            - tenten-postgres-data:/var/lib/postgresql/data
             - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+        networks:
+            - tenten-network
         healthcheck:
-            test: [ "CMD-SHELL", "pg_isready -U postgres -d postgres" ]
+            test: [ "CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d postgres" ]
             interval: 10s
             timeout: 5s
             retries: 5
 
+    redis:
+        image: redis:7-alpine
+        container_name: tenten-redis
+        restart: always
+        command: redis-server --requirepass ${REDIS_PASSWORD}
+        environment:
+            REDIS_PASSWORD: ${REDIS_PASSWORD}
+        ports:
+            - "6379:6379"
+        networks:
+            - tenten-network
+        healthcheck:
+            test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping" ]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+
+    zipkin:
+        image: openzipkin/zipkin:latest
+        container_name: tenten-zipkin
+        restart: always
+        ports:
+            - "9411:9411"
+        networks:
+            - tenten-network
+
+    # ──────────────────────────────────────────────
+    # Eureka Server
+    # ──────────────────────────────────────────────
+
+    eureka-server:
+        build:
+            context: ./eureka-server
+            dockerfile: Dockerfile
+        container_name: tenten-eureka
+        restart: always
+        ports:
+            - "8761:8761"
+        networks:
+            - tenten-network
+        healthcheck:
+            test: [ "CMD", "wget", "-qO-", "http://localhost:8761/actuator/health" ]
+            interval: 20s
+            timeout: 10s
+            retries: 5
+
+    # ──────────────────────────────────────────────
+    # API Gateway
+    # ──────────────────────────────────────────────
+
+    api-gateway:
+        build:
+            context: ./api-gateway
+            dockerfile: Dockerfile
+        container_name: tenten-api-gateway
+        ports:
+            - "8000:8000"
+        environment:
+            <<: *common-env
+        depends_on:
+            eureka-server:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+        networks:
+            - tenten-network
+
+    # ──────────────────────────────────────────────
+    # Auth Service
+    # ──────────────────────────────────────────────
+
+    auth-service:
+        build:
+            context: ./auth-service
+            dockerfile: Dockerfile
+        container_name: tenten-auth
+        ports:
+            - "8086:8086"
+        environment:
+            <<: *common-env
+            AUTH_REDIS_HOST: redis
+            AUTH_REDIS_PORT: 6379
+            AUTH_REDIS_PASSWORD: ${REDIS_PASSWORD}
+        depends_on:
+            eureka-server:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+        networks:
+            - tenten-network
+
+    # ──────────────────────────────────────────────
+    # Hub Server
+    # ──────────────────────────────────────────────
+
+    hub-server:
+        build:
+            context: ./hub-server
+            dockerfile: Dockerfile
+        container_name: tenten-hub
+        ports:
+            - "8090:8090"
+        environment:
+            <<: *common-env
+            HUB_DB_URL: jdbc:postgresql://postgres:5432/tenten_hub
+        depends_on:
+            eureka-server:
+                condition: service_healthy
+            postgres:
+                condition: service_healthy
+        networks:
+            - tenten-network
+
+    # ──────────────────────────────────────────────
+    # Company Service
+    # ──────────────────────────────────────────────
+
+    company-service:
+        build:
+            context: ./company-service
+            dockerfile: Dockerfile
+        container_name: tenten-company
+        ports:
+            - "8081:8081"
+        environment:
+            <<: *common-env
+            COMPANY_DB_URL: jdbc:postgresql://postgres:5432/tenten_company
+        depends_on:
+            eureka-server:
+                condition: service_healthy
+            postgres:
+                condition: service_healthy
+        networks:
+            - tenten-network
+
+    # ──────────────────────────────────────────────
+    # Delivery Service
+    # ──────────────────────────────────────────────
+
+    delivery-service:
+        build:
+            context: ./delivery-service
+            dockerfile: Dockerfile
+        container_name: tenten-delivery
+        ports:
+            - "8082:8082"
+        environment:
+            <<: *common-env
+            DELIVERY_DB_URL: jdbc:postgresql://postgres:5432/tenten_delivery
+        depends_on:
+            eureka-server:
+                condition: service_healthy
+            postgres:
+                condition: service_healthy
+        networks:
+            - tenten-network
+
+    # ──────────────────────────────────────────────
+    # Product Service
+    # ──────────────────────────────────────────────
+
+    product-service:
+        build:
+            context: ./product-service
+            dockerfile: Dockerfile
+        container_name: tenten-product
+        ports:
+            - "8083:8083"
+        environment:
+            <<: *common-env
+            PRODUCT_DB_URL: jdbc:postgresql://postgres:5432/tenten_product
+        depends_on:
+            eureka-server:
+                condition: service_healthy
+            postgres:
+                condition: service_healthy
+        networks:
+            - tenten-network
+
+    # ──────────────────────────────────────────────
+    # Order Service
+    # ──────────────────────────────────────────────
+
+    order-service:
+        build:
+            context: ./order-service
+            dockerfile: Dockerfile
+        container_name: tenten-order
+        ports:
+            - "8084:8084"
+        environment:
+            <<: *common-env
+            ORDER_DB_URL: jdbc:postgresql://postgres:5432/tenten_order
+        depends_on:
+            eureka-server:
+                condition: service_healthy
+            postgres:
+                condition: service_healthy
+        networks:
+            - tenten-network
+
+    # ──────────────────────────────────────────────
+    # Notification Service
+    # ──────────────────────────────────────────────
+
+    notification-service:
+        build:
+            context: ./notification-service
+            dockerfile: Dockerfile
+        container_name: tenten-notification
+        ports:
+            - "8085:8085"
+        environment:
+            <<: *common-env
+            NOTIFICATION_DB_URL: jdbc:postgresql://postgres:5432/tenten_notification
+            SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN}
+            SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL}
+        depends_on:
+            eureka-server:
+                condition: service_healthy
+            postgres:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+            kafka:
+                condition: service_started
+        networks:
+            - tenten-network
+
+    # ──────────────────────────────────────────────
+    # User Service
+    # ──────────────────────────────────────────────
+
+    user-service:
+        build:
+            context: ./user-service
+            dockerfile: Dockerfile
+        container_name: tenten-user
+        ports:
+            - "8087:8087"
+        environment:
+            <<: *common-env
+            USER_DB_URL: jdbc:postgresql://postgres:5432/tenten_user
+        depends_on:
+            eureka-server:
+                condition: service_healthy
+            postgres:
+                condition: service_healthy
+        networks:
+            - tenten-network
+
+    # ──────────────────────────────────────────────
+    # AI Service
+    # ──────────────────────────────────────────────
+
+    ai-service:
+        build:
+            context: ./ai-service
+            dockerfile: Dockerfile
+        container_name: tenten-ai
+        ports:
+            - "8088:8088"
+        environment:
+            <<: *common-env
+            AI_DB_URL: jdbc:postgresql://postgres:5432/tenten_ai
+            OPENAI_API_KEY: ${OPENAI_API_KEY}
+        depends_on:
+            eureka-server:
+                condition: service_healthy
+            postgres:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+            kafka:
+                condition: service_started
+        networks:
+            - tenten-network
+
+
+    # ──────────────────────────────────────────────
     # Kafka 관리를 위한 Zookeeper
+    # ──────────────────────────────────────────────
+
     zookeeper:
         image: confluentinc/cp-zookeeper:7.5.0
         container_name: tenten-zookeeper
+        restart: always
         environment:
             ZOOKEEPER_CLIENT_PORT: 2181
             ZOOKEEPER_TICK_TIME: 2000
+        networks:
+            - tenten-network
 
+    # ──────────────────────────────────────────────
     # 메시지 브로커 Kafka
+    # ──────────────────────────────────────────────
+
     kafka:
         image: confluentinc/cp-kafka:7.5.0
         container_name: tenten-kafka
+        restart: always
         depends_on:
             - zookeeper
         ports:
@@ -37,10 +355,16 @@ services:
         environment:
             KAFKA_BROKER_ID: 1
             KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-            KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
+            KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://${KAFKA_EXTERNAL_HOST}:9092,PLAINTEXT_INTERNAL://kafka:29092
             KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
             KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
             KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+        networks:
+            - tenten-network
+
+networks:
+    tenten-network:
+        driver: bridge
 
 volumes:
-    tenten_pgdata:
+    tenten-postgres-data:
