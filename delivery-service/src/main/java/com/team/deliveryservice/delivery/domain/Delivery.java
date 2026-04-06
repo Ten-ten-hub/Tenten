@@ -1,18 +1,16 @@
 package com.team.deliveryservice.delivery.domain;
 
 import com.team.common.BaseEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-import java.time.LocalDateTime;
-import java.util.UUID;
+import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcType;
+import org.hibernate.dialect.PostgreSQLEnumJdbcType;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Getter
 @Entity
@@ -27,6 +25,7 @@ public class Delivery extends BaseEntity {
     private UUID orderId;
 
     @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(nullable = false, columnDefinition = "delivery_status")
     private DeliveryStatus deliveryStatus;
 
