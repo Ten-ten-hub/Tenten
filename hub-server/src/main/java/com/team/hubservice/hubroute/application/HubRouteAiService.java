@@ -17,30 +17,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class HubRouteAiService {
 
     private final HubRouteRepository hubRouteRepository;
-    private final HubRepository hubRepository;
 
-    public HubRouteAiService(HubRouteRepository hubRouteRepository, HubRepository hubRepository) {
+    public HubRouteAiService(HubRouteRepository hubRouteRepository) {
         this.hubRouteRepository = hubRouteRepository;
-        this.hubRepository = hubRepository;
     }
 
     public AiRouteResponse getRouteInfoForAi(UUID originId, UUID destinationId) {
-        HubRoute route = hubRouteRepository.findByDepartureHubIdAndArrivalHubId(originId, destinationId)
+        return hubRouteRepository.findRouteWithCoordinates(originId, destinationId)
             .orElseThrow(() -> new BusinessException(HubRouteErrorCode.ROUTE_NOT_FOUND));
 
-        Hub originHub = hubRepository.findById(originId)
-            .orElseThrow(() -> new BusinessException(HubErrorCode.HUB_NOT_FOUND));
-
-        Hub destHub = hubRepository.findById(destinationId)
-            .orElseThrow(() -> new BusinessException(HubErrorCode.HUB_NOT_FOUND));
-
-        return new AiRouteResponse(
-            route.getDuration(),
-            route.getDistance(),
-            originHub.getLatitude(),
-            originHub.getLongitude(),
-            destHub.getLatitude(),
-            destHub.getLongitude()
-        );
     }
 }

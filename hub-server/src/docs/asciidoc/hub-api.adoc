@@ -13,3 +13,34 @@ include::{snippets}/hub-create/http-request.adoc[]
 
 === HTTP Response
 include::{snippets}/hub-create/http-response.adoc[]
+
+== 허브 경로 관리
+=== 경로 생성
+include::{snippets}/hub-route-create/request-fields.adoc[]
+include::{snippets}/hub-route-create/http-response.adoc[]
+
+=== 경로 수정
+include::{snippets}/hub-route-update/path-parameters.adoc[]
+include::{snippets}/hub-route-update/request-fields.adoc[]
+include::{snippets}/hub-route-update/http-response.adoc[]
+
+== 내부 API
+=== 최적 경로 조회
+include::{snippets}/hub-route-optimal-get/query-parameters.adoc[]
+include::{snippets}/hub-route-optimal-get/http-response.adoc[]
+
+=== AI 학습용 허브 경로 조회
+AI 서비스에서 학습 데이터를 추출하기 위해 사용하는 내부 전용 API입니다.
+include::{snippets}/hub-route-ai-get/request-headers.adoc[]
+
+Query Parameters
+include::{snippets}/hub-route-ai-get/query-parameters.adoc[]
+
+HTTP Request
+include::{snippets}/hub-route-ai-get/http-request.adoc[]
+
+Response Fields
+include::{snippets}/hub-route-ai-get/response-fields.adoc[]
+
+HTTP Response
+include::{snippets}/hub-route-ai-get/http-response.adoc[]
