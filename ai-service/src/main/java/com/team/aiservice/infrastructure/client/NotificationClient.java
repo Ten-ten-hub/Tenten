@@ -2,19 +2,19 @@ package com.team.aiservice.infrastructure.client;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
 
 @FeignClient(name = "notification-service")
 public interface NotificationClient {
 
-    @PostMapping("/internal/v1/notifications/ai-slack")
-    void sendWithAi(
-        @RequestBody AiNotificationRequest request,
-        @RequestParam("msgType") String msgType
-    );
+    //TODO 슬랙수정... 미완
+    @PostMapping("/internal/v1/notifications/ai-slack/update")
+    void updateSlackMessage(
+        @RequestBody AiUpdateNotificationRequest request);
 
     record AiNotificationRequest(
         UUID orderId,
@@ -22,7 +22,22 @@ public interface NotificationClient {
         String receiverSlackId,
         String msgContent,
         LocalDateTime scheduledAt,
-        UUID refId
+        UUID refId,
+        String msgType
+    ) {
+    }
+
+    @Getter
+    @NoArgsConstructor
+    class AiNotificationResponse {
+        private String slackTs;
+    }
+
+    // 수정 요청을 위한 record
+    record AiUpdateNotificationRequest(
+        String slackTs,
+        String msgContent,
+        String receiverSlackId
     ) {
     }
 }
