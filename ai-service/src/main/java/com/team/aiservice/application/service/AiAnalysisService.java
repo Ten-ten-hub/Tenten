@@ -200,4 +200,13 @@ public class AiAnalysisService {
         analysis.softDelete(deletedBy);
         aiAnalysisRepository.save(analysis);
     }
+
+    /**
+     * AI 분석 ID를 통한 단건 조회 (삭제된 데이터 제외)
+     */
+    @Transactional(readOnly = true)
+    public AiAnalysis findById(UUID id) {
+        return aiAnalysisRepository.findByIdAndDeletedAtIsNull(id)
+            .orElseThrow(() -> new BusinessException(ErrorCode.AI_NOT_FOUND));
+    }
 }
