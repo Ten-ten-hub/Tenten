@@ -5,6 +5,9 @@ import com.team.hubservice.hubroute.domain.HubRoute;
 import com.team.hubservice.hubroute.domain.HubRouteRepository;
 import com.team.hubservice.global.exception.HubRouteErrorCode;
 import java.util.UUID;
+import org.springframework.cache.annotation.Caching;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -22,6 +25,7 @@ public class HubRouteService {
     }
 
     @Transactional
+    @CacheEvict(value = "optimalRoutes", allEntries = true)
     public HubRouteResult createHubRoute(HubRouteCreateCommand command) {
         if (hubRouteRepository.existsByDepartureHubIdAndArrivalHubId(command.departureHubId(), command.arrivalHubId())) {
             throw new BusinessException(HubRouteErrorCode.ROUTE_DUPLICATED);
@@ -42,6 +46,7 @@ public class HubRouteService {
         }
     }
 
+    @Cacheable(value = "hubRoutes", key = "#routeId")
     public HubRouteResult getHubRoute(UUID routeId) {
         return HubRouteResult.from(findRouteById(routeId));
     }
@@ -54,6 +59,10 @@ public class HubRouteService {
     }
 
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "hubRoutes", key = "#routeId"),
+        @CacheEvict(value = "optimalRoutes", allEntries = true)
+    })
     public HubRouteResult updateHubRoute(UUID routeId, HubRouteUpdateCommand command) {
         HubRoute route = findRouteById(routeId);
         route.update(command.duration(), command.distance());
@@ -61,6 +70,10 @@ public class HubRouteService {
     }
 
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "hubRoutes", key = "#routeId"),
+        @CacheEvict(value = "optimalRoutes", allEntries = true)
+    })
     public void deleteHubRoute(UUID routeId, UUID deletedBy) {
         HubRoute route = findRouteById(routeId);
         route.softDelete(deletedBy);
