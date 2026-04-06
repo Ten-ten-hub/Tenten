@@ -2,17 +2,11 @@ package com.team.userservice.user.users.infrastructure;
 
 import com.team.userservice.global.domain.error.UserErrorCode;
 import com.team.userservice.global.exception.UserException;
-import com.team.userservice.user.companies.application.CompanyService;
-import com.team.userservice.user.companies.domain.CompanyRepository;
-import com.team.userservice.user.core.CompanyUser;
-import com.team.userservice.user.core.HubUser;
 import com.team.userservice.user.core.User;
 import com.team.userservice.user.core.enums.AffiliatedStatus;
 import com.team.userservice.user.core.enums.Role;
 import com.team.userservice.user.core.enums.SignupStatus;
-import com.team.userservice.user.hubs.application.HubService;
 import org.springframework.data.jpa.domain.Specification;
-import com.team.userservice.user.hubs.domain.HubRepository;
 import com.team.userservice.user.users.domain.UserRepository;
 import java.util.List;
 import java.util.Optional;
@@ -28,8 +22,6 @@ public class UserRepositoryImpl implements UserRepository {
 
 
     private final UserJpaRepository userJpaRepository;
-    private final HubService hubService;
-    private final CompanyService companyService;
 
     @Override
     public User save(User user) {
@@ -65,26 +57,6 @@ public class UserRepositoryImpl implements UserRepository {
     @Override
     public Optional<User> findById(UUID userId) {
         return userJpaRepository.findById(userId);
-    }
-
-    @Override
-    public void updateHubUser(User user, UUID affiliationId) {
-        hubService.save(user,affiliationId);
-    }
-
-    @Override
-    public void updateCompanyUser(User user, UUID affiliationId) {
-        companyService.save(user,affiliationId);
-    }
-
-    @Override
-    public HubUser findHubUser(User user) {
-        return hubService.findByUser(user);
-    }
-
-    @Override
-    public CompanyUser findCompanyUser(User user) {
-        return companyService.findByUser(user);
     }
 
     @Override

@@ -2,27 +2,26 @@ package com.team.userservice.user.users.application;
 
 import com.team.userservice.global.domain.error.UserErrorCode;
 import com.team.userservice.global.exception.UserException;
-import com.team.userservice.user.companies.domain.CompanyRepository;
-import com.team.userservice.user.core.CompanyUser;
-import com.team.userservice.user.core.HubUser;
+import com.team.userservice.user.companies.application.CompanyService;
 import com.team.userservice.user.core.User;
 import com.team.userservice.user.core.enums.AffiliatedStatus;
 import com.team.userservice.user.core.enums.Affiliation;
 import com.team.userservice.user.core.enums.Role;
 import com.team.userservice.user.core.enums.SignupStatus;
 import com.team.userservice.user.core.vo.UserUpdateInfo;
-import com.team.userservice.user.hubs.domain.HubRepository;
+import com.team.userservice.user.hubs.application.HubService;
 import com.team.userservice.user.users.application.dto.LoginServiceDto;
 import com.team.userservice.user.users.application.dto.SignUpResultDto;
 import com.team.userservice.user.users.application.dto.SignUpServiceDto;
 import com.team.userservice.user.users.application.dto.UpdateUserServiceDto;
 import com.team.userservice.user.users.application.dto.UserDataDto;
 import com.team.userservice.user.users.domain.UserRepository;
+import com.team.userservice.user.users.infrastructure.feignClient.CompanyInternalClient;
+import com.team.userservice.user.users.infrastructure.feignClient.HubInternalClient;
+import feign.FeignException;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -37,12 +36,15 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
-    private final HubRepository hubRepository;
-    private final CompanyRepository companyRepository;
     private final PasswordEncoder passwordEncoder;
+    private final HubService hubService;
+    private final CompanyService companyService;
+    private final HubInternalClient hubInternalClient;
+    private final CompanyInternalClient companyInternalClient;
 
     @Override
     public SignUpResultDto signUp(SignUpServiceDto serviceDto) {
+
         if (userRepository.existsByLoginId(serviceDto.loginId())) {
             throw new UserException(UserErrorCode.DUPLICATE_LOGIN_ID);
         }
@@ -64,6 +66,8 @@ public class UserServiceImpl implements UserService {
         } catch (DataIntegrityViolationException e) {
             throw new UserException(UserErrorCode.DUPLICATE_USER_INFO);
         }
+
+
     }
 
     @Override
@@ -111,57 +115,61 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public void updateUserAffiliation(UUID userId, Affiliation affiliation, UUID affiliationId) {
-        User user = userRepository.findById(userId)
-            .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
-
+        User user = userRepository.findById(userId).orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
         Role role = user.getRole();
         AffiliatedStatus affiliatedStatus = user.getAffiliatedStatus();
 
-        if (affiliatedStatus == AffiliatedStatus.NOT_APPLICABLE) {
+        if(affiliatedStatus == AffiliatedStatus.NOT_APPLICABLE) {
             throw new UserException(UserErrorCode.NOT_APPLICABLE);
         }
 
         if (affiliation == Affiliation.HUB) {
-            if (role == Role.COMPANY_MANAGER || role == Role.COM_DELIVERY_MANAGER) {
+            if(role == Role.COMPANY_MANAGER || role == Role.COM_DELIVERY_MANAGER) {
                 throw new UserException(UserErrorCode.ROLE_AFFILIATION_CONFLICT);
             }
 
-            if (affiliatedStatus == AffiliatedStatus.HUB_AFFILIATED) {
-                hubRepository.findByUser(user).updateHubId(affiliationId);
-            } else if (affiliatedStatus == AffiliatedStatus.UNAFFILIATED) {
-                hubRepository.save(user, affiliationId);
+            verifyAffiliationId(affiliation, affiliationId); // 비용이 있는 외부호출이니 맨 마지막에 위치
+
+            if(affiliatedStatus == AffiliatedStatus.HUB_AFFILIATED){
+                hubService.findByUser(user).updateHubId(affiliationId);
+            }else if(affiliatedStatus == AffiliatedStatus.UNAFFILIATED){
+                hubService.save(user, affiliationId);
                 user.updateUserAffiliation(AffiliatedStatus.HUB_AFFILIATED);
             }
+
         }
 
-        if (affiliation == Affiliation.COMPANY) {
-            if (role == Role.HUB_ADMIN || role == Role.HUB_DELIVERY_MANAGER) {
+        if (affiliation == Affiliation.COMPANY){
+            if(role == Role.HUB_ADMIN || role == Role.HUB_DELIVERY_MANAGER){
                 throw new UserException(UserErrorCode.ROLE_AFFILIATION_CONFLICT);
             }
 
-            if (affiliatedStatus == AffiliatedStatus.COM_AFFILIATED) {
-                companyRepository.findByUser(user).updateCompanyId(affiliationId);
-            } else if (affiliatedStatus == AffiliatedStatus.UNAFFILIATED) {
-                companyRepository.save(user, affiliationId);
+            verifyAffiliationId(affiliation, affiliationId); // 비용이 있는 외부호출이니 맨 마지막에 위치
+
+            if(affiliatedStatus == AffiliatedStatus.COM_AFFILIATED){
+                companyService.findByUser(user).updateCompanyId(affiliationId);
+            }else if(affiliatedStatus == AffiliatedStatus.UNAFFILIATED){
+                companyService.save(user, affiliationId);
                 user.updateUserAffiliation(AffiliatedStatus.COM_AFFILIATED);
             }
         }
+
+
     }
 
     @Override
     @Transactional(readOnly = true)
     public UserDataDto getUserInfo(UUID userId) {
-        User user = userRepository.findById(userId)
-            .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
 
+        User user = userRepository.findById(userId).orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
         if (user.getAffiliatedStatus() == AffiliatedStatus.HUB_AFFILIATED) {
-            return UserDataDto.fromUserInfo(user, hubRepository.findByUser(user).getHubId());
+            return UserDataDto.fromUserInfo(user, hubService.findByUser(user).getHubId());
         } else if (user.getAffiliatedStatus() == AffiliatedStatus.COM_AFFILIATED) {
-            return UserDataDto.fromUserInfo(user, companyRepository.findByUser(user).getCompanyId());
+            return UserDataDto.fromUserInfo(user, companyService.findByUser(user).getCompanyId());
         } else if (user.getAffiliatedStatus() == AffiliatedStatus.UNAFFILIATED
             || user.getAffiliatedStatus() == AffiliatedStatus.NOT_APPLICABLE) {
             return UserDataDto.fromUserInfo(user);
-        } else {
+        } else{
             throw new IllegalStateException("Unexpected affiliatedStatus: " + user.getAffiliatedStatus());
         }
     }
@@ -180,64 +188,8 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<UserDataDto> getAllUserInfoInternal(List<Role> roles, AffiliatedStatus affiliatedStatus) {
-        List<User> users = userRepository.findAll(roles, affiliatedStatus);
-
-        List<User> companyAffiliatedUsers = users.stream()
-            .filter(user -> user.getAffiliatedStatus() == AffiliatedStatus.COM_AFFILIATED)
-            .toList();
-
-        List<User> hubAffiliatedUsers = users.stream()
-            .filter(user -> user.getAffiliatedStatus() == AffiliatedStatus.HUB_AFFILIATED)
-            .toList();
-
-        Map<UUID, UUID> companyAffiliationMap = companyRepository.findAllByUsers(companyAffiliatedUsers).stream()
-            .collect(Collectors.toMap(
-                companyUser -> companyUser.getUser().getId(),
-                CompanyUser::getCompanyId
-            ));
-
-        Map<UUID, UUID> hubAffiliationMap = hubRepository.findAllByUsers(hubAffiliatedUsers).stream()
-            .collect(Collectors.toMap(
-                hubUser -> hubUser.getUser().getId(),
-                HubUser::getHubId
-            ));
-
-        return users.stream()
-            .map(user -> {
-                if (user.getAffiliatedStatus() == AffiliatedStatus.UNAFFILIATED
-                    || user.getAffiliatedStatus() == AffiliatedStatus.NOT_APPLICABLE) {
-                    return UserDataDto.fromUserInfo(user);
-                }
-
-                UUID affiliationId = resolveAffiliationId(user, companyAffiliationMap, hubAffiliationMap);
-                return UserDataDto.fromUserInfo(user, affiliationId);
-            })
-            .toList();
-    }
-
-    private UUID resolveAffiliationId(
-        User user,
-        Map<UUID, UUID> companyAffiliationMap,
-        Map<UUID, UUID> hubAffiliationMap
-    ) {
-        if (user.getAffiliatedStatus() == AffiliatedStatus.COM_AFFILIATED) {
-            UUID affiliationId = companyAffiliationMap.get(user.getId());
-            if (affiliationId == null) {
-                throw new IllegalStateException("Company affiliation missing for user: " + user.getId());
-            }
-            return affiliationId;
-        }
-
-        if (user.getAffiliatedStatus() == AffiliatedStatus.HUB_AFFILIATED) {
-            UUID affiliationId = hubAffiliationMap.get(user.getId());
-            if (affiliationId == null) {
-                throw new IllegalStateException("Hub affiliation missing for user: " + user.getId());
-            }
-            return affiliationId;
-        }
-
-        return null;
+    public List<User> getAllUserInfoInternal(List<Role> roles, AffiliatedStatus affiliatedStatus) {
+        return userRepository.findAll(roles, affiliatedStatus);
     }
 
     @Override
@@ -270,8 +222,37 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public Role getUserRole(UUID userId) {
-        return userRepository.findById(userId)
-            .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND))
-            .getRole();
+        return userRepository.findById(userId).orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND)).getRole();
+    }
+
+    @Override
+    public void verifyAffiliationId(Affiliation affiliation, UUID affiliationId) {
+        if(affiliation == Affiliation.HUB){
+
+            try{
+                hubInternalClient.isValidID(affiliationId);
+            }catch (FeignException.NotFound e){
+                throw new UserException(UserErrorCode.INVALID_HUB_ID);
+            }catch (FeignException e) {
+                // 500, 503, timeout 등 기타 Feign 예외 처리
+                throw new UserException(UserErrorCode.SERVICE_UNAVAILABLE);
+            }
+        }else if(affiliation == Affiliation.COMPANY){
+            try{
+                companyInternalClient.isValidID(affiliationId);
+            }catch (FeignException.NotFound e){
+                throw new UserException(UserErrorCode.INVALID_COMPANY_ID);
+            }catch (FeignException e) {
+                // 500, 503, timeout 등 기타 Feign 예외 처리
+                throw new UserException(UserErrorCode.SERVICE_UNAVAILABLE);
+            }
+        }else{
+            throw new UserException(UserErrorCode.NOT_EXIST_AFFILIATION);
+        }
+    }
+
+    @Override
+    public String getUserSlackId(UUID userId) {
+        return userRepository.findById(userId).orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND)).getSlackId();
     }
 }
