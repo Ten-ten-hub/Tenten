@@ -1,7 +1,10 @@
 package com.team.hubservice.hubroute.presentation;
 
+import com.team.hubservice.hubroute.application.HubRouteAiService;
 import com.team.hubservice.hubroute.application.HubRouteOptimalService;
+import com.team.hubservice.hubroute.application.OptimalRouteQuery;
 import com.team.hubservice.hubroute.application.OptimalRouteResult;
+import com.team.hubservice.hubroute.presentation.dto.AiRouteResponse;
 import com.team.hubservice.hubroute.presentation.dto.OptimalRouteResponse;
 import java.util.HashMap;
 import java.util.Map;
@@ -13,18 +16,20 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import com.team.hubservice.hubroute.application.OptimalRouteQuery;
 
 @RestController
 @RequestMapping("/internal/v1/hub-route")
 public class HubRouteInternalController {
 
     private final HubRouteOptimalService hubRouteOptimalService;
+    private final HubRouteAiService hubRouteAiService;
 
-    public HubRouteInternalController(HubRouteOptimalService hubRouteOptimalService) {
+    public HubRouteInternalController(HubRouteOptimalService hubRouteOptimalService, HubRouteAiService hubRouteAiService) {
         this.hubRouteOptimalService = hubRouteOptimalService;
+        this.hubRouteAiService = hubRouteAiService;
     }
 
+    // 기존 optimal 경로 메서드 유지
     @GetMapping("/optimal")
     public ResponseEntity<Map<String, Object>> getOptimalRoute(
         @RequestParam UUID departureHubId,
@@ -42,6 +47,26 @@ public class HubRouteInternalController {
         Map<String, Object> body = new HashMap<>();
         body.put("code", HttpStatus.OK.value());
         body.put("message", "허브 최적 경로 조회를 성공했습니다.");
+        body.put("data", response);
+
+        return ResponseEntity.ok(body);
+    }
+
+    @GetMapping
+    public ResponseEntity<Map<String, Object>> getRouteForAi(
+        @RequestParam UUID originId,
+        @RequestParam UUID destinationId,
+        @RequestHeader(value = "X-Internal-Request", required = true) String internalHeader) {
+
+        if (!"true".equals(internalHeader)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        AiRouteResponse response = hubRouteAiService.getRouteInfoForAi(originId, destinationId);
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("code", HttpStatus.OK.value());
+        body.put("message", "AI 학습용 단건 허브 경로 조회를 성공했습니다.");
         body.put("data", response);
 
         return ResponseEntity.ok(body);
