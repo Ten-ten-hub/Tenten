@@ -2,7 +2,6 @@ package com.team.notificationservice.application;
 
 import com.team.notificationservice.domain.Notification;
 import com.team.notificationservice.domain.NotificationRepository;
-import com.team.notificationservice.domain.SendStatus;
 import com.team.notificationservice.infrastructure.SlackClient;
 import com.team.notificationservice.infrastructure.SlackSendResult;
 import java.util.concurrent.TimeUnit;
@@ -66,7 +65,7 @@ public class NotificationEventListener {
                 .orElseThrow(() -> new IllegalStateException("알림 엔티티를 찾을 수 없습니다: ID=" + event.notificationId()));
 
             // 중복 전송 방지: 이미 DB상 성공 상태라면 종료
-            if (notification.getSendStatus() == SendStatus.SUCCESS) {
+            if (notification.getSendStatus().isDelivered()) {
                 log.info("이미 성공 처리된 알림입니다. 전송을 중단합니다: ID={}", event.notificationId());
                 return;
             }
