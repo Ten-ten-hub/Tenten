@@ -9,18 +9,22 @@ public record CurrentUser(
     UUID companyId
 ) {
     public boolean isMasterAdmin() {
-        return "MASTER_ADMIN".equals(role);
+        return "MASTER_ADMIN".equalsIgnoreCase(role);
     }
 
     public boolean isHubAdmin() {
-        return "HUB_ADMIN".equals(role);
+        return "HUB_ADMIN".equalsIgnoreCase(role);
     }
 
     public boolean isCompanyManager() {
-        return "COMPANY_MANAGER".equals(role);
+        return "COMPANY_MANAGER".equalsIgnoreCase(role);
     }
 
-    public boolean isDeliveryManager() {
-        return "DELIVERY_MANAGER".equals(role);
+    public boolean isHubDeliveryManager() {
+        return "HUB_DELIVERY_MANAGER".equalsIgnoreCase(role);
+    }
+
+    public boolean isCompanyDeliveryManager() {
+        return "COM_DELIVERY_MANAGER".equalsIgnoreCase(role);
     }
 }
