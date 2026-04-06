@@ -129,14 +129,12 @@ class HubRouteInternalControllerRestDocsTest {
                     parameterWithName("destinationId").description("도착 허브 ID")
                 ),
                 responseFields(
-                    fieldWithPath("code").description("응답 코드"),
-                    fieldWithPath("message").description("응답 메시지"),
-                    fieldWithPath("data.duration").description("소요 시간 (분)"),
-                    fieldWithPath("data.distance").description("이동 거리 (km)"),
-                    fieldWithPath("data.originLat").description("출발 허브 위도"),
-                    fieldWithPath("data.originLng").description("출발 허브 경도"),
-                    fieldWithPath("data.destLat").description("도착 허브 위도"),
-                    fieldWithPath("data.destLng").description("도착 허브 경도")
+                    fieldWithPath("duration").description("소요 시간 (분)"),
+                    fieldWithPath("distance").description("이동 거리 (km)"),
+                    fieldWithPath("originLat").description("출발 허브 위도"),
+                    fieldWithPath("originLng").description("출발 허브 경도"),
+                    fieldWithPath("destLat").description("도착 허브 위도"),
+                    fieldWithPath("destLng").description("도착 허브 경도")
                 )
             ));
     }
