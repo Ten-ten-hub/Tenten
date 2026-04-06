@@ -166,7 +166,7 @@ public class DeliveryServiceImpl implements DeliveryService {
                 request.recipientSlackId()
             );
         } catch (IllegalStateException e) {
-            throw new ServiceException(DeliveryErrorCode.DELIVERY_ASSIGN_NOT_ALLOWED);
+            throw new ServiceException(DeliveryErrorCode.DELIVERY_UPDATE_NOT_ALLOWED);
         }
 
         return DeliveryResponse.from(delivery, getRouteLogs(deliveryId));
@@ -531,6 +531,10 @@ public class DeliveryServiceImpl implements DeliveryService {
         }
 
         if (currentUser.isCompanyDeliveryManager()) {
+            if (currentUser.userId() == null) {
+                throw new ServiceException(DeliveryErrorCode.COMMON_ACCESS_DENIED);
+            }
+
             if (delivery.getCompanyDeliveryManagerId() == null
                 || !currentUser.userId().equals(delivery.getCompanyDeliveryManagerId())) {
                 throw new ServiceException(DeliveryErrorCode.COMMON_ACCESS_DENIED);
@@ -539,6 +543,10 @@ public class DeliveryServiceImpl implements DeliveryService {
         }
 
         if (currentUser.isHubDeliveryManager()) {
+            if (currentUser.userId() == null) {
+                throw new ServiceException(DeliveryErrorCode.COMMON_ACCESS_DENIED);
+            }
+
             boolean assigned = deliveryRouteLogRepository
                 .findAllByDeliveryIdAndDeletedAtIsNullOrderBySequenceNoAsc(delivery.getId())
                 .stream()
