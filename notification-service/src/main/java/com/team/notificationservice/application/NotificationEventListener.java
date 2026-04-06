@@ -25,7 +25,9 @@ public class NotificationEventListener {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleNotificationSavedEvent(NotificationSavedEvent event) {
-        Notification notification = notificationRepository.findById(event.notificationId()).orElse(null);
+        Notification notification = notificationRepository
+            .findByIdAndDeletedAtIsNull(event.notificationId())
+            .orElse(null);
         if (notification == null) {
             return;
         }
