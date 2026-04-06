@@ -103,6 +103,11 @@ public class TmapRouteClient {
         if (body == null || body.getFeatures() == null || body.getFeatures().isEmpty()) {
             throw new BusinessException(HubRouteErrorCode.TMAP_RESPONSE_INVALID);
         }
+        TmapRoutesResponse.TmapFeature firstFeature = body.getFeatures().get(0);
+        if (firstFeature == null) {
+            throw new BusinessException(HubRouteErrorCode.TMAP_RESPONSE_INVALID);
+        }
+
         TmapRoutesResponse.TmapFeatureProperties props = body.getFeatures().get(0).getProperties();
         if (props == null || props.getTotalDistance() == null || props.getTotalTime() == null) {
             throw new BusinessException(HubRouteErrorCode.TMAP_RESPONSE_INVALID);
