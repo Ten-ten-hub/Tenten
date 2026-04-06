@@ -1,6 +1,7 @@
 package com.team.notificationservice;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -19,8 +20,11 @@ import com.team.notificationservice.application.NotificationRequest;
 import com.team.notificationservice.application.NotificationSaver;
 import com.team.notificationservice.application.NotificationService;
 import com.team.notificationservice.domain.MsgType;
+import com.team.notificationservice.domain.Notification;
 import com.team.notificationservice.domain.NotificationRepository;
+import com.team.notificationservice.domain.SendStatus;
 import com.team.notificationservice.infrastructure.SlackClient;
+import com.team.notificationservice.presentation.NotificationResponse;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -77,6 +81,8 @@ class NotificationServiceApplicationTests {
 
         verify(slackClient).findSlackIdByEmail("new@test.com");
         verify(valueOps).set(eq("slack:email:new@test.com"), eq("U_API_ID"), anyLong(), any());
+        // 캐시 미스 시에도 최종적으로 saver가 호출되는지 verify 추가
+        verify(notificationSaver, times(1)).saveAndPublish(eq(req), eq("U_API_ID"), any());
     }
 
     //2. 장애 대응 (Fail-open 테스트)
@@ -130,13 +136,24 @@ class NotificationServiceApplicationTests {
     }
 
     @Test
-    @DisplayName("성공: 알림 단건 조회 로직 확인")
+    @DisplayName("성공: 알림 단건 조회 로직 및 반환 필드 값 검증")
     void getNotification_Success() {
+        // Given
         UUID id = UUID.randomUUID();
-        com.team.notificationservice.domain.Notification mockNoti =
-            com.team.notificationservice.domain.Notification.builder().msgContent("내용").receiverSlackId("U1").build();
+        Notification mockNoti = Notification.builder()
+            .msgContent("상세내용 확인")
+            .receiverSlackId("U_FIXED_123")
+            .sendStatus(SendStatus.SUCCESS)
+            .build();
         given(notificationRepository.findByIdAndDeletedAtIsNull(id)).willReturn(java.util.Optional.of(mockNoti));
 
-        assertNotNull(notificationService.getNotification(id));
+        // When
+        NotificationResponse response = notificationService.getNotification(id);
+
+        // Then - 상세 필드 검증 추가
+        assertNotNull(response);
+        assertEquals("상세내용 확인", response.message());
+        assertEquals(SendStatus.SUCCESS, response.status());
+        verify(notificationRepository).findByIdAndDeletedAtIsNull(id);
     }
 }

@@ -51,6 +51,9 @@ public class NotificationControllerRestDocsTest {
     private MockMvc mockMvc;
     private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 
+    private static final UUID FIXED_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    private static final LocalDateTime FIXED_NOW = LocalDateTime.of(2026, 4, 7, 10, 0, 0);
+
     @Mock
     private NotificationService notificationService;
     @InjectMocks
@@ -68,12 +71,11 @@ public class NotificationControllerRestDocsTest {
     @Test
     @DisplayName("알림 목록 조회 API 문서화")
     void listNotifications_Docs() throws Exception {
-        NotificationResponse res = new NotificationResponse(UUID.randomUUID(), "메시지내용", SendStatus.SUCCESS,
-            LocalDateTime.now());
+        NotificationResponse res = new NotificationResponse(FIXED_ID, "결과 메시지 내용", SendStatus.SUCCESS, FIXED_NOW);
         given(notificationService.searchNotifications(any(), any())).willReturn(new PageImpl<>(List.of(res)));
 
         mockMvc.perform(get("/api/v1/notifications")
-                .param("slackId", "U123")
+                .param("slackId", "U12345")
                 .param("page", "1")
                 .param("size", "10"))
             .andExpect(status().isOk())
@@ -104,12 +106,14 @@ public class NotificationControllerRestDocsTest {
     @Test
     @DisplayName("슬랙 알림 생성 API 문서화")
     void createNotification_Docs() throws Exception {
-        NotificationRequest req = new NotificationRequest("U123", "test@test.com", UUID.randomUUID(), "본문",
+        NotificationRequest req = new NotificationRequest("U12345", "test@test.com", FIXED_ID, "알림 메시지",
             MsgType.ORDER_ALERT);
         doNothing().when(notificationService).createAndSend(any(), any());
 
-        mockMvc.perform(post("/api/v1/notifications/slack").header("X-User-Id", UUID.randomUUID().toString())
-                .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(req)))
+        mockMvc.perform(post("/api/v1/notifications/slack")
+                .header("X-User-Id", FIXED_ID.toString())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
             .andExpect(status().isOk())
             .andDo(document("notifications/create",
                 requestHeaders(headerWithName("X-User-Id").description("요청 유저 ID")),
@@ -133,11 +137,10 @@ public class NotificationControllerRestDocsTest {
     @Test
     @DisplayName("알림 단건 조회 API 문서화")
     void getNotification_Docs() throws Exception {
-        UUID id = UUID.randomUUID();
-        given(notificationService.getNotification(id)).willReturn(
-            new NotificationResponse(id, "내용", SendStatus.SUCCESS, LocalDateTime.now()));
+        NotificationResponse res = new NotificationResponse(FIXED_ID, "알림 상세 내용", SendStatus.SUCCESS, FIXED_NOW);
+        given(notificationService.getNotification(FIXED_ID)).willReturn(res);
 
-        mockMvc.perform(get("/api/v1/notifications/{id}", id)) // RestDocumentationRequestBuilders 사용
+        mockMvc.perform(get("/api/v1/notifications/{id}", FIXED_ID))
             .andExpect(status().isOk())
             .andDo(document("notifications/get",
                 pathParameters(parameterWithName("id").description("조회할 알림 ID")),
@@ -155,9 +158,8 @@ public class NotificationControllerRestDocsTest {
     @Test
     @DisplayName("알림 삭제 API 문서화")
     void deleteNotification_Docs() throws Exception {
-        UUID id = UUID.randomUUID();
-        mockMvc.perform(delete("/api/v1/notifications/{id}", id) // RestDocumentationRequestBuilders 사용
-                .header("X-User-Id", UUID.randomUUID().toString())
+        mockMvc.perform(delete("/api/v1/notifications/{id}", FIXED_ID)
+                .header("X-User-Id", FIXED_ID.toString())
                 .header("X-User-Role", "MASTER_ADMIN"))
             .andExpect(status().isOk())
             .andDo(document("notifications/delete",
