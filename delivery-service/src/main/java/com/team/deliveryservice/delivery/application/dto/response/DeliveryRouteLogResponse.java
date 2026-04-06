@@ -15,6 +15,7 @@ public record DeliveryRouteLogResponse(
     UUID arrivalHubId,
     BigDecimal expectedDistanceKm,
     Integer expectedDurationMinutes,
+    Integer realDurationMinutes,
     DeliveryRouteStatus routeStatus,
     UUID deliveryManagerId,
     LocalDateTime departedAt,
@@ -28,6 +29,7 @@ public record DeliveryRouteLogResponse(
             .arrivalHubId(routeLog.getArrivalHubId())
             .expectedDistanceKm(routeLog.getExpectedDistanceKm())
             .expectedDurationMinutes(routeLog.getExpectedDurationMinutes())
+            .realDurationMinutes(routeLog.getRealDurationMinutes())
             .routeStatus(routeLog.getRouteStatus())
             .deliveryManagerId(routeLog.getDeliveryManagerId())
             .departedAt(routeLog.getDepartedAt())
