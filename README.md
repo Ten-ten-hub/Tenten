@@ -31,11 +31,11 @@ MSA(Microservice Architecture) 기반의 물류 관리 플랫폼입니다.
 
 | 이름 | 담당 업무 및 기능 | GitHub |
 |------|------------|----------|
-| 김민지 |  | [M1Nj1M](https://github.com/M1Nj1M) |
+| 김민지 | 업체, 배송, 배송 담당자 배정 | [M1Nj1M](https://github.com/M1Nj1M) |
 | 김하진 | 상품, 주문, Docker 환경 구성 | [rlaxxwls13](https://github.com/rlaxxwls13) |
-| 나웅철 |  | [No-366](https://github.com/No-366) |
-| 조하연 |  | [gelong25](https://github.com/gelong25) |
-| 최지원 |  | [ji-circle](https://github.com/ji-circle) |
+| 나웅철 | 인증인가, 사용자, API게이트웨이 | [No-366](https://github.com/No-366) |
+| 조하연 | 허브, 허브 경로 | [gelong25](https://github.com/gelong25) |
+| 최지원 | AI, 알림, 메시지 큐 | [ji-circle](https://github.com/ji-circle) |
 
 ---
 
@@ -54,6 +54,12 @@ MSA(Microservice Architecture) 기반의 물류 관리 플랫폼입니다.
 | product-service | 8083 | 상품 관리 |
 | order-service | 8084 | 주문 관리 |
 | ai-service | 8088 | AI 분석 (OpenAI, Naver API) |
+
+---
+
+## Architecture Diagram
+
+<img width="1906" height="1642" alt="image" src="https://github.com/user-attachments/assets/3b93ac6b-efbb-40c7-a28a-6659baa51348" />
 
 ---
 ## 📁 프로젝트 구조
