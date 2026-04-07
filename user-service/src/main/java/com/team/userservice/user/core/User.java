@@ -64,7 +64,7 @@ public class User extends BaseEntity {
     private AffiliatedStatus affiliatedStatus;
 
     @Column(name = "last_login_at")
-    private LocalDateTime lastLoginAt; //TODO: api 명세서에 업데이트하는 api 추가해야함
+    private LocalDateTime lastLoginAt;
 
     @Builder(builderMethodName = "create")
     private User(String loginId, String password, String name,
