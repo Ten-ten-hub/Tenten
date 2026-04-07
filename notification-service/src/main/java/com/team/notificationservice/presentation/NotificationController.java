@@ -11,7 +11,6 @@ import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -32,24 +31,22 @@ public class NotificationController {
 
     private final NotificationService notificationService;
 
-
-    @Value("${internal.auth.token:}") // application.yml 미설정 시 빈 값 주입
-    private String internalAuthToken;
-
     // 외부용 API (게이트웨이 통과)
     @PostMapping("/api/v1/notifications/slack")
-    public ApiResponse<String> send(@RequestHeader(value = "X-User-Id", required = false) String userId, // 게이트웨이 전달 헤더
+    public ApiResponse<String> send(@RequestHeader(value = "X-User-Id", required = false) String userId,
                                     @RequestBody @Valid NotificationRequest request) {
         notificationService.createAndSend(request, userId);
         return ApiResponse.success("OK");
     }
 
     @GetMapping("/api/v1/notifications/{id}")
+    @RequireRole({"MASTER_ADMIN"})
     public ApiResponse<NotificationResponse> getNotification(@PathVariable UUID id) {
         return ApiResponse.success(notificationService.getNotification(id));
     }
 
     @GetMapping("/api/v1/notifications")
+    @RequireRole({"MASTER_ADMIN"})
     public ApiResponse<PageResponse<NotificationResponse>> getNotifications(
         @Valid NotificationSearchCondition condition,
         @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
@@ -74,7 +71,7 @@ public class NotificationController {
     }
 
     @DeleteMapping("/api/v1/notifications/{id}")
-    @RequireRole({"MASTER_ADMIN"}) //TODO
+    @RequireRole({"MASTER_ADMIN"})
     public ApiResponse<Void> delete(
         @PathVariable UUID id,
         @RequestHeader(value = "X-User-Id", required = false) String userId) {
