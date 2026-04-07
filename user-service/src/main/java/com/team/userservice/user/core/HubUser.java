@@ -31,12 +31,6 @@ public class HubUser extends BaseEntity {
     @Column(name = "hub_id", nullable = false) // 논리 FK // 유니크일 필요 없음
     private UUID hubId;
 
-    @Column(name = "deleted_at")
-    private LocalDateTime deletedAt; // 레코드 삭제 시간
-
-    @Column(name = "deleted_by", length = 100)
-    private UUID deletedBy; // 레코드 삭제자
-
     private HubUser(User user, UUID hubId) {
         this.user = user;
         this.hubId = hubId;

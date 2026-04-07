@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 @FeignClient(name = "notification-service")
 public interface NotificationClient {
 
-    //TODO 슬랙수정... 미완
     @PostMapping("/internal/v1/notifications/ai-slack/update")
     void updateSlackMessage(
         @RequestBody AiUpdateNotificationRequest request);
