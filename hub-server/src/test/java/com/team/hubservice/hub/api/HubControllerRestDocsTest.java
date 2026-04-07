@@ -1,12 +1,12 @@
 package com.team.hubservice.hub.api;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.team.hubservice.hub.application.HubCreateCommand;
-import com.team.hubservice.hub.application.HubResult;
-import com.team.hubservice.hub.application.HubService;
+import com.team.hubservice.hub.application.dto.HubCreateCommand;
+import com.team.hubservice.hub.application.dto.HubResult;
+import com.team.hubservice.hub.application.service.HubService;
 import com.team.hubservice.hub.presentation.dto.HubCreateRequest;
 import com.team.hubservice.global.security.HubSecurityConfig;
-import com.team.hubservice.hub.presentation.HubController;
+import com.team.hubservice.hub.presentation.controller.HubController;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;

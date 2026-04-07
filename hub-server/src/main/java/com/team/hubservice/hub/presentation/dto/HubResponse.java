@@ -1,6 +1,6 @@
 package com.team.hubservice.hub.presentation.dto;
 
-import com.team.hubservice.hub.application.HubResult;
+import com.team.hubservice.hub.application.dto.HubResult;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
