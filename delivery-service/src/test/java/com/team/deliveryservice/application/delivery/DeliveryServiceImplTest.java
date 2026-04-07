@@ -32,11 +32,14 @@ import com.team.deliveryservice.infrastructure.client.CompanyClient;
 import com.team.deliveryservice.infrastructure.client.HubClient;
 import com.team.deliveryservice.infrastructure.client.OrderClient;
 import com.team.deliveryservice.infrastructure.client.dto.CompanyInternalResponse;
+import com.team.deliveryservice.infrastructure.client.dto.CompanyResponseWrapper;
 import com.team.deliveryservice.infrastructure.client.dto.HubExistsResponse;
 import com.team.deliveryservice.infrastructure.client.dto.HubInternalResponse;
 import com.team.deliveryservice.infrastructure.client.dto.OptimalRouteResponseWrapper;
 import com.team.deliveryservice.infrastructure.client.dto.OrderInternalResponse;
 import feign.FeignException;
+import feign.Request;
+import feign.Response;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
@@ -89,63 +92,6 @@ class DeliveryServiceImplTest {
     @InjectMocks
     private DeliveryServiceImpl deliveryService;
 
-    /**
-     * 배송 생성 전 검증 단계에 필요한 의존성(업체, 허브 존재 여부)을 설정하는 헬퍼 메서드
-     */
-    private void givenCommonCreateDependencies(
-        UUID supplierCompanyId,
-        UUID receiverCompanyId,
-        UUID originHubId,
-        UUID destinationHubId
-    ) {
-        given(companyClient.getCompany(supplierCompanyId))
-            .willReturn(activeSupplierCompanyResponse(supplierCompanyId, originHubId));
-        given(companyClient.getCompany(receiverCompanyId))
-            .willReturn(activeReceiverCompanyResponse(receiverCompanyId, destinationHubId));
-
-        given(hubClient.existsHub(eq(originHubId), eq(INTERNAL_HEADER)))
-            .willReturn(new HubExistsResponse(
-                true,
-                new HubExistsResponse.HubExistsData(originHubId, true),
-                "200",
-                "SUCCESS"
-            ));
-
-        given(hubClient.existsHub(eq(destinationHubId), eq(INTERNAL_HEADER)))
-            .willReturn(new HubExistsResponse(
-                true,
-                new HubExistsResponse.HubExistsData(destinationHubId, true),
-                "200",
-                "SUCCESS"
-            ));
-    }
-
-    /**
-     * 배송 저장 후 경로 생성을 위한 최적 경로 의존성을 설정하는 헬퍼 메서드
-     */
-    private void givenOptimalRoute(UUID originHubId, UUID destinationHubId) {
-        given(hubClient.getOptimalRoute(eq(originHubId), eq(destinationHubId), eq(INTERNAL_HEADER)))
-            .willReturn(new OptimalRouteResponseWrapper(
-                200,
-                "SUCCESS",
-                new OptimalRouteResponseWrapper.OptimalRouteResponse(
-                    originHubId,
-                    destinationHubId,
-                    30,
-                    10.0,
-                    List.of(
-                        new OptimalRouteResponseWrapper.RoutePathResponse(
-                            1,
-                            originHubId,
-                            destinationHubId,
-                            30,
-                            10.0
-                        )
-                    )
-                )
-            ));
-    }
-
     @Test
     @DisplayName("배송 생성 성공 - 활성 업체 정보로 배송 생성 및 경로 로그 생성 확인")
     void create_delivery_success() {
@@ -184,6 +130,7 @@ class DeliveryServiceImplTest {
             30,
             null
         );
+
         given(deliveryRouteLogRepository.findAllByDeliveryIdAndDeletedAtIsNullOrderBySequenceNoAsc(any()))
             .willReturn(List.of(mockRouteLog));
 
@@ -194,7 +141,6 @@ class DeliveryServiceImplTest {
         assertThat(response.originHubId()).isEqualTo(FIXED_ORIGIN_HUB_ID);
         assertThat(response.destinationHubId()).isEqualTo(FIXED_DESTINATION_HUB_ID);
         assertThat(response.deliveryStatus()).isEqualTo(DeliveryStatus.WAITING_AT_HUB);
-
         assertThat(response.routeLogs()).hasSize(1);
         assertThat(response.routeLogs().get(0).sequenceNo()).isEqualTo(1);
 
@@ -222,14 +168,12 @@ class DeliveryServiceImplTest {
         );
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
-
         givenCommonCreateDependencies(
             supplierCompanyId,
             receiverCompanyId,
             FIXED_ORIGIN_HUB_ID,
             FIXED_DESTINATION_HUB_ID
         );
-
         givenMultiSegmentOptimalRoute(
             FIXED_ORIGIN_HUB_ID,
             firstRelayHubId,
@@ -303,7 +247,6 @@ class DeliveryServiceImplTest {
         UUID companyManagerId = UUID.randomUUID();
         UUID hubManagerId1 = UUID.randomUUID();
         UUID hubManagerId2 = UUID.randomUUID();
-
         UUID firstRelayHubId = UUID.randomUUID();
 
         CreateDeliveryRequest request = new CreateDeliveryRequest(
@@ -316,7 +259,6 @@ class DeliveryServiceImplTest {
         );
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
-
         givenCommonCreateDependencies(
             supplierCompanyId,
             receiverCompanyId,
@@ -548,16 +490,18 @@ class DeliveryServiceImplTest {
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
         given(companyClient.getCompany(supplierCompanyId))
-            .willReturn(new CompanyInternalResponse(
-                supplierCompanyId,
-                "비활성 공급업체",
-                "PRODUCER",
-                UUID.randomUUID(),
-                "서울시 송파구 올림픽로 1",
-                "201호",
-                "공급담당자",
-                "U_SUPPLIER",
-                false
+            .willReturn(companyResponse(
+                new CompanyInternalResponse(
+                    supplierCompanyId,
+                    "비활성 공급업체",
+                    "PRODUCER",
+                    UUID.randomUUID(),
+                    "서울시 송파구 올림픽로 1",
+                    "201호",
+                    "공급담당자",
+                    "U_SUPPLIER",
+                    false
+                )
             ));
 
         assertThatThrownBy(() -> deliveryService.createDelivery(request))
@@ -583,18 +527,20 @@ class DeliveryServiceImplTest {
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
         given(companyClient.getCompany(supplierCompanyId))
-            .willReturn(activeSupplierCompanyResponse(supplierCompanyId, UUID.randomUUID()));
+            .willReturn(companyResponse(activeSupplierCompanyResponse(supplierCompanyId, UUID.randomUUID())));
         given(companyClient.getCompany(receiverCompanyId))
-            .willReturn(new CompanyInternalResponse(
-                receiverCompanyId,
-                "비활성 수령업체",
-                "RECEIVER",
-                UUID.randomUUID(),
-                "서울시 강남구 테헤란로 123",
-                "101호",
-                "홍길동",
-                "U12345678",
-                false
+            .willReturn(companyResponse(
+                new CompanyInternalResponse(
+                    receiverCompanyId,
+                    "비활성 수령업체",
+                    "RECEIVER",
+                    UUID.randomUUID(),
+                    "서울시 강남구 테헤란로 123",
+                    "101호",
+                    "홍길동",
+                    "U12345678",
+                    false
+                )
             ));
 
         assertThatThrownBy(() -> deliveryService.createDelivery(request))
@@ -620,19 +566,21 @@ class DeliveryServiceImplTest {
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
         given(companyClient.getCompany(supplierCompanyId))
-            .willReturn(new CompanyInternalResponse(
-                supplierCompanyId,
-                "공급 업체",
-                "PRODUCER",
-                null,
-                "서울시 송파구 올림픽로 1",
-                "201호",
-                "공급담당자",
-                "U_SUPPLIER",
-                true
+            .willReturn(companyResponse(
+                new CompanyInternalResponse(
+                    supplierCompanyId,
+                    "공급 업체",
+                    "PRODUCER",
+                    null,
+                    "서울시 송파구 올림픽로 1",
+                    "201호",
+                    "공급담당자",
+                    "U_SUPPLIER",
+                    true
+                )
             ));
         given(companyClient.getCompany(receiverCompanyId))
-            .willReturn(activeReceiverCompanyResponse(receiverCompanyId, UUID.randomUUID()));
+            .willReturn(companyResponse(activeReceiverCompanyResponse(receiverCompanyId, UUID.randomUUID())));
 
         assertThatThrownBy(() -> deliveryService.createDelivery(request))
             .isInstanceOf(ServiceException.class)
@@ -657,18 +605,20 @@ class DeliveryServiceImplTest {
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
         given(companyClient.getCompany(supplierCompanyId))
-            .willReturn(activeSupplierCompanyResponse(supplierCompanyId, UUID.randomUUID()));
+            .willReturn(companyResponse(activeSupplierCompanyResponse(supplierCompanyId, UUID.randomUUID())));
         given(companyClient.getCompany(receiverCompanyId))
-            .willReturn(new CompanyInternalResponse(
-                receiverCompanyId,
-                "수령 업체",
-                "RECEIVER",
-                null,
-                "서울시 강남구 테헤란로 123",
-                "101호",
-                "홍길동",
-                "U12345678",
-                true
+            .willReturn(companyResponse(
+                new CompanyInternalResponse(
+                    receiverCompanyId,
+                    "수령 업체",
+                    "RECEIVER",
+                    null,
+                    "서울시 강남구 테헤란로 123",
+                    "101호",
+                    "홍길동",
+                    "U12345678",
+                    true
+                )
             ));
 
         assertThatThrownBy(() -> deliveryService.createDelivery(request))
@@ -694,18 +644,20 @@ class DeliveryServiceImplTest {
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
         given(companyClient.getCompany(supplierCompanyId))
-            .willReturn(activeSupplierCompanyResponse(supplierCompanyId, UUID.randomUUID()));
+            .willReturn(companyResponse(activeSupplierCompanyResponse(supplierCompanyId, UUID.randomUUID())));
         given(companyClient.getCompany(receiverCompanyId))
-            .willReturn(new CompanyInternalResponse(
-                receiverCompanyId,
-                "수령 업체",
-                "RECEIVER",
-                UUID.randomUUID(),
-                "",
-                "101호",
-                "홍길동",
-                "U12345678",
-                true
+            .willReturn(companyResponse(
+                new CompanyInternalResponse(
+                    receiverCompanyId,
+                    "수령 업체",
+                    "RECEIVER",
+                    UUID.randomUUID(),
+                    "",
+                    "101호",
+                    "홍길동",
+                    "U12345678",
+                    true
+                )
             ));
 
         assertThatThrownBy(() -> deliveryService.createDelivery(request))
@@ -731,18 +683,20 @@ class DeliveryServiceImplTest {
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
         given(companyClient.getCompany(supplierCompanyId))
-            .willReturn(activeSupplierCompanyResponse(supplierCompanyId, UUID.randomUUID()));
+            .willReturn(companyResponse(activeSupplierCompanyResponse(supplierCompanyId, UUID.randomUUID())));
         given(companyClient.getCompany(receiverCompanyId))
-            .willReturn(new CompanyInternalResponse(
-                receiverCompanyId,
-                "수령 업체",
-                "RECEIVER",
-                UUID.randomUUID(),
-                "서울시 강남구 테헤란로 123",
-                "101호",
-                "",
-                "U12345678",
-                true
+            .willReturn(companyResponse(
+                new CompanyInternalResponse(
+                    receiverCompanyId,
+                    "수령 업체",
+                    "RECEIVER",
+                    UUID.randomUUID(),
+                    "서울시 강남구 테헤란로 123",
+                    "101호",
+                    "",
+                    "U12345678",
+                    true
+                )
             ));
 
         assertThatThrownBy(() -> deliveryService.createDelivery(request))
@@ -768,18 +722,20 @@ class DeliveryServiceImplTest {
 
         given(deliveryRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).willReturn(false);
         given(companyClient.getCompany(supplierCompanyId))
-            .willReturn(activeSupplierCompanyResponse(supplierCompanyId, UUID.randomUUID()));
+            .willReturn(companyResponse(activeSupplierCompanyResponse(supplierCompanyId, UUID.randomUUID())));
         given(companyClient.getCompany(receiverCompanyId))
-            .willReturn(new CompanyInternalResponse(
-                receiverCompanyId,
-                "수령 업체",
-                "RECEIVER",
-                UUID.randomUUID(),
-                "서울시 강남구 테헤란로 123",
-                "101호",
-                "홍길동",
-                "",
-                true
+            .willReturn(companyResponse(
+                new CompanyInternalResponse(
+                    receiverCompanyId,
+                    "수령 업체",
+                    "RECEIVER",
+                    UUID.randomUUID(),
+                    "서울시 강남구 테헤란로 123",
+                    "101호",
+                    "홍길동",
+                    "",
+                    true
+                )
             ));
 
         assertThatThrownBy(() -> deliveryService.createDelivery(request))
@@ -882,8 +838,8 @@ class DeliveryServiceImplTest {
     @DisplayName("배송 상태 변경 성공 - WAITING_AT_HUB 에서 MOVING_BETWEEN_HUBS 로 변경")
     void change_delivery_status_success() {
         UUID deliveryId = UUID.randomUUID();
-
         Delivery delivery = createDelivery();
+
         ChangeDeliveryStatusRequest request = new ChangeDeliveryStatusRequest(
             DeliveryStatus.MOVING_BETWEEN_HUBS
         );
@@ -902,8 +858,8 @@ class DeliveryServiceImplTest {
     @DisplayName("배송 상태 변경 실패 - 허용되지 않은 상태 전이")
     void change_delivery_status_fail_invalid_transition() {
         UUID deliveryId = UUID.randomUUID();
-
         Delivery delivery = createDelivery();
+
         ChangeDeliveryStatusRequest request = new ChangeDeliveryStatusRequest(
             DeliveryStatus.DELIVERED
         );
@@ -919,7 +875,6 @@ class DeliveryServiceImplTest {
     @DisplayName("배송 취소 성공 - WAITING_AT_HUB 상태에서만 가능")
     void cancel_delivery_success() {
         UUID deliveryId = UUID.randomUUID();
-
         Delivery delivery = createDelivery();
 
         given(deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)).willReturn(Optional.of(delivery));
@@ -935,7 +890,6 @@ class DeliveryServiceImplTest {
     @DisplayName("배송 취소 실패 - WAITING_AT_HUB 이외 상태에서는 불가")
     void cancel_delivery_fail_when_not_waiting() {
         UUID deliveryId = UUID.randomUUID();
-
         Delivery delivery = createDelivery();
         delivery.updateStatus(DeliveryStatus.MOVING_BETWEEN_HUBS);
 
@@ -954,7 +908,6 @@ class DeliveryServiceImplTest {
         CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), "HUB_ADMIN", destinationHubId, null);
 
         Delivery delivery = createDeliveryWithDestinationHub(destinationHubId);
-
         DeliveryManager manager = createCompanyDeliveryManager(destinationHubId);
         AssignCompanyDeliveryManagerRequest request = new AssignCompanyDeliveryManagerRequest(manager.getId());
 
@@ -977,19 +930,12 @@ class DeliveryServiceImplTest {
         UUID managerId = UUID.randomUUID();
         UUID destinationHubId = UUID.randomUUID();
 
-        CurrentUser currentUser = new CurrentUser(
-            UUID.randomUUID(),
-            "HUB_ADMIN",
-            destinationHubId,
-            null
-        );
-
+        CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), "HUB_ADMIN", destinationHubId, null);
         Delivery delivery = createDeliveryWithDestinationHub(destinationHubId);
         AssignCompanyDeliveryManagerRequest request = new AssignCompanyDeliveryManagerRequest(managerId);
 
         given(deliveryRepository.findByIdAndDeletedAtIsNull(deliveryId)).willReturn(Optional.of(delivery));
-        given(deliveryManagerRepository.findByIdAndDeletedAtIsNull(managerId))
-            .willReturn(Optional.empty());
+        given(deliveryManagerRepository.findByIdAndDeletedAtIsNull(managerId)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> deliveryService.assignCompanyDeliveryManager(deliveryId, request, currentUser))
             .isInstanceOf(ServiceException.class)
@@ -1004,7 +950,6 @@ class DeliveryServiceImplTest {
         CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), "HUB_ADMIN", destinationHubId, null);
 
         Delivery delivery = createDeliveryWithDestinationHub(destinationHubId);
-
         DeliveryManager manager = createHubDeliveryManager(destinationHubId);
         AssignCompanyDeliveryManagerRequest request = new AssignCompanyDeliveryManagerRequest(manager.getId());
 
@@ -1026,7 +971,6 @@ class DeliveryServiceImplTest {
         CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), "HUB_ADMIN", destinationHubId, null);
 
         Delivery delivery = createDeliveryWithDestinationHub(destinationHubId);
-
         DeliveryManager manager = createCompanyDeliveryManager(anotherHubId);
         AssignCompanyDeliveryManagerRequest request = new AssignCompanyDeliveryManagerRequest(manager.getId());
 
@@ -1204,7 +1148,6 @@ class DeliveryServiceImplTest {
     @DisplayName("배송 삭제 시 배송 경로 로그도 함께 soft delete")
     void delete_delivery_soft_delete_route_logs() {
         UUID deliveryId = UUID.randomUUID();
-
         Delivery delivery = createDelivery();
 
         DeliveryRouteLog routeLog = DeliveryRouteLog.create(
@@ -1389,6 +1332,87 @@ class DeliveryServiceImplTest {
             .hasMessage(DeliveryErrorCode.HUB_SERVICE_UNAVAILABLE.getMessage());
     }
 
+    private void givenCommonCreateDependencies(
+        UUID supplierCompanyId,
+        UUID receiverCompanyId,
+        UUID originHubId,
+        UUID destinationHubId
+    ) {
+        given(companyClient.getCompany(supplierCompanyId))
+            .willReturn(companyResponse(activeSupplierCompanyResponse(supplierCompanyId, originHubId)));
+        given(companyClient.getCompany(receiverCompanyId))
+            .willReturn(companyResponse(activeReceiverCompanyResponse(receiverCompanyId, destinationHubId)));
+
+        given(hubClient.existsHub(eq(originHubId), eq(INTERNAL_HEADER)))
+            .willReturn(new HubExistsResponse(
+                true,
+                new HubExistsResponse.HubExistsData(originHubId, true),
+                "200",
+                "SUCCESS"
+            ));
+
+        given(hubClient.existsHub(eq(destinationHubId), eq(INTERNAL_HEADER)))
+            .willReturn(new HubExistsResponse(
+                true,
+                new HubExistsResponse.HubExistsData(destinationHubId, true),
+                "200",
+                "SUCCESS"
+            ));
+    }
+
+    private void givenOptimalRoute(UUID originHubId, UUID destinationHubId) {
+        given(hubClient.getOptimalRoute(eq(originHubId), eq(destinationHubId), eq(INTERNAL_HEADER)))
+            .willReturn(new OptimalRouteResponseWrapper(
+                200,
+                "SUCCESS",
+                new OptimalRouteResponseWrapper.OptimalRouteResponse(
+                    originHubId,
+                    destinationHubId,
+                    30,
+                    10.0,
+                    List.of(
+                        new OptimalRouteResponseWrapper.RoutePathResponse(
+                            1,
+                            originHubId,
+                            destinationHubId,
+                            30,
+                            10.0
+                        )
+                    )
+                )
+            ));
+    }
+
+    private void givenMultiSegmentOptimalRoute(
+        UUID originHubId,
+        UUID firstRelayHubId,
+        UUID secondRelayHubId,
+        UUID destinationHubId
+    ) {
+        given(hubClient.getOptimalRoute(eq(originHubId), eq(destinationHubId), eq(INTERNAL_HEADER)))
+            .willReturn(new OptimalRouteResponseWrapper(
+                200,
+                "SUCCESS",
+                new OptimalRouteResponseWrapper.OptimalRouteResponse(
+                    originHubId,
+                    destinationHubId,
+                    180,
+                    120.0,
+                    List.of(
+                        new OptimalRouteResponseWrapper.RoutePathResponse(
+                            1, originHubId, firstRelayHubId, 50, 30.0
+                        ),
+                        new OptimalRouteResponseWrapper.RoutePathResponse(
+                            2, firstRelayHubId, secondRelayHubId, 60, 40.0
+                        ),
+                        new OptimalRouteResponseWrapper.RoutePathResponse(
+                            3, secondRelayHubId, destinationHubId, 70, 50.0
+                        )
+                    )
+                )
+            ));
+    }
+
     private Delivery createDelivery() {
         return Delivery.create(
             UUID.randomUUID(),
@@ -1465,14 +1489,23 @@ class DeliveryServiceImplTest {
         );
     }
 
+    private CompanyResponseWrapper companyResponse(CompanyInternalResponse company) {
+        return new CompanyResponseWrapper(
+            true,
+            company,
+            "200",
+            "SUCCESS"
+        );
+    }
+
     private FeignException feignBadRequestException() {
         return FeignException.errorStatus(
             "test",
-            feign.Response.builder()
+            Response.builder()
                 .status(400)
                 .reason("Bad Request")
-                .request(feign.Request.create(
-                    feign.Request.HttpMethod.GET,
+                .request(Request.create(
+                    Request.HttpMethod.GET,
                     "http://localhost/test",
                     java.util.Map.of(),
                     null,
@@ -1487,11 +1520,11 @@ class DeliveryServiceImplTest {
     private FeignException feignNotFoundException() {
         return FeignException.errorStatus(
             "test",
-            feign.Response.builder()
+            Response.builder()
                 .status(404)
                 .reason("Not Found")
-                .request(feign.Request.create(
-                    feign.Request.HttpMethod.GET,
+                .request(Request.create(
+                    Request.HttpMethod.GET,
                     "http://localhost/test",
                     java.util.Map.of(),
                     null,
@@ -1501,35 +1534,5 @@ class DeliveryServiceImplTest {
                 .headers(java.util.Map.of())
                 .build()
         );
-    }
-
-    private void givenMultiSegmentOptimalRoute(
-        UUID originHubId,
-        UUID firstRelayHubId,
-        UUID secondRelayHubId,
-        UUID destinationHubId
-    ) {
-        given(hubClient.getOptimalRoute(eq(originHubId), eq(destinationHubId), eq(INTERNAL_HEADER)))
-            .willReturn(new OptimalRouteResponseWrapper(
-                200,
-                "SUCCESS",
-                new OptimalRouteResponseWrapper.OptimalRouteResponse(
-                    originHubId,
-                    destinationHubId,
-                    180,
-                    120.0,
-                    List.of(
-                        new OptimalRouteResponseWrapper.RoutePathResponse(
-                            1, originHubId, firstRelayHubId, 50, 30.0
-                        ),
-                        new OptimalRouteResponseWrapper.RoutePathResponse(
-                            2, firstRelayHubId, secondRelayHubId, 60, 40.0
-                        ),
-                        new OptimalRouteResponseWrapper.RoutePathResponse(
-                            3, secondRelayHubId, destinationHubId, 70, 50.0
-                        )
-                    )
-                )
-            ));
     }
 }
