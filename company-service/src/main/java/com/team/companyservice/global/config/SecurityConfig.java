@@ -78,7 +78,7 @@ public class SecurityConfig {
                 .hasAnyRole("MASTER_ADMIN", "HUB_ADMIN", "COMPANY_MANAGER")
 
                 // 업체 관리자 지정
-                .requestMatchers(HttpMethod.PATCH, "/api/v1/companies/**/manager")
+                .requestMatchers(HttpMethod.PATCH, "/api/v1/companies/*/manager")
                 .hasAnyRole("MASTER_ADMIN", "HUB_ADMIN")
 
                 // 업체 삭제
