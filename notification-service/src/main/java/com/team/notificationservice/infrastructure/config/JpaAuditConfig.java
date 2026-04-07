@@ -8,11 +8,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.domain.AuditorAware;
+import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 @Slf4j
 @Configuration
+@EnableJpaAuditing
 public class JpaAuditConfig {
     @Bean
     public AuditorAware<UUID> auditorProvider() {
