@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +27,10 @@ public class HubRouteOptimalService {
         this.hubRouteRepository = hubRouteRepository;
     }
 
+    @Cacheable(
+        value = "optimalRoutes",
+        key = "#query.departureHubId + ':' + #query.arrivalHubId"
+    )
     public OptimalRouteResult findOptimalRoute(OptimalRouteQuery query) {
         List<HubRoute> allRoutes = hubRouteRepository.findAll();
         Map<UUID, List<HubRoute>> graph = buildGraph(allRoutes);
