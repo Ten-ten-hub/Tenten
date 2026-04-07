@@ -157,7 +157,8 @@ docker run -d -p 9411:9411 openzipkin/zipkin
 * Notification: `p_notification`
 * AI: `p_ai_analysis`
   
-<img width="3830" height="2618" alt="image" src="https://github.com/user-attachments/assets/aa44ca7b-d721-42bb-ac00-0aa0f13c2815" />
+<img width="3830" height="2638" alt="image" src="https://github.com/user-attachments/assets/51296f56-7a23-43fb-ab87-51c0f91cdced" />
+
 
 
 ---
