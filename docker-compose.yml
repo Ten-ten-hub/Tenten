@@ -313,6 +313,8 @@ services:
             <<: *common-env
             AI_DB_URL: jdbc:postgresql://postgres:5432/tenten_ai
             OPENAI_API_KEY: ${OPENAI_API_KEY}
+            NAVER_API_CLIENT_KEY: ${NAVER_API_CLIENT_KEY}
+            NAVER_API_CLIENT_SECRET: ${NAVER_API_CLIENT_SECRET}
         depends_on:
             eureka-server:
                 condition: service_healthy
