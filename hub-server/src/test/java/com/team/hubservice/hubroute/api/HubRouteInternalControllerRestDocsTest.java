@@ -1,16 +1,16 @@
 package com.team.hubservice.hubroute.api;
 
 import com.team.hubservice.global.security.HubSecurityConfig;
-import com.team.hubservice.hubroute.application.HubRouteAiService;
-import com.team.hubservice.hubroute.application.HubRouteOptimalService;
-import com.team.hubservice.hubroute.application.HubRouteTmapSyncService;
-import com.team.hubservice.hubroute.application.OptimalRouteQuery;
-import com.team.hubservice.hubroute.application.OptimalRouteResult;
-import com.team.hubservice.hubroute.application.RoutePathInfo;
-import com.team.hubservice.hubroute.application.TmapHubRouteSyncResult;
+import com.team.hubservice.hubroute.application.service.HubRouteAiService;
+import com.team.hubservice.hubroute.application.service.HubRouteOptimalService;
+import com.team.hubservice.hubroute.application.service.HubRouteTmapSyncService;
+import com.team.hubservice.hubroute.application.dto.optimal.OptimalRouteQuery;
+import com.team.hubservice.hubroute.application.dto.optimal.OptimalRouteResult;
+import com.team.hubservice.hubroute.application.dto.optimal.RoutePathInfo;
+import com.team.hubservice.hubroute.application.dto.sync.TmapHubRouteSyncResult;
 import com.team.hubservice.hubroute.infrastructure.tmap.TmapRouteMetrics;
-import com.team.hubservice.hubroute.presentation.HubRouteInternalController;
-import com.team.hubservice.hubroute.presentation.dto.AiRouteResponse;
+import com.team.hubservice.hubroute.presentation.controller.HubRouteInternalController;
+import com.team.hubservice.hubroute.presentation.dto.ai.AiRouteResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
