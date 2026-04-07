@@ -50,6 +50,7 @@ public class HubService {
         return HubResult.from(findHubById(hubId));
     }
 
+    @Cacheable(value = "hubs", key = "#hubId")
     public HubResult getHubInternal(UUID hubId) {
         return HubResult.from(findHubById(hubId));
     }
