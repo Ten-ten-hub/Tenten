@@ -2,6 +2,7 @@ package com.team.deliveryservice.infrastructure.client;
 
 import com.team.deliveryservice.global.config.FeignRetryConfig;
 import com.team.deliveryservice.infrastructure.client.dto.CompanyInternalResponse;
+import com.team.deliveryservice.infrastructure.client.dto.CompanyResponseWrapper;
 import java.util.UUID;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,5 +15,5 @@ import org.springframework.web.bind.annotation.PathVariable;
 public interface CompanyClient {
 
     @GetMapping("/internal/v1/companies/{companyId}")
-    CompanyInternalResponse getCompany(@PathVariable UUID companyId);
+    CompanyResponseWrapper getCompany(@PathVariable UUID companyId);
 }

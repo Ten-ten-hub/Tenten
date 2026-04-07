@@ -352,7 +352,8 @@ public class DeliveryServiceImpl implements DeliveryService {
 
     private CompanyInternalResponse getActiveCompany(UUID companyId) {
         try {
-            CompanyInternalResponse company = companyClient.getCompany(companyId);
+            CompanyResponseWrapper response = companyClient.getCompany(companyId);
+            CompanyInternalResponse company = response != null ? response.data() : null;
 
             if (company == null || company.id() == null || !company.active()) {
                 log.warn("[배송 생성] 업체 없음 또는 비활성 companyId={}", companyId);
