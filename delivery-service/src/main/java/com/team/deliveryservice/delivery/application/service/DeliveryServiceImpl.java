@@ -1,7 +1,11 @@
 package com.team.deliveryservice.delivery.application.service;
 
 import com.team.common.page.PageSizeUtils;
-import com.team.deliveryservice.delivery.application.dto.request.*;
+import com.team.deliveryservice.delivery.application.dto.request.AssignCompanyDeliveryManagerRequest;
+import com.team.deliveryservice.delivery.application.dto.request.AssignHubDeliveryManagerRequest;
+import com.team.deliveryservice.delivery.application.dto.request.ChangeDeliveryStatusRequest;
+import com.team.deliveryservice.delivery.application.dto.request.CreateDeliveryRequest;
+import com.team.deliveryservice.delivery.application.dto.request.UpdateDeliveryRequest;
 import com.team.deliveryservice.delivery.application.dto.response.AiDeliveryResponse;
 import com.team.deliveryservice.delivery.application.dto.response.DeliveryPageResponse;
 import com.team.deliveryservice.delivery.application.dto.response.DeliveryResponse;
@@ -17,23 +21,31 @@ import com.team.deliveryservice.deliverymanager.domain.DeliveryManagerType;
 import com.team.deliveryservice.global.common.CurrentUser;
 import com.team.deliveryservice.global.error.DeliveryErrorCode;
 import com.team.deliveryservice.global.error.ServiceException;
+import com.team.deliveryservice.infrastructure.client.AiClient;
 import com.team.deliveryservice.infrastructure.client.CompanyClient;
 import com.team.deliveryservice.infrastructure.client.HubClient;
 import com.team.deliveryservice.infrastructure.client.OrderClient;
-import com.team.deliveryservice.infrastructure.client.dto.*;
+import com.team.deliveryservice.infrastructure.client.dto.AiRequest;
+import com.team.deliveryservice.infrastructure.client.dto.CompanyInternalResponse;
+import com.team.deliveryservice.infrastructure.client.dto.CompanyResponseWrapper;
+import com.team.deliveryservice.infrastructure.client.dto.HubExistsResponse;
+import com.team.deliveryservice.infrastructure.client.dto.HubInternalResponse;
+import com.team.deliveryservice.infrastructure.client.dto.OptimalRouteResponseWrapper;
+import com.team.deliveryservice.infrastructure.client.dto.OrderInternalResponse;
 import feign.FeignException;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -52,6 +64,7 @@ public class DeliveryServiceImpl implements DeliveryService {
     private final HubClient hubClient;
     private final CompanyClient companyClient;
     private final OrderClient orderClient;
+    private final AiClient aiClient;
 
     @Override
     @Transactional
@@ -96,12 +109,37 @@ public class DeliveryServiceImpl implements DeliveryService {
             Delivery savedDelivery = deliveryRepository.save(delivery);
             createRouteLogs(savedDelivery);
             deliveryManagerAutoAssignService.autoAssign(savedDelivery);
+            triggerAiProcess(savedDelivery);
             return DeliveryResponse.from(savedDelivery, getRouteLogs(savedDelivery.getId()));
         } catch (DataIntegrityViolationException e) {
             if (isOrderIdUniqueViolation(e)) {
                 throw new ServiceException(DeliveryErrorCode.DELIVERY_ALREADY_EXISTS);
             }
             throw new ServiceException(DeliveryErrorCode.COMMON_INVALID_INPUT);
+        }
+    }
+
+    private void triggerAiProcess(Delivery delivery) {
+        try {
+            AiDeliveryResponse aiInfo = getAiDeliveryInfo(delivery.getId());
+
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            String userId = (auth != null) ? auth.getName() : "00000000-0000-0000-0000-000000000001";
+            String role = (auth != null && !auth.getAuthorities().isEmpty())
+                ? auth.getAuthorities().iterator().next().getAuthority() : "MASTER_ADMIN";
+
+            AiRequest aiRequest = new AiRequest(
+                aiInfo.getOrderId(), aiInfo.getProductName(),
+                aiInfo.getOriginHubId(), aiInfo.getOriginHubName(), aiInfo.getOriginAddress(),
+                aiInfo.getDestinationHubId(), aiInfo.getDestinationHubName(), aiInfo.getDestinationAddress(),
+                aiInfo.getOrderRequestDetails(), aiInfo.getReceiverSlackId(), "09:00 - 18:00"
+            );
+
+            aiClient.triggerAiAnalysis(INTERNAL_REQUEST_HEADER, userId, role, aiRequest);
+            log.info("[AI 트리거 성공] OrderID: {}", delivery.getOrderId());
+
+        } catch (Exception e) {
+            log.error("[AI 트리거 실패] 배송 생성은 완료되었으나 AI 분석은 시작되지 않음: {}", e.getMessage());
         }
     }
 
@@ -131,13 +169,13 @@ public class DeliveryServiceImpl implements DeliveryService {
             deliveryIds.isEmpty()
                 ? Map.of()
                 : deliveryRouteLogRepository
-                .findAllByDeliveryIdInAndDeletedAtIsNullOrderBySequenceNoAsc(deliveryIds)
-                .stream()
-                .collect(Collectors.groupingBy(
-                    DeliveryRouteLog::getDeliveryId,
-                    LinkedHashMap::new,
-                    Collectors.mapping(DeliveryRouteLogResponse::from, Collectors.toList())
-                ));
+                    .findAllByDeliveryIdInAndDeletedAtIsNullOrderBySequenceNoAsc(deliveryIds)
+                    .stream()
+                    .collect(Collectors.groupingBy(
+                        DeliveryRouteLog::getDeliveryId,
+                        LinkedHashMap::new,
+                        Collectors.mapping(DeliveryRouteLogResponse::from, Collectors.toList())
+                    ));
 
         var responsePage = pageResult.map(delivery ->
             DeliveryResponse.from(

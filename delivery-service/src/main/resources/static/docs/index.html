@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="">
+<html lang="ko">
 <head>
 <meta charset="UTF-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -562,6 +562,24 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 업체 배송 담당자 / 허브 배송 담당자 배정 기능을 제공합니다.</p>
 </div>
 <div class="paragraph">
+<p>배송 생성 시 허브 서비스의 최적 경로 정보를 기반으로 다구간 배송 경로(<code>route log</code>)를 생성하며,
+각 구간의 출발 허브 기준으로 허브 배송 담당자를 자동 배정하고,
+최종 도착 허브 기준으로 업체 배송 담당자를 자동 배정합니다.</p>
+</div>
+<div class="paragraph">
+<p>자동 배정 정책은 다음 순서를 따릅니다.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>활성 작업량이 적은 담당자 우선</p>
+</li>
+<li>
+<p>활성 작업량이 같으면 deliverySequence가 작은 담당자 우선</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
 <p>외부 API와 내부 API를 분리하여 문서화하며,
 Spring RestDocs 테스트를 통과한 API만 문서에 반영됩니다.</p>
 </div>
@@ -829,6 +847,10 @@ Content-Length: 1386
 </tr>
 </tbody>
 </table>
+<div class="paragraph">
+<p>응답에는 업체 배송 담당자 ID(<code>companyDeliveryManagerId</code>)와
+각 배송 경로별 허브 배송 담당자 ID(<code>routeLogs[].deliveryManagerId</code>)가 포함됩니다.</p>
+</div>
 <hr>
 </div>
 </div>
@@ -1163,6 +1185,10 @@ Content-Length: 1575
 </tr>
 </tbody>
 </table>
+<div class="paragraph">
+<p>응답의 각 배송 항목에는 업체 배송 담당자 ID와
+배송 경로별 허브 배송 담당자 ID가 포함될 수 있습니다.</p>
+</div>
 <hr>
 </div>
 </div>
@@ -2833,10 +2859,10 @@ Content-Length: 328
 Host: localhost:8080
 
 {
-  "orderId" : "c37ef0dc-5317-4ddf-a781-2add8bb2d2b6",
-  "orderedBy" : "1582f4f0-e850-4018-853f-c7d37bac46b3",
-  "supplierCompanyId" : "360f0708-78e4-4c43-9267-1a51d4fc698b",
-  "receiverCompanyId" : "4271dce8-0b93-479e-b51c-a37258068c90",
+  "orderId" : "6e7d33c8-a2c5-4fa5-b57e-cda668a00cce",
+  "orderedBy" : "2f68365b-5945-4d2e-a7b3-32d555f8020c",
+  "supplierCompanyId" : "53455251-d831-4821-a2a8-7122e5b57851",
+  "receiverCompanyId" : "f203fb91-71ba-4631-b7e2-c723afafa627",
   "deadlineAt" : "2026-04-01T18:00:00",
   "requestNote" : "문 앞에 놓아주세요"
 }</code></pre>
@@ -3111,6 +3137,10 @@ Content-Length: 1386
 </tr>
 </tbody>
 </table>
+<div class="paragraph">
+<p>내부 배송 생성 응답에는 자동 생성된 다구간 route log와
+자동 배정된 업체 / 허브 배송 담당자 정보가 포함될 수 있습니다.</p>
+</div>
 <hr>
 </div>
 </div>
@@ -4009,7 +4039,7 @@ Content-Length: 108
 <div id="footer">
 <div id="footer-text">
 Version 0.0.1-SNAPSHOT<br>
-Last updated 2026-04-06 22:57:21 +0900
+Last updated 2026-04-07 11:15:37 +0900
 </div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.18.3/highlight.min.js"></script>
