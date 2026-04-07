@@ -23,6 +23,8 @@ import org.springframework.test.web.servlet.MockMvc;
 @ImportAutoConfiguration(exclude = {
     org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration.class,
     org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration.class,
+    org.springframework.cloud.stream.config.BindingServiceConfiguration.class,
+    org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration.class,
     SecurityAutoConfiguration.class,
     SecurityFilterAutoConfiguration.class
 })
