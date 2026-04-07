@@ -42,6 +42,7 @@ public class ProductServiceImpl implements ProductService {
         // companyId 존재 여부 확인
         try {
             companyClient.checkCompanyExists(command.companyId());
+            log.info("[상품 생성] company id={}", command.companyId());
         } catch (FeignException.NotFound e) {
             log.warn("[상품 생성] 업체 없음 companyId={}", command.companyId(), e);
             throw new BusinessException(ProductErrorCode.COMPANY_NOT_FOUND);
@@ -53,19 +54,20 @@ public class ProductServiceImpl implements ProductService {
             throw new BusinessException(ProductErrorCode.SERVICE_UNAVAILABLE);
         }
 
-//        // hubId 존재 여부 확인 (허브 서비스 연결 해결 후 주석 해제)
-//        try {
-//            hubClient.checkHubExists(command.hubId());
-//        } catch (FeignException.NotFound e) {
-//            log.warn("[상품 생성] 허브 없음 hubId={}", command.hubId(), e);
-//            throw new BusinessException(ProductErrorCode.HUB_NOT_FOUND);
-//        } catch (FeignException e) {
-//            log.error("[상품 생성] 허브 서비스 호출 실패 hubId={}, status={}", command.hubId(), e.status(), e);
-//            throw new BusinessException(ProductErrorCode.SERVICE_UNAVAILABLE);
-//        } catch (Exception e) {
-//            log.error("[상품 생성] 허브 서비스 연결 실패 hubId={}", command.hubId(), e);
-//            throw new BusinessException(ProductErrorCode.SERVICE_UNAVAILABLE);
-//        }
+        // hubId 존재 여부 확인 (허브 서비스 연결 해결 후 주석 해제)
+        try {
+            hubClient.checkHubExists(command.hubId());
+            log.info("[상품 생성] hub id={}", command.hubId());
+        } catch (FeignException.NotFound e) {
+            log.warn("[상품 생성] 허브 없음 hubId={}", command.hubId(), e);
+            throw new BusinessException(ProductErrorCode.HUB_NOT_FOUND);
+        } catch (FeignException e) {
+            log.error("[상품 생성] 허브 서비스 호출 실패 hubId={}, status={}", command.hubId(), e.status(), e);
+            throw new BusinessException(ProductErrorCode.SERVICE_UNAVAILABLE);
+        } catch (Exception e) {
+            log.error("[상품 생성] 허브 서비스 연결 실패 hubId={}", command.hubId(), e);
+            throw new BusinessException(ProductErrorCode.SERVICE_UNAVAILABLE);
+        }
 
         Product product = Product.create(
             command.name(),
